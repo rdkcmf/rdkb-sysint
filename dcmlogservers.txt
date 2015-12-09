@@ -1,0 +1,4 @@
+DEV|10.253.97.249
+VBN|logs.xcal.tv
+PROD|logs.xcal.tv
+CQA|logs.xcal.tv
