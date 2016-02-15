@@ -2,8 +2,8 @@
 # This script is used tp log the up/down stream traffic for private network
 # zhicheng_qiu@cable.comcast.com
 
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 
-lockdir=/var/tmp/rxtx
 BIN_PATH=/fss/gw/usr/ccsp 
 if mkdir $lockdir; then
   #success
@@ -39,7 +39,7 @@ if [ "$tm_d" -gt "300" ]; then
 	rx_d=`$BIN_PATH/Sub64 $rx $rx_0`
 	#tx_d=$(($tx-$tx_0))
 	tx_d=`$BIN_PATH/Sub64 $tx $tx_0`
-	echo "$t |$ct_0 |$d|$x|$rx_d |$tx_d " >> /var/tmp/logs/RXTX100Log.txt
+	echo "$t |$ct_0 |$d|$x|$rx_d |$tx_d " >> $LOG_PATH/RXTX100Log.txt
 
 	t="RDKB_WiFiClientDrop"
 	count=`dmcli eRT getv Device.Hosts.HostNumberOfEntries| grep type | cut -d':' -f3 | tr -d " "`
@@ -56,7 +56,7 @@ if [ "$tm_d" -gt "300" ]; then
 			fi
 		fi
 	done
-	echo "$t |$d|$witotoal |$wlost" >> /var/tmp/logs/wificlientdrop.txt
+	echo "$t |$d|$witotoal |$wlost" >> $LOG_PATH/wificlientdrop.txt
 
 fi
 

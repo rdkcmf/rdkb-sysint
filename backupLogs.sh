@@ -1,20 +1,14 @@
 #!/bin/sh
 
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
-#RDK_LOGGER_PATH="/var/tmp"
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
-LOG_PATH="/var/tmp/logs/"
-LOG_BACK_UP_REBOOT="/nvram/logbackupreboot/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
-UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 MAC=`getMacAddressOnly`
 dte=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 needReboot="true"
-HAVECRASH="/var/tmp/processcrashed"
 
 getTFTPServer()
 {
@@ -100,7 +94,9 @@ backupLogsonReboot()
 	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dte
 	tar -cvzf $MAC"_Logs_$dte.tgz" $dte
 	echo "Created backup of all logs..."
+	rm -rf $dte	
  	ls
+
 	# ARRISXB3-2544 :
 	# It takes too long for the unit to reboot after TFTP is completed.
 	# Hence we can upload the logs once the unit boots up. We will flag it before reboot.
@@ -110,10 +106,11 @@ backupLogsonReboot()
    
 }
 
+Crashed_Process_Is=$2
 #Call function to upload log files on reboot
 if [ -e $HAVECRASH ]
 then
-    echo "RDKB_REBOOT : Rebooting due to PROCESS_CRASH"
+    echo "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
     rm -f $HAVECRASH
 fi
 backupLogsonReboot

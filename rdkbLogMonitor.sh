@@ -1,26 +1,12 @@
 #!/bin/sh
 
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
 
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
-LOG_PATH="/var/tmp/logs/"
-LOG_BACK_UP_PATH="/nvram/logbackup/"
-LOG_BACK_UP_REBOOT="/nvram/logbackupreboot/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
 
-
-MAXSIZE=524288
-#MAXSIZE=10000
 # We will keep max line size as 2 so that we will not lose any log message
-MAXLINESIZE=2
-if [ -z $LOG_PATH ]; then
-    LOG_PATH="/var/tmp/logs/"
-fi
-if [ -z $PERSISTENT_PATH ]; then
-    PERSISTENT_PATH="/tmp"
-fi
 
 
 #---------------------------------
@@ -30,7 +16,7 @@ fi
 #URL="http://ccpxcb-dt-a001-d-1.dt.ccp.cable.comcast.com:8080/xconf/logUploadManagement/getSettings/?"
 #URL="http://ssr.ccp.xcal.tv/cgi-bin/S3.cgi"
 # As per ARRISXB3-3149
-URL="https://ssr.ccp.xcal.tv/cgi-bin/rdkb.cgi"
+
 
 # File to save curl response 
 FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
@@ -182,7 +168,7 @@ getLineSizeandRotate()
 loop=1
 BUILD_TYPE=`getBuildType`
 SERVER=`getTFTPServer $BUILD_TYPE`
-LOG_FILE_FLAG="/var/tmp/filescreated"
+
 #tmp disable the flag now 
 #UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 
@@ -233,9 +219,9 @@ do
 			echo "RDKB_REBOOT: Device is up after reboot"
 			DeviceUP=1
 		fi
-	    sleep 5
+	    sleep 60
 	    
-	    if [ ! -e /var/tmp/uploading ]
+	    if [ ! -e $REGULAR_UPLOAD ]
 	    then
 		
 		if [ ! -d "$LOGTEMPPATH" ]

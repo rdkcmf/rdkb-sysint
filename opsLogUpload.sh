@@ -1,5 +1,24 @@
 #!/bin/sh
 
+#
+# If not stated otherwise in this file or this component's Licenses.txt
+# file the following copyright and licenses apply:
+#
+# Copyright 2015 RDK Management
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # Usage : ./opsLogUpload.sh <argument>
 # Arguments:
 #	upload - This will trigger an upload of current logs	
@@ -8,27 +27,24 @@
 #
 #
 #
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
 
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
+# This check is put to determine whether the image is Yocto or not
+if [ -f /etc/os-release ]; then
+   export PATH=$PATH:/fss/gw/
+fi
+
 CURLPATH="/fss/gw"
-LOG_PATH="/var/tmp/logs/"
-LOG_UPLOAD_ON_REQUEST="/nvram/loguploadonrequest/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
-UPLOAD_ON_REQUEST="/var/tmp/uploadingonrequest"
-UPLOAD_ON_REQUEST_SUCCESS="/nvram/uploadsuccess"
-REGULAR_UPLOAD="/var/tmp/uploading"
 MAC=`getMacAddressOnly`
 timeRequested=`date "+%m-%d-%y-%I-%M%p"`
 timeToUpload=`date`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
-UPLOADRESULT="/nvram/resultOfupload"
+
 WAN_INTERFACE="erouter0"
-OutputFile="/tmp/httpresult.txt"
-HTTP_CODE="/tmp/curl_httpcode"
-S3_URL="https://ssr.ccp.xcal.tv/cgi-bin/rdkb_snmp.cgi"
+
 
 ARGS=$1
 
@@ -89,7 +105,11 @@ TFTPLogUploadOnRequest()
 	# Get the file and upload it
 	FILE_NAME=`ls | grep "tgz"`
 	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER for build type "$BUILD_TYPE"..."
-	$CURLPATH/curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT
+    if [ -f /etc/os-release ]; then
+       curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT 
+    else
+	   $CURLPATH/curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT
+    fi
 
 	sleep 3
    
@@ -117,8 +137,12 @@ HTTPLogUploadOnRequest()
     #-T			--> Transfer FILE given to destination.
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
-    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
-    
+    if [ -f /etc/os-release ]; then
+        CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+    else
+        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+    fi
+
     echo "Curl Command built: $CURL_CMD"
     echo "File to be uploaded: $UploadFile"
     echo "S3 URL is : $S3_URL"
@@ -159,8 +183,11 @@ HTTPLogUploadOnRequest()
 	
 		echo "Generated KeyIs : "
 		echo $Key
-
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
+        if [ -f /etc/os-release ]; then
+           CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
+        else
+           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
+        fi
                
 		echo "Curl Command built: $CURL_CMD"
         retries=0
@@ -196,7 +223,11 @@ HTTPLogUploadOnRequest()
     elif [ $http_code -eq 302 ];then
 		echo "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+        if [ -f /etc/os-release ]; then
+           CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+        else
+           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+        fi
 		echo "Curl Command built: $CURL_CMD"               
 
         retries=0
@@ -227,8 +258,11 @@ HTTPLogUploadOnRequest()
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-               
+        if [ -f /etc/os-release ]; then
+           CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+        else
+           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+        fi       
 		echo "Curl Command built: $CURL_CMD"               
         retries=0
         while [ "$retries" -lt 3 ]

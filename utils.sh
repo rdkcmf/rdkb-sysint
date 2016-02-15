@@ -1,7 +1,7 @@
 #!/bin/sh
 # Scripts having common utility functions
 
-
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"

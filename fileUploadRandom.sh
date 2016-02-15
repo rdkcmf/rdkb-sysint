@@ -1,12 +1,7 @@
 #!/bin/sh
 
-LOG_PATH="/var/tmp/logs/"
-LOG_BACK_UP_PATH="/nvram/logbackup/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
-
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 source $RDK_LOGGER_PATH/logfiles.sh
-URL="https://ssr.ccp.xcal.tv/cgi-bin/rdkb.cgi"
 
 calcRandTimeandUpload()
 {

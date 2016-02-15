@@ -1,9 +1,7 @@
 #!/bin/sh
 # Script responsible for log upload based on protocol
 
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
-LOG_BACK_UP_REBOOT="/nvram/logbackupreboot/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 
 . $RDK_LOGGER_PATH/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
@@ -15,6 +13,9 @@ if [ $# -ne 4 ]; then
      echo "USAGE: $0 $1 $2 $3 $4"
 fi
 
+if [ -f /etc/os-release ]; then
+export PATH=$PATH:/fss/gw/
+fi
 
 # assign the input arguments
 TFTP_SERVER=$1
@@ -33,14 +34,35 @@ CURLPATH="/fss/gw"
 CA_CERT="/nvram/cacert.pem"
 
 VERSION="/fss/gw/version.txt"
-LOG_PATH="/var/tmp/logs/"
-LOG_BACK_UP_PATH="/nvram/logbackup/"
 
 http_code=0
 OutputFile='/tmp/httpresult.txt'
 HTTP_CODE="/tmp/curl_httpcode"
 
 # Function which will upload logs to TFTP server
+
+retryUpload()
+{
+	while : ; do
+	   sleep 10
+	   WAN_STATE=`sysevent get wan-status`
+       EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+
+	   if [ -f $WAITINGFORUPLOAD ]
+	   then
+		   if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
+		   then
+			touch $REGULAR_UPLOAD
+			HttpLogUpload
+			rm $REGULAR_UPLOAD
+			rm $WAITINGFORUPLOAD
+		   fi
+	   else
+		break
+	   fi
+	done
+		
+}
 TFTPLogUpload()
 {
 	if [ "$UploadOnReboot" = "true" ]
@@ -53,7 +75,11 @@ TFTPLogUpload()
 	FILE_NAME=`ls | grep "tgz"`
 	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
 	#tftp -l $FILE_NAME -p $TFTP_SERVER  
+if [ -f /etc/os-release ]; then
+	curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
+else
 	$CURLPATH/curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
+fi
 
 	sleep 3
    
@@ -93,7 +119,11 @@ HttpLogUpload()
     #-T			--> Transfer FILE given to destination.
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
+if [ -f /etc/os-release ]; then
+    CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
+else
     CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
+fi
     
     echo "Curl Command built: $CURL_CMD"
     echo "File to be uploaded: $UploadFile"
@@ -133,7 +163,11 @@ HttpLogUpload()
 	echo "Generated KeyIs : "
 	echo $Key
 
+if [ -f /etc/os-release ]; then
+        CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
+else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
+fi
     	
 	echo "Curl Command built: $CURL_CMD"               
         retries=0
@@ -165,7 +199,11 @@ HttpLogUpload()
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
     elif [ $http_code -eq 302 ];then
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
+if [ -f /etc/os-release ]; then
+        CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
+fi
 	
 	echo "Curl Command built: $CURL_CMD"               
         retries=0
@@ -193,7 +231,11 @@ HttpLogUpload()
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
+if [ -f /etc/os-release ]; then
+        CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+fi
              
 	echo "Curl Command built: $CURL_CMD"                 
         retries=0
@@ -236,18 +278,33 @@ HttpLogUpload()
 
 
 # Flag that a log upload is in progress. 
-if [ -e /var/tmp/uploading ]
+if [ -e $REGULAR_UPLOAD ]
 then
-	rm /var/tmp/uploading
+	rm $REGULAR_UPLOAD
 fi
 
-touch /var/tmp/uploading
+if [ -f $WAITINGFORUPLOAD ]
+then
+	rm -rf $WAITINGFORUPLOAD
+fi
+
+touch $REGULAR_UPLOAD
 
 #Check the protocol through which logs need to be uploaded
 if [ "$UploadProtocol" = "HTTP" ]
 then
-   echo "Upload HTTP_LOGS"
-   HttpLogUpload
+   WAN_STATE=`sysevent get wan-status`
+   EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+
+   if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
+   then
+	   echo "Upload HTTP_LOGS"
+	   HttpLogUpload
+   else
+	   echo "WAN is down, waiting for Upload LOGS"
+	   touch $WAITINGFORUPLOAD
+	   retryUpload &
+   fi
 elif [ "$UploadProtocol" = "TFTP" ]
 then
    echo "Upload TFTP_LOGS"
@@ -262,4 +319,4 @@ rm -rf $dirName
 cd $curDir
 
 # Remove the log in progress flag
-rm /var/tmp/uploading
+rm $REGULAR_UPLOAD

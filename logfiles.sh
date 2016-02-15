@@ -1,14 +1,10 @@
 #!/bin/sh
 
-RDK_LOGGER_PATH="/fss/gw/rdklogger"
-#RDK_LOGGER_PATH="/var/tmp"
-
+source /fss/gw/etc/utopia/service.d/log_env_var.sh
 source $RDK_LOGGER_PATH/utils.sh 
 #. $RDK_LOGGER_PATH/commonUtils.sh
 
-LOG_PATH="/var/tmp/logs/"
-LOG_BACK_UP_PATH="/nvram/logbackup/"
-LOGTEMPPATH="/var/tmp/backuplogs/"
+
 
 TR69Log="TR69log.txt.0"
 TR69LogsBackup="TR69log.txt.1"
@@ -66,8 +62,6 @@ dte=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 
 LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog"
-
-LOG_FILE_FLAG="/var/tmp/filescreated"
 
 moveFile()
 {        
