@@ -208,11 +208,11 @@ fi
 
 while [ $loop -eq 1 ]
 do
-    wanIp=`getIPAddress`
-    if [ ! $wanIp ] ;then
+   # wanIp=`getIPAddress`
+   # if [ ! $wanIp ] ;then
             #echo "waiting for IP ..."
-            sleep 15
-    else
+   #         sleep 15
+  #  else
 	
 		#cp /fss/gw/version.txt /var/tmp/logs/
 		if [ "$DeviceUP" -eq 0 ]; then
@@ -246,7 +246,7 @@ do
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 	    	fi
 	    fi
-    fi
+  #  fi
 		
               	
 done
