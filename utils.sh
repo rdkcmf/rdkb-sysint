@@ -2,6 +2,7 @@
 # Scripts having common utility functions
 
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_capture_path.sh
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"

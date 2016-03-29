@@ -1,6 +1,7 @@
 #!/bin/sh
 
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
 calcRandTimeandUpload()
