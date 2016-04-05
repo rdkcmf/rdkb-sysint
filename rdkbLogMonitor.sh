@@ -173,6 +173,9 @@ SERVER=`getTFTPServer $BUILD_TYPE`
 #tmp disable the flag now 
 #UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 
+#For rdkb-4260
+SW_UPGRADE_REBOOT="/nvram/reboot_due_to_sw_upgrade"
+
 #echo "Build Type is: $BUILD_TYPE"
 #echo "SERVER is: $SERVER"
 DeviceUP=0
@@ -209,17 +212,27 @@ fi
 
 while [ $loop -eq 1 ]
 do
-   # wanIp=`getIPAddress`
-   # if [ ! $wanIp ] ;then
+#    wanIp=`getIPAddress`
+#    if [ ! $wanIp ] ;then
             #echo "waiting for IP ..."
-   #         sleep 15
-  #  else
+#            sleep 15
+#    else
 	
 		#cp /fss/gw/version.txt /var/tmp/logs/
 		if [ "$DeviceUP" -eq 0 ]; then
-			echo "RDKB_REBOOT: Device is up after reboot"
-			DeviceUP=1
+			#for rdkb-4260
+			if [ -f "$SW_UPGRADE_REBOOT" ]; then
+				echo "RDKB_REBOOT: Device is up after reboot due to software upgrade"
+				#deleting reboot_due_to_sw_upgrade file
+				echo "Deleting file /nvram/reboot_due_to_sw_upgrade"
+				rm -rf /nvram/reboot_due_to_sw_upgrade
+				DeviceUP=1
+			else
+				echo "RDKB_REBOOT: Device is up after reboot"
+				DeviceUP=1
+			fi
 		fi
+
 	    sleep 60
 	    
 	    if [ ! -e $REGULAR_UPLOAD ]
@@ -247,7 +260,7 @@ do
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 	    	fi
 	    fi
-  #  fi
+#   fi
 		
               	
 done
