@@ -111,7 +111,11 @@ Crashed_Process_Is=$2
 #Call function to upload log files on reboot
 if [ -e $HAVECRASH ]
 then
-    echo "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
+    if [ "$Crashed_Process_Is" != "" ]
+    then
+	    echo "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
+    fi
+
     rm -f $HAVECRASH
 fi
 backupLogsonReboot
