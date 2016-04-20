@@ -25,7 +25,7 @@ calcRandTimeandUpload()
     sec_to_sleep=$(($min_to_sleep*60 + $rand_sec))
     sleep $sec_to_sleep;
     echo "RDK Logger : Trigger Maintenance Window log upload.."
-    backupAllLogs "$LOGTEMPPATH" "$LOG_BACK_UP_PATH" "cp"
+    backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0
 }

@@ -63,19 +63,22 @@ backupLogsonReboot()
 
 	rm -rf $LOG_BACK_UP_REBOOT*
 	
-	cd $LOG_PATH
-	FILES=`ls`
-
-	for f in $FILES
-	do
-         	rotateLogs $f
-	done
-
 	cd $LOG_BACK_UP_REBOOT
 	mkdir $dte
 
+	cd $LOG_PATH
+	FILES=`ls`
+
+	for fname in $FILES
+	do
+		# Copy all log files from the log directory to non-volatile memory
+		cp $fname $LOG_BACK_UP_REBOOT$dte ; >$fname;
+
+	done
+
+
+
     # No need of checking whether file exists. Move everything
-	moveFiles $LOGTEMPPATH $LOG_BACK_UP_REBOOT$dte
 
     #ret=`allFileExists $LOG_PATH`
 	
@@ -92,6 +95,7 @@ backupLogsonReboot()
 	#	done
 
 	#fi
+	cd $LOG_BACK_UP_REBOOT
 	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dte
 	tar -cvzf $MAC"_Logs_$dte.tgz" $dte
 	echo "Created backup of all logs..."

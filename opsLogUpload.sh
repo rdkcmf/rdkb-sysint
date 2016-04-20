@@ -313,21 +313,20 @@ uploadOnRequest()
 	    mkdir $LOG_UPLOAD_ON_REQUEST
 	fi
 
+	mkdir -p $LOG_UPLOAD_ON_REQUEST$timeRequested
 
 	cd $LOG_PATH
 	FILES=`ls`
 
-	for f in $FILES
+	for fname in $FILES
 	do
-         	rotateLogs $f
+		# Copy all log files from the log directory to non-volatile memory
+
+		cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested ; >$fname;
+
 	done
 
 	cd $LOG_UPLOAD_ON_REQUEST
-	mkdir $timeRequested
-
-	# Copy all log files from the log directory to non-volatile memory
-    	cp $LOGTEMPPATH* $LOG_UPLOAD_ON_REQUEST$timeRequested
-	
 	# Tar log files 	
 	tar -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
 	echo "Created backup of all logs..."

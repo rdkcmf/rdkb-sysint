@@ -117,17 +117,24 @@ getLogfileSize()
 {
 	curDir=`pwd`
 	#cd $LOG_PATH
-	cd $LOGTEMPPATH
+#	cd $LOGTEMPPATH
+	cd $LOG_PATH
 	FILES=`ls`
 	tempSize=0
 	totalSize=0
 
-	for f in $FILES
-	do
-        	tempSize=`wc -c $f | cut -f1 -d" "`
-        	totalSize=`expr $totalSize + $tempSize`
-	done
-	
+	if [ -f /etc/os-release ]; then
+
+		totalSize=`du -c | tail -1 | awk '{print $1}'`
+        else
+
+		for f in $FILES
+		do
+			tempSize=`wc -c $f | cut -f1 -d" "`
+			totalSize=`expr $totalSize + $tempSize`
+		done
+	fi
+
         cd $curDir
 }
 
@@ -238,25 +245,26 @@ do
 	    if [ ! -e $REGULAR_UPLOAD ]
 	    then
 		
-		if [ ! -d "$LOGTEMPPATH" ]
-		then
-			mkdir -p $LOGTEMPPATH
+	#	if [ ! -d "$LOGTEMPPATH" ]
+	#	then
+		#	mkdir -p $LOGTEMPPATH
 					
-		fi
-		if [ ! -e $LOG_FILE_FLAG ]
-		then
-			createFiles
-		fi
+	#	fi
 
-		getLineSizeandRotate	
+	#	if [ ! -e $LOG_FILE_FLAG ]
+	#	then
+	#		createFiles
+	#	fi
+
+		#getLineSizeandRotate	
 
 	    	getLogfileSize
 
 	    	if [ $totalSize -ge $MAXSIZE ]
 	    	then
 			#backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
-   			backupAllLogs "$LOGTEMPPATH" "$LOG_BACK_UP_PATH" "cp"
-			
+   			backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 	    	fi
 	    fi
