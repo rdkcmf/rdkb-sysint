@@ -55,6 +55,12 @@ LighttpdAccessLogsBackup="lighttpdaccess.log"
 LighttpdErrorLog="lighttpderror.log"
 LighttpdErrorLogsBackup="lighttpderror.log"
 
+HotspotLog="Hotspotlog.txt.0"
+HotspotLogsBackup="Hotspotlog.txt.1"
+
+DhcpSnoopLog="Dhcpsnooplog.txt.0"
+DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
+
 MiscLog="Misc.txt.0"
 
 MAC=`getMacAddressOnly`
@@ -62,7 +68,7 @@ HOST_IP=`getIPAddress`
 dte=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 
-LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog"
+LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog $HotspotLog $DhcpSnoopLog"
 
 moveFile()
 {        
