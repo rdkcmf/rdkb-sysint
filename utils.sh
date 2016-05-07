@@ -2,7 +2,6 @@
 # Scripts having common utility functions
 
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
@@ -45,6 +44,16 @@ getIPAddress()
     echo $wanIP
 }
 
+getCMIPAddress()
+{
+    address=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+    if [ ! "$address" ]; then
+       address=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+    fi
+    echo $address
+
+}
+
 processCheck()
 {
    ps -ef | grep $1 | grep -v grep > /dev/null 2>/dev/null 
@@ -83,7 +92,34 @@ Uptime()
 ## Get Model No of the box
 getModel()
 {
-  echo `cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2 | cut -d "_" -f 1`
+  grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2 | cut -d "_" -f 1
+}
+
+getFWVersion()
+{
+    grep imagename /version.txt | cut -d '=' -f2
+}
+
+getBuildType()
+{
+    str=$(getFWVersion)
+
+    echo $str | grep -q 'VBN'
+    if [[ $? -eq 0 ]] ; then
+        echo 'vbn'
+    else
+        echo $str | grep -q 'PROD'
+        if [[ $? -eq 0 ]] ; then
+            echo 'prod'
+        else
+            echo $str | grep -q 'QA'
+            if [[ $? -eq 0 ]] ; then
+                echo 'qa'
+            else
+                echo 'dev'
+            fi
+        fi
+    fi
 }
 
 

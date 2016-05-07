@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# ============================================================================
+# RDK MANAGEMENT, LLC CONFIDENTIAL AND PROPRIETARY
+# ============================================================================
+# This file (and its contents) are the intellectual property of RDK Management, LLC.
+# It may not be used, copied, distributed or otherwise  disclosed in whole or in
+# part without the express written permission of RDK Management, LLC.
+# ============================================================================
+# Copyright (c) 2014 RDK Management, LLC. All rights reserved.
+# ============================================================================
+#
+
+. /etc/include.properties
+. /etc/device.properties
+
+#Adding support for override for dcm.properties file in non-prod builds
+if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
+      . $PERSISTENT_PATH/dcm.properties
+else
+      . /etc/dcm.properties
+fi
+
+
+sh /lib/rdk/DCMscript.sh $DCM_LOG_SERVER $DCM_LOG_SERVER_URL $LOG_SERVER 0 1 &
+
+
