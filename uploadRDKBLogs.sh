@@ -14,7 +14,7 @@ if [ $# -ne 4 ]; then
      echo "USAGE: $0 $1 $2 $3 $4"
 fi
 
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 export PATH=$PATH:/fss/gw/
 fi
 
@@ -76,7 +76,7 @@ TFTPLogUpload()
 	FILE_NAME=`ls | grep "tgz"`
 	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
 	#tftp -l $FILE_NAME -p $TFTP_SERVER  
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 	curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
 else
 	$CURLPATH/curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
@@ -120,7 +120,7 @@ HttpLogUpload()
     #-T			--> Transfer FILE given to destination.
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
     CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
 else
     CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
@@ -164,7 +164,7 @@ fi
 	echo "Generated KeyIs : "
 	echo $Key
 
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
         CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
 else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
@@ -200,7 +200,8 @@ fi
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
     elif [ $http_code -eq 302 ];then
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
-if [ -f /etc/os-release ]; then
+
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
         CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
 else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
@@ -232,7 +233,7 @@ fi
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
         CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
 else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"

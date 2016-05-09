@@ -34,7 +34,7 @@ source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
 # This check is put to determine whether the image is Yocto or not
-if [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
 fi
 
@@ -106,7 +106,7 @@ TFTPLogUploadOnRequest()
 	# Get the file and upload it
 	FILE_NAME=`ls | grep "tgz"`
 	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER for build type "$BUILD_TYPE"..."
-    if [ -f /etc/os-release ]; then
+    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
        curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT 
     else
 	   $CURLPATH/curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT
@@ -138,7 +138,7 @@ HTTPLogUploadOnRequest()
     #-T			--> Transfer FILE given to destination.
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
-    if [ -f /etc/os-release ]; then
+    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
         CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
     else
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
@@ -184,7 +184,7 @@ HTTPLogUploadOnRequest()
 	
 		echo "Generated KeyIs : "
 		echo $Key
-        if [ -f /etc/os-release ]; then
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
         else
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
@@ -224,7 +224,7 @@ HTTPLogUploadOnRequest()
     elif [ $http_code -eq 302 ];then
 		echo "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
-        if [ -f /etc/os-release ]; then
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
         else
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
@@ -259,7 +259,7 @@ HTTPLogUploadOnRequest()
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
-        if [ -f /etc/os-release ]; then
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
         else
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"

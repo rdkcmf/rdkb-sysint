@@ -123,7 +123,7 @@ getLogfileSize()
 	tempSize=0
 	totalSize=0
 
-	if [ -f /etc/os-release ]; then
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 
 		totalSize=`du -c | tail -1 | awk '{print $1}'`
         else
