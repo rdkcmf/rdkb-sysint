@@ -24,6 +24,55 @@ UploadProtocol=$2
 UploadHttpLink=$3
 UploadOnReboot=$4
 
+
+getTFTPServer()
+{
+        if [ "$1" != "" ]
+        then
+		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
+		echo $logserver
+	fi
+}
+
+getBuildType()
+{
+   IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+   TEMPDEV=`echo $IMAGENAME | grep DEV`
+   if [ "$TEMPDEV" != "" ]
+   then
+       echo "DEV"
+   fi
+ 
+   TEMPVBN=`echo $IMAGENAME | grep VBN`
+   if [ "$TEMPVBN" != "" ]
+   then
+       echo "VBN"
+   fi
+
+   TEMPPROD=`echo $IMAGENAME | grep PROD`
+   if [ "$TEMPPROD" != "" ]
+   then
+       echo "PROD"
+   fi
+   
+   TEMPCQA=`echo $IMAGENAME | grep CQA`
+   if [ "$TEMPCQA" != "" ]
+   then
+       echo "CQA"
+   fi
+   
+}
+if [ "$TFTP_SERVER" == "" ]
+then
+	BUILD_TYPE=`getBuildType`
+	TFTP_SERVER=`getTFTPServer $BUILD_TYPE`
+fi
+
+if [ "$UploadHttpLink" == "" ]
+then
+	UploadHttpLink=$URL
+fi
+
 # initialize the variables
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
@@ -46,7 +95,7 @@ retryUpload()
 {
 	while : ; do
 	   sleep 10
-	   WAN_STATE=`sysevent get wan-status`
+	   WAN_STATE=`sysevent get wan_service-status`
        EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
 
 	   if [ -f $WAITINGFORUPLOAD ]
@@ -121,13 +170,15 @@ HttpLogUpload()
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-    CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
+    CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
 else
-    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 10 -m 10"
+    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
 fi
     
     echo "Curl Command built: $CURL_CMD"
     echo "File to be uploaded: $UploadFile"
+    UPTIME=`uptime`
+    echo "System Uptime is $UPTIME"
     echo "S3 URL is : $S3_URL"
 
     # Performing 3 tries for successful curl command execution.
@@ -164,11 +215,11 @@ fi
 	echo "Generated KeyIs : "
 	echo $Key
 
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-        CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
-else
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
-fi
+	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+	else
+		CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+	fi
     	
 	echo "Curl Command built: $CURL_CMD"               
         retries=0
@@ -195,17 +246,18 @@ fi
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ $http_code -eq 200 ];then
 	     echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	     rm -rf $UploadFile
         fi
 
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
     elif [ $http_code -eq 302 ];then
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
 
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-        CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
-else
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
-fi
+	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+	else
+		CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+	fi
 	
 	echo "Curl Command built: $CURL_CMD"               
         retries=0
@@ -265,6 +317,7 @@ fi
 		
             	echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
             	result=0
+		rm -rf $UploadFile	
         fi
     fi
     # Any other response code, log upload is unsuccessful.
@@ -273,6 +326,7 @@ fi
         	echo "LOG UPLOAD UNSUCCESSFUL TO S3"
 		echo "Do TFTP log Upload"
 		TFTPLogUpload
+		rm -rf $UploadFile
 		
     fi    
     echo $result
@@ -295,7 +349,7 @@ touch $REGULAR_UPLOAD
 #Check the protocol through which logs need to be uploaded
 if [ "$UploadProtocol" = "HTTP" ]
 then
-   WAN_STATE=`sysevent get wan-status`
+   WAN_STATE=`sysevent get wan_service-status`
    EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
 
    if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
@@ -312,13 +366,6 @@ then
    echo "Upload TFTP_LOGS"
    TFTPLogUpload
 fi
-
-# Remove the directory from non volatile memory
-curDir=`pwd`
-cd $LOG_BACK_UP_PATH
-dirName=`ls -d */`
-rm -rf $dirName
-cd $curDir
 
 # Remove the log in progress flag
 rm $REGULAR_UPLOAD
