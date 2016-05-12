@@ -212,10 +212,41 @@ then
    done
    sleep 120
    $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
+   UPLOADED_AFTER_REBOOT="true"
    sleep 2
    rm $UPLOAD_ON_REBOOT
    cd $curDir
 fi
+
+echo "Check if any tar file available in /logbackup/ "
+curDir=`pwd`
+cd $LOG_BACK_UP_PATH
+
+UploadFile=`ls | grep "tgz"`
+if [ "$UploadFile" != "" ]
+then
+   echo "File to be uploaded from logbackup/ is $UploadFile "
+	if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
+	then
+		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+	else
+	        while [ $loop -eq 1 ]
+	        do
+	    	     echo "Waiting for stack to come up completely to upload logs..."
+	      	     sleep 30
+	             WEBSERVER_STARTED=`sysevent get webserver`
+         	     if [ "$WEBSERVER_STARTED" == "started" ]
+	             then
+		        echo "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+		        break
+	            fi
+	        done
+	        sleep 120
+		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+	fi
+fi
+
+cd $curDir
 
 while [ $loop -eq 1 ]
 do
