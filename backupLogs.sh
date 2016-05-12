@@ -122,7 +122,14 @@ then
 
     rm -f $HAVECRASH
 fi
-backupLogsonReboot
+
+if [ "$3" == "wan-stopped" ]
+then
+	echo "Wan-stopped, take log back up"
+	backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+else
+	backupLogsonReboot	
+fi
 #sleep 3
 
 if [ "$1" != "" ]

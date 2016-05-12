@@ -137,6 +137,7 @@ backupAllLogs()
     cp /fss/gw/version.txt $dt
 	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
 	
+ 	rm -rf $dt
 	cd $workDir
 }
 
