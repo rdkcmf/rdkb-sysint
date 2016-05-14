@@ -101,6 +101,24 @@ createFiles()
 	touch $LOG_FILE_FLAG
 }
 
+createSysDescr()
+{
+	#Create sysdecr value
+	echo "Get all parameters to create sysDescr..."
+	description=`dmcli eRT getv Device.DeviceInfo.Description | grep value | cut -f3 -d :`
+	hwRevision=`dmcli eRT getv Device.DeviceInfo.HardwareVersion | grep value | cut -f3 -d : | tr -d ' '`
+	vendor=`dmcli eRT getv Device.DeviceInfo.Manufacturer | grep value | cut -f3 -d :`
+	bootloader=`dmcli eRT getv Device.DeviceInfo.X_CISCO_COM_BootloaderVersion | grep value | cut -f3 -d : | tr -d ' '`
+
+	swVersion=`dmcli eRT getv Device.DeviceInfo.SoftwareVersion | grep value | cut -f3 -d : | tr -d ' '` 
+	fwVersion=`dmcli eRT getv Device.DeviceInfo.X_CISCO_COM_FirmwareName | grep value | cut -f3 -d : | tr -d ' '`
+	sw_fw_version="$swVersion"_"$fwVersion"
+
+	modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -f3 -d : | tr -d ' '`
+	echo "RDKB_SYSDESCR : $description HW_REV: $hwRevision; VENDOR: $vendor; BOOTR: $bootloader; SW_REV: $sw_fw_version; MODEL: $modelName "
+	
+}
+
 
 backupAllLogs()
 {
@@ -112,6 +130,9 @@ backupAllLogs()
 	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 	
+	# Put system descriptor string in log file
+	createSysDescr
+
 	if [ ! -d "$destn" ]
 	then
 
@@ -134,7 +155,7 @@ backupAllLogs()
 	do
 		$operation $source$fname $dt; >$source$fname;
 	done
-    cp /fss/gw/version.txt $dt
+	cp /fss/gw/version.txt $dt
 	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
 	
  	rm -rf $dt

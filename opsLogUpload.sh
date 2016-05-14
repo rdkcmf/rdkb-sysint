@@ -318,6 +318,9 @@ uploadOnRequest()
 	cd $LOG_PATH
 	FILES=`ls`
 
+	# Put system descriptor in log file
+	createSysDescr
+
 	for fname in $FILES
 	do
 		# Copy all log files from the log directory to non-volatile memory

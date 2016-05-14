@@ -66,6 +66,9 @@ backupLogsonReboot()
 	cd $LOG_BACK_UP_REBOOT
 	mkdir $dte
 
+	# Put system descriptor string in log file
+	createSysDescr
+
 	cd $LOG_PATH
 	FILES=`ls`
 
