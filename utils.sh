@@ -1,7 +1,9 @@
 #!/bin/sh
 # Scripts having common utility functions
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+if [ -f /fss/gw/etc/utopia/service.d/log_env_var.sh ];then
+	source /fss/gw/etc/utopia/service.d/log_env_var.sh
+fi
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
