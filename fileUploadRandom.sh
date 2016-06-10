@@ -4,6 +4,8 @@ source /fss/gw/etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
+CRON_TAB="/var/spool/cron/crontabs/root"
+
 calcRandTimeandUpload()
 {
     rand_hr=0
@@ -24,6 +26,22 @@ calcRandTimeandUpload()
     min_to_sleep=$(($rand_hr*60 + $rand_min))
     sec_to_sleep=$(($min_to_sleep*60 + $rand_sec))
     sleep $sec_to_sleep;
+
+    echo "RDK Logger : Process Telemetry logs before log upload.."
+    CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
+
+    if [ "$CMD" != "" ]
+    then
+        echo "RDK Logger : Telemetry command received is #$CMD"
+        $CMD &
+
+        # We have slept enough, have a sleep of 1 more minute.
+        # We do not know at what time telemetry script parses the script
+        # let's put this 60 sec sleep
+        sleep 60
+    else
+        echo "RDK Logger : DCA cron job is not configured"
+    fi
     echo "RDK Logger : Trigger Maintenance Window log upload.."
     backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
