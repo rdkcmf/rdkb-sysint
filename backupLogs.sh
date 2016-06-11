@@ -114,7 +114,12 @@ backupLogsonReboot()
    
 }
 
-Crashed_Process_Is=$2
+if [ "$2" = "l2sd0" ]
+then
+    $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+else
+  Crashed_Process_Is=$2
+fi
 #Call function to upload log files on reboot
 if [ -e $HAVECRASH ]
 then
