@@ -116,7 +116,9 @@ backupLogsonReboot()
 
 if [ "$2" = "l2sd0" ]
 then
+    backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+    return 0
 else
   Crashed_Process_Is=$2
 fi
