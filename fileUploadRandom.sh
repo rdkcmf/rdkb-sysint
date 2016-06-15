@@ -5,6 +5,7 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
 CRON_TAB="/var/spool/cron/crontabs/root"
+DCM_PATH="/lib/rdk"
 
 calcRandTimeandUpload()
 {
@@ -26,7 +27,8 @@ calcRandTimeandUpload()
     min_to_sleep=$(($rand_hr*60 + $rand_min))
     sec_to_sleep=$(($min_to_sleep*60 + $rand_sec))
     sleep $sec_to_sleep;
-
+   
+    # Telemetry data should be sent before log upload 
     echo "RDK Logger : Process Telemetry logs before log upload.."
     CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
 
@@ -46,6 +48,16 @@ calcRandTimeandUpload()
     backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0
+    
+    # RDKB-6095 : DCM service should sync with XCONF daily on 
+    # the maintenance window
+    if [ -f $DCM_PATH/dcm.service ]; 
+    then
+        echo "RDK Logger : Run DCM service"
+        sh $DCM_PATH/dcm.service &
+    else
+        echo "RDK Logger : No DCM service file"
+    fi
 }
 
 
