@@ -259,7 +259,6 @@ do
          fi
     else
          loop=0
-         sh $RDK_PATH/dca_utility.sh 0 0
     fi
 done
 

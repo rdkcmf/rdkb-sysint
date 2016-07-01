@@ -481,10 +481,11 @@ if [ -f $PATTERN_CONF_FILE ]; then
 		   do
 			  echo "$timestamp: dca resend : $resend" >> $RTL_LOG_FILE 
 			  CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 10 --insecure"
-              echo "$timestamp: dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
-		      sleep 10
+                          ret= eval $CURL_CMD > $HTTP_CODE
+                          echo "$timestamp: dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
+		          sleep 10
 			  http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-	         echo "$timestamp: dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
+	                  echo "$timestamp: dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
 		   done < $TELEMETRY_RESEND_FILE
 		rm -f $TELEMETRY_RESEND_FILE
         fi
