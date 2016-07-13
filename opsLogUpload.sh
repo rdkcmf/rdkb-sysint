@@ -218,6 +218,8 @@ HTTPLogUploadOnRequest()
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ $http_code -eq 200 ];then
 	     echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	    #Remove all log directories
+	     rm -rf $LOG_UPLOAD_ON_REQUEST
         fi
 
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
@@ -291,6 +293,8 @@ HTTPLogUploadOnRequest()
         #Logs upload successful when the return code is 200 after the second curl execution.
         if [ $http_code -eq 200 ];then
             echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	    #Remove all log directories
+	    rm -rf $LOG_UPLOAD_ON_REQUEST
             result=0
         fi
     fi
@@ -299,6 +303,8 @@ HTTPLogUploadOnRequest()
        	echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
 	echo "Do TFTP log Upload"
 	TFTPLogUploadOnRequest
+	#Keep tar ball and remove only the log folder
+	rm -rf $LOG_UPLOAD_ON_REQUEST$timeRequested
 		
     fi    
     echo $result
@@ -311,7 +317,9 @@ uploadOnRequest()
 	if [ ! -d "$LOG_UPLOAD_ON_REQUEST" ]
 	then
 	    mkdir $LOG_UPLOAD_ON_REQUEST
-	fi
+	else
+            rm -rf $LOG_UPLOAD_ON_REQUEST/*
+        fi
 
 	mkdir -p $LOG_UPLOAD_ON_REQUEST$timeRequested
 
@@ -320,6 +328,8 @@ uploadOnRequest()
 
 	# Put system descriptor in log file
 	createSysDescr
+
+	cp /version.txt $LOG_UPLOAD_ON_REQUEST$timeRequested
 
 	for fname in $FILES
 	do
@@ -352,9 +362,9 @@ uploadOnRequest()
 	touch $UPLOAD_ON_REQUEST_SUCCESS
 	echo $timeToUpload > $UPLOAD_ON_REQUEST_SUCCESS
 
-	# Remove the in progress flag and all log directories
+	# Remove the in progress flag 
 	rm -rf $UPLOAD_ON_REQUEST
-	rm -rf $LOG_UPLOAD_ON_REQUEST
+	#rm -rf $LOG_UPLOAD_ON_REQUEST
    
 }
 
