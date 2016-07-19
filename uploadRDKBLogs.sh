@@ -24,7 +24,24 @@ UploadProtocol=$2
 UploadHttpLink=$3
 UploadOnReboot=$4
 
+if [ "$5" != "" ]; then
+	nvram2Backup=$5
+else
+    backupenabled=`syscfg get logbackup_enable`
+    nvram2Supported="no"
+    if [ -f /etc/device.properties ]
+    then
+       nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+    fi
 
+    if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+    then
+       nvram2Backup="true"
+    else
+       nvram2Backup="false"
+    fi
+fi
+ 
 getTFTPServer()
 {
         if [ "$1" != "" ]
@@ -115,11 +132,18 @@ retryUpload()
 }
 TFTPLogUpload()
 {
-	if [ "$UploadOnReboot" = "true" ]
-	then
-		cd $LOG_BACK_UP_REBOOT
+	if [ "$UploadOnReboot" == "true" ]; then
+		if [ "$nvram2Backup" == "true" ]; then
+			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+		else
+			cd $LOG_BACK_UP_REBOOT
+		fi
 	else
-		cd $LOG_BACK_UP_PATH
+		if [ "$nvram2Backup" == "true" ]; then
+			cd $LOG_SYNC_BACK_UP_PATH
+		else
+			cd $LOG_BACK_UP_PATH
+		fi
 	fi
 
 	FILE_NAME=`ls | grep "tgz"`
@@ -139,14 +163,19 @@ fi
 HttpLogUpload()
 {   
     # Upload logs to "LOG_BACK_UP_REBOOT" upon reboot else to the default path "LOG_BACK_UP_PATH"	
-    if [ "$UploadOnReboot" = "true" ]
-    then
-		cd $LOG_BACK_UP_REBOOT
-
-    else
-		cd $LOG_BACK_UP_PATH
-
-    fi
+	if [ "$UploadOnReboot" == "true" ]; then
+		if [ "$nvram2Backup" == "true" ]; then
+			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+		else
+			cd $LOG_BACK_UP_REBOOT
+		fi
+	else
+		if [ "$nvram2Backup" == "true" ]; then
+			cd $LOG_SYNC_BACK_UP_PATH
+		else
+			cd $LOG_BACK_UP_PATH
+		fi
+	fi
 
     UploadFile=`ls | grep "tgz"`
     S3_URL=$UploadHttpLink

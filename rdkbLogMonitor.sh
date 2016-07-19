@@ -37,6 +37,9 @@ RETRY_COUNT=3
 upload_protocol='HTTP'
 upload_httplink='None'
 
+LOGBACKUP_ENABLE='false'
+LOGBACKUP_INTERVAL=30
+
 #---------------------------------
 # Function declarations
 #---------------------------------
@@ -118,7 +121,7 @@ getLogfileSize()
 	curDir=`pwd`
 	#cd $LOG_PATH
 #	cd $LOGTEMPPATH
-	cd $LOG_PATH
+	cd $1
 	FILES=`ls`
 	tempSize=0
 	totalSize=0
@@ -169,6 +172,78 @@ getLineSizeandRotate()
 	cd $curDir
 }
 
+reset_offset()
+{
+	#echo ">>>>>>>>>>>>>>>>>>> reset offset <<<<<<<<<<<<<<<<<<<<"
+	file_list=`ls $LOG_SYNC_PATH`
+
+	for file in $file_list
+	do
+		echo "1" > $LOG_SYNC_PATH$file # Setting Offset as 1 and clearing the file
+	done
+
+}
+
+get_logbackup_cfg()
+{
+	#echo ">>>>>>>>>>>>>>>>>>> get logbackup cfg <<<<<<<<<<<<<<<<<<<<"
+backupenable=`syscfg get logbackup_enable`
+isNvram2Supported="no"
+if [ -f /etc/device.properties ]
+then
+   isNvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+fi
+
+if [ "$isNvram2Supported" = "yes" ] && [ "$backupenable" = "true" ]
+then
+	LOGBACKUP_ENABLE="true"
+else
+	LOGBACKUP_ENABLE="false"
+fi
+	LOGBACKUP_INTERVAL=`syscfg get logbackup_interval`
+
+	#echo ">>>>>>>>>>>>>>>>>>> LOGBACKUP_ENABLE = $LOGBACKUP_ENABLE"
+	#echo ">>>>>>>>>>>>>>>>>>> LOGBACKUP_INTERVAL = $LOGBACKUP_INTERVAL"
+
+}
+
+upload_nvram2_logs()
+{
+	echo ">>>>>>>>>>>>>>>>>>> Check if files available in nvram2 "
+	curDir=`pwd`
+
+	cd $LOG_SYNC_BACK_UP_PATH
+
+	UploadFile=`ls | grep "tgz"`
+	if [ "$UploadFile" != "" ]
+	then
+	   echo "File to be uploaded from is $UploadFile "
+		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
+		then
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+		else
+			while [ $loop -eq 1 ]
+			do
+		    	     echo "Waiting for stack to come up completely to upload logs..."
+		      	     sleep 30
+			     WEBSERVER_STARTED=`sysevent get webserver`
+		 	     if [ "$WEBSERVER_STARTED" == "started" ]
+			     then
+				echo "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+				break
+			    fi
+			done
+			sleep 120
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+			UPLOADED_AFTER_REBOOT="true"
+		fi
+	fi
+
+	cd $curDir
+
+	echo ">>>>>>>>>>>>>>>>>>> uploading over from nvram2 "
+}
+
 
 #---------------------------------
 #        Main App
@@ -177,6 +252,7 @@ loop=1
 BUILD_TYPE=`getBuildType`
 SERVER=`getTFTPServer $BUILD_TYPE`
 
+minute_count=0
 #tmp disable the flag now 
 #UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 
@@ -187,12 +263,21 @@ SW_UPGRADE_REBOOT="/nvram/reboot_due_to_sw_upgrade"
 #echo "SERVER is: $SERVER"
 DeviceUP=0
 # ARRISXB3-2544 :
-# Check if upload on reboo tflag is ON. If "yes", then we will upload the 
+# Check if upload on reboot flag is ON. If "yes", then we will upload the 
 # log files first before starting monitoring of logs.
+
+get_logbackup_cfg
+
 if [ -e "$UPLOAD_ON_REBOOT" ]
 then
    curDir=`pwd`
-   cd $LOG_BACK_UP_REBOOT
+
+	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+	else
+   		cd $LOG_BACK_UP_REBOOT
+	fi
+
    macOnly=`getMacAddressOnly`
    fileToUpload=`ls | grep $macOnly`
    echo "File to be uploaded is $fileToUpload ...."
@@ -220,7 +305,12 @@ fi
 
 echo "Check if any tar file available in /logbackup/ "
 curDir=`pwd`
-cd $LOG_BACK_UP_PATH
+
+	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		cd $LOG_SYNC_BACK_UP_PATH
+	else
+   		cd $LOG_BACK_UP_PATH
+	fi
 
 UploadFile=`ls | grep "tgz"`
 if [ "$UploadFile" != "" ]
@@ -242,11 +332,21 @@ then
 	            fi
 	        done
 	        sleep 120
-		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+		UPLOADED_AFTER_REBOOT="true"
 	fi
 fi
 
 cd $curDir
+
+if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
+	file_list=`ls $LOG_SYNC_PATH`
+	if [ "$file_list" != "" ]; then
+	 	echo ">>>>>>>>>>>>>>>>>>> Uploading logs from nvram2 on reboot"
+		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
+		upload_nvram2_logs
+	fi
+fi	
 
 while [ $loop -eq 1 ]
 do
@@ -289,18 +389,41 @@ do
 
 		#getLineSizeandRotate	
 
-	    	getLogfileSize
+	    	getLogfileSize "$LOG_PATH"
 
-	    	if [ $totalSize -ge $MAXSIZE ]
-	    	then
-			#backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
-   			backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
-
+	    	if [ $totalSize -ge $MAXSIZE ]; then
+			get_logbackup_cfg
+			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
+				#echo ">>>>>>>>>>>>>>>>>>> >1.5 backup case <<<<<<<<<<<<<<<<<<<<"		
+				syncLogs_nvram2	
+				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+			else
+				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+			fi	
+			
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 	    	fi
 	    fi
 #   fi
-		
+	# Syncing logs after perticular interval
+	get_logbackup_cfg
+	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		#echo ">>>>>>>>>>>>>>>>>>> backup enable <<<<<<<<<<<<<<<<<<<<"
+		minute_count=$((minute_count + 1))
+		if [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
+			#echo ">>>>>>>>>>>>>>>>>>> normal backup case <<<<<<<<<<<<<<<<<<<<"
+			minute_count=0
+			syncLogs_nvram2
+		fi
+	else
+		file_list=`ls $LOG_SYNC_PATH`
+		if [ "$file_list" != "" ]; then
+			echo ">>>>>>>>>>>>>>>>>>> disabling nvram2 logging <<<<<<<<<<<<<<<<<<<<"
+			syncLogs_nvram2
+			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"
+		fi
+	fi
               	
 done
 

@@ -11,6 +11,22 @@ dte=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 needReboot="true"
 
+nvram2Backup="false"
+backupenabled=`syscfg get logbackup_enable`
+nvram2Supported="no"
+if [ -f /etc/device.properties ]
+then
+   nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+fi
+
+if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+then
+   nvram2Backup="true"
+else
+   nvram2Backup="false"
+fi
+
+
 getTFTPServer()
 {
         if [ "$1" != "" ]
@@ -114,9 +130,53 @@ backupLogsonReboot()
    
 }
 
+backupLogsonReboot_nvram2()
+{
+	curDir=`pwd`
+	if [ ! -d "$LOG_SYNC_BACK_UP_REBOOT_PATH" ]; then
+	    mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
+	fi
+
+	rm -rf $LOG_SYNC_BACK_UP_REBOOT_PATH*
+
+	# Put system descriptor string in log file
+	createSysDescr
+
+	syncLogs_nvram2
+
+	cd $LOG_PATH
+	FILES=`ls`
+
+	for fname in $FILES
+	do
+		>$fname;
+	done
+
+	cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+        if [ -f "/version.txt" ]
+        then
+           cp /version.txt $LOG_SYNC_PATH
+        else
+	   cp /fss/gw/version.txt $LOG_SYNC_PATH
+        fi
+	tar -cvzf $MAC"_Logs_$dte.tgz" $LOG_SYNC_PATH
+	echo "Created backup of all logs..."
+ 	ls
+	rm -rf $LOG_SYNC_PATH*.txt*
+	rm -rf $LOG_SYNC_PATH*.log
+	touch $UPLOAD_ON_REBOOT
+	cd $curDir
+}
+
 if [ "$2" = "l2sd0" ]
 then
-    backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+	if [ "$nvram2Backup" == "true" ]; then	
+		syncLogs_nvram2	
+		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+	else
+		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+	fi
+
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
     return 0
 else
@@ -136,9 +196,18 @@ fi
 if [ "$3" == "wan-stopped" ]
 then
 	echo "Wan-stopped, take log back up"
-	backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+	if [ "$nvram2Backup" == "true" ]; then	
+		syncLogs_nvram2	
+		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+	else
+		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+	fi
 else
-	backupLogsonReboot	
+	if [ "$nvram2Backup" == "true" ]; then	
+		backupLogsonReboot_nvram2
+	else
+		backupLogsonReboot
+	fi	
 fi
 #sleep 3
 

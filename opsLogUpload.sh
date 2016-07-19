@@ -335,7 +335,7 @@ uploadOnRequest()
 	do
 		# Copy all log files from the log directory to non-volatile memory
 
-		cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested ; >$fname;
+		cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested 
 
 	done
 

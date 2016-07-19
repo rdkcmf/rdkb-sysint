@@ -119,6 +119,125 @@ createSysDescr()
 	
 }
 
+syncLogs_nvram2()
+{
+
+	echo ">>>>>>>>>>>>>>>>>>> sync logs to nvram2 <<<<<<<<<<<<<<<<<<<<"	
+	if [ ! -d "$LOG_SYNC_PATH" ]; then
+		#echo ">>>>>>>>>>>>>>>>>>> making sync dir <<<<<<<<<<<<<<<<<<<<"
+		mkdir -p $LOG_SYNC_PATH
+	fi
+
+	file_list=`ls $LOG_PATH`
+
+	for file in $file_list
+	do
+		end_char=`echo $file | grep -o '[^.]*$'` # getting the end char in file name
+		#echo ">>>>>>>>>>>>>>>>>>> end_char = $end_char <<<<<<<<<<<<<<<<<<<<"
+		# handling the scenario of txt.1 file
+		if [ "$end_char" == "1" ]; then
+	
+			if [ -f $LOG_SYNC_PATH$file ]; then
+				continue; # continue if txt.1 is already present in nvram2
+			fi
+
+			cp $LOG_PATH$file $LOG_SYNC_PATH$file # Copying txt.1 file directly
+
+			file_name=`echo $file | grep -o '^.*\.'`
+			file_name=`echo $file_name'0'`
+			#echo ">>>>>>>>>>>>>>>>>>> file_name = $file_name <<<<<<<<<<<<<<<<<<<<"
+			file=$file_name # replacing txt.1 with txt.0
+			rm $LOG_SYNC_PATH$file # removing txt.0 file so that it will be copied again to nvram2
+		fi
+
+		if [ ! -f $LOG_SYNC_PATH$file ];then
+		    echo "1" > $LOG_SYNC_PATH$file
+		fi
+
+		offset=`sed -n '1p' $LOG_SYNC_PATH$file` # getting the offset
+		#echo "offset = $offset for file $LOG_PATH$file"
+
+		tail -n +$offset $LOG_PATH$file >> $LOG_SYNC_PATH$file # appeding the logs to nvram2
+
+		offset=`wc -l $LOG_PATH$file | cut -d " " -f1`
+		offset=$((offset + 1))
+		#echo "new offset = $offset for file $LOG_PATH$file"
+		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
+	done
+
+}
+
+backupnvram2logs()
+{
+	destn=$1
+	MAC=`getMacAddressOnly`
+	dt=`date "+%m-%d-%y-%I-%M%p"`
+	workDir=`pwd`
+
+	createSysDescr
+
+	if [ ! -d "$destn" ]; then
+	   mkdir -p $destn
+	else
+	   FILE_EXISTS=`ls $destn`
+	   if [ "$FILE_EXISTS" != "" ]; then
+          	rm -rf $destn*.tgz
+	   fi
+	fi
+
+	cd $destn
+        if [ -f "/version.txt" ]
+        then
+	    cp /version.txt $LOG_SYNC_PATH
+        else
+	   cp /fss/gw/version.txt $LOG_SYNC_PATH
+        fi
+	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	rm -rf $LOG_SYNC_PATH*.txt*
+	rm -rf $LOG_SYNC_PATH*.log
+
+	cd $LOG_PATH
+	FILES=`ls`
+
+	for fname in $FILES
+	do
+		>$fname;
+	done
+
+	cd $workDir
+}
+
+backupnvram2logs_on_reboot()
+{
+	destn=$1
+	MAC=`getMacAddressOnly`
+	dt=`date "+%m-%d-%y-%I-%M%p"`
+	workDir=`pwd`
+
+	createSysDescr
+
+	if [ ! -d "$destn" ]; then
+	   mkdir -p $destn
+	else
+	   FILE_EXISTS=`ls $destn`
+	   if [ "$FILE_EXISTS" != "" ]; then
+          	rm -rf $destn*.tgz
+	   fi
+	fi
+
+	cd $destn
+        if [ -f "/version.txt" ]
+        then
+	    cp /version.txt $LOG_SYNC_PATH
+        else
+	   cp /fss/gw/version.txt $LOG_SYNC_PATH
+        fi
+	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	rm -rf $LOG_SYNC_PATH*.txt*
+	rm -rf $LOG_SYNC_PATH*.log
+
+	cd $workDir
+}
 
 backupAllLogs()
 {

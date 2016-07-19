@@ -45,7 +45,29 @@ calcRandTimeandUpload()
         echo "RDK Logger : DCA cron job is not configured"
     fi
     echo "RDK Logger : Trigger Maintenance Window log upload.."
-    backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+
+	nvram2Backup="false"
+	backupenabled=`syscfg get logbackup_enable`
+	nvram2Supported="no"
+	if [ -f /etc/device.properties ]
+	then
+	   nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+	fi
+
+	if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+	then
+	   nvram2Backup="true"
+	else
+	   nvram2Backup="false"
+	fi
+
+	if [ "$nvram2Backup" == "true" ]; then		
+		syncLogs_nvram2	
+		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+	else
+		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+	fi
+
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0
     
