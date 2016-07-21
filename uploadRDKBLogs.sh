@@ -147,6 +147,17 @@ TFTPLogUpload()
 	fi
 
 	FILE_NAME=`ls | grep "tgz"`
+
+        # This check is to handle migration scenario from /nvram to /nvram2
+        if [ "$FILE_NAME" = "" ] && [ "$nvram2Backup" = "true" ]
+        then
+           echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+           FILE_NAME=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+           if [ "$FILE_NAME" != "" ]
+           then
+               cd $LOG_BACK_UP_REBOOT
+           fi
+        fi
 	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
 	#tftp -l $FILE_NAME -p $TFTP_SERVER  
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
@@ -176,8 +187,20 @@ HttpLogUpload()
 			cd $LOG_BACK_UP_PATH
 		fi
 	fi
-
-    UploadFile=`ls | grep "tgz"`
+ 
+   UploadFile=`ls | grep "tgz"`
+ 
+   # This check is to handle migration scenario from /nvram to /nvram2
+   if [ "$UploadFile" = "" ] && [ "$nvram2Backup" = "true" ]
+   then
+       echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+       UploadFile=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+       if [ "$UploadFile" != "" ]
+       then
+         cd $LOG_BACK_UP_REBOOT
+       fi
+   fi
+   echo "Upload file is : $UploadFile"
     S3_URL=$UploadHttpLink
     
 	

@@ -273,6 +273,10 @@ then
    curDir=`pwd`
 
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+        if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
+        then
+            mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
+        fi
 		cd $LOG_SYNC_BACK_UP_REBOOT_PATH
 	else
    		cd $LOG_BACK_UP_REBOOT
