@@ -279,7 +279,14 @@ then
 	fi
 
    macOnly=`getMacAddressOnly`
-   fileToUpload=`ls | grep $macOnly`
+   fileToUpload=`ls | grep tgz`
+   # This check is to handle migration scenario from /nvram to /nvram2
+   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+   then
+       echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+       fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+   fi
+       
    echo "File to be uploaded is $fileToUpload ...."
 
    HAS_WAN_IP=""
@@ -296,7 +303,13 @@ then
       fi
    done
    sleep 120
-   $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
+
+   if [ "$fileToUpload" != "" ]
+   then
+      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
+   else 
+      echo "No log file found in logbackupreboot folder"
+   fi
    UPLOADED_AFTER_REBOOT="true"
    sleep 2
    rm $UPLOAD_ON_REBOOT
