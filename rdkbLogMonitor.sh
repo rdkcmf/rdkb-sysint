@@ -365,6 +365,13 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	fi
 fi	
 
+if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+  #Sync log files immediately after reboot
+  echo "RDK_LOGGER: Sync logs to nvram2 after reboot"
+  syncLogs_nvram2
+fi
+
+
 while [ $loop -eq 1 ]
 do
 #    wanIp=`getIPAddress`
@@ -427,7 +434,13 @@ do
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		#echo ">>>>>>>>>>>>>>>>>>> backup enable <<<<<<<<<<<<<<<<<<<<"
 		minute_count=$((minute_count + 1))
-		if [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
+		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
+		#echo ">>>>>>>>>>>>>>>>>>> bootup_time = $bootup_time_sec <<<<<<<<<<<<<<<<<<<<"
+		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
+			echo ">>>>>>>>>>>>>>>>>>> Logging in initial 10 min <<<<<<<<<<<<<<<<<<<<"
+			minute_count=0				
+			syncLogs_nvram2
+		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
 			#echo ">>>>>>>>>>>>>>>>>>> normal backup case <<<<<<<<<<<<<<<<<<<<"
 			minute_count=0
 			syncLogs_nvram2
