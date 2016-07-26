@@ -359,7 +359,7 @@ cd $curDir
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
 	file_list=`ls $LOG_SYNC_PATH`
 	if [ "$file_list" != "" ]; then
-	 	echo ">>>>>>>>>>>>>>>>>>> Uploading logs from nvram2 on reboot"
+	 	echo "RDK_LOGGER: Uploading logs from nvram2 on reboot"
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		upload_nvram2_logs
 	fi
@@ -419,6 +419,7 @@ do
 			get_logbackup_cfg
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
 				#echo ">>>>>>>>>>>>>>>>>>> >1.5 backup case <<<<<<<<<<<<<<<<<<<<"		
+                                createSysDescr
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			else
@@ -448,7 +449,8 @@ do
 	else
 		file_list=`ls $LOG_SYNC_PATH`
 		if [ "$file_list" != "" ]; then
-			echo ">>>>>>>>>>>>>>>>>>> disabling nvram2 logging <<<<<<<<<<<<<<<<<<<<"
+			echo "RDK_LOGGER: Disabling nvram2 logging"
+                        createSysDescr
 			syncLogs_nvram2
 			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"

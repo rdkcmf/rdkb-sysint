@@ -5,7 +5,7 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
 #. $RDK_LOGGER_PATH/commonUtils.sh
 
-
+ARM_LOGS_NVRAM2="/nvram2/logs/ArmConsolelog.txt.0"
 
 TR69Log="TR69log.txt.0"
 TR69LogsBackup="TR69log.txt.1"
@@ -174,7 +174,7 @@ backupnvram2logs()
 	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 
-	createSysDescr
+	#createSysDescr
 
 	if [ ! -d "$destn" ]; then
 	   mkdir -p $destn
@@ -214,7 +214,7 @@ backupnvram2logs_on_reboot()
 	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 
-	createSysDescr
+	createSysDescr >> $ARM_LOGS_NVRAM2
 
 	if [ ! -d "$destn" ]; then
 	   mkdir -p $destn

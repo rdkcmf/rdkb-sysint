@@ -62,6 +62,7 @@ calcRandTimeandUpload()
 	fi
 
 	if [ "$nvram2Backup" == "true" ]; then		
+                createSysDescr
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else

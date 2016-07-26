@@ -171,6 +171,7 @@ backupLogsonReboot_nvram2()
 if [ "$2" = "l2sd0" ]
 then
 	if [ "$nvram2Backup" == "true" ]; then	
+        createSysDescr
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else
@@ -197,6 +198,7 @@ if [ "$3" == "wan-stopped" ]
 then
 	echo "Wan-stopped, take log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
+        createSysDescr
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else
