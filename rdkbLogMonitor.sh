@@ -175,7 +175,8 @@ getLineSizeandRotate()
 reset_offset()
 {
 	#echo ">>>>>>>>>>>>>>>>>>> reset offset <<<<<<<<<<<<<<<<<<<<"
-	file_list=`ls $LOG_SYNC_PATH`
+	# Suppress ls errors to prevent constant prints in non supported devices
+	file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 
 	for file in $file_list
 	do
@@ -447,7 +448,8 @@ do
 			syncLogs_nvram2
 		fi
 	else
-		file_list=`ls $LOG_SYNC_PATH`
+		# Suppress ls errors to prevent constant prints in non supported devices
+		file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 		if [ "$file_list" != "" ]; then
 			echo "RDK_LOGGER: Disabling nvram2 logging"
                         createSysDescr
