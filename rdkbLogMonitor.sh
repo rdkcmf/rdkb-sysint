@@ -1,7 +1,7 @@
 #!/bin/sh
 
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
@@ -174,7 +174,6 @@ getLineSizeandRotate()
 
 reset_offset()
 {
-	#echo ">>>>>>>>>>>>>>>>>>> reset offset <<<<<<<<<<<<<<<<<<<<"
 	# Suppress ls errors to prevent constant prints in non supported devices
 	file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 
@@ -187,12 +186,12 @@ reset_offset()
 
 get_logbackup_cfg()
 {
-	#echo ">>>>>>>>>>>>>>>>>>> get logbackup cfg <<<<<<<<<<<<<<<<<<<<"
 backupenable=`syscfg get logbackup_enable`
 isNvram2Supported="no"
 if [ -f /etc/device.properties ]
 then
    isNvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+	
 fi
 
 if [ "$isNvram2Supported" = "yes" ] && [ "$backupenable" = "true" ]
@@ -203,14 +202,10 @@ else
 fi
 	LOGBACKUP_INTERVAL=`syscfg get logbackup_interval`
 
-	#echo ">>>>>>>>>>>>>>>>>>> LOGBACKUP_ENABLE = $LOGBACKUP_ENABLE"
-	#echo ">>>>>>>>>>>>>>>>>>> LOGBACKUP_INTERVAL = $LOGBACKUP_INTERVAL"
-
 }
 
 upload_nvram2_logs()
 {
-	echo ">>>>>>>>>>>>>>>>>>> Check if files available in nvram2 "
 	curDir=`pwd`
 
 	cd $LOG_SYNC_BACK_UP_PATH
@@ -242,7 +237,7 @@ upload_nvram2_logs()
 
 	cd $curDir
 
-	echo ">>>>>>>>>>>>>>>>>>> uploading over from nvram2 "
+	echo "uploading over from nvram2 "
 }
 
 
@@ -419,7 +414,6 @@ do
 	    	if [ $totalSize -ge $MAXSIZE ]; then
 			get_logbackup_cfg
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
-				#echo ">>>>>>>>>>>>>>>>>>> >1.5 backup case <<<<<<<<<<<<<<<<<<<<"		
                                 createSysDescr
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
@@ -434,16 +428,12 @@ do
 	# Syncing logs after perticular interval
 	get_logbackup_cfg
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-		#echo ">>>>>>>>>>>>>>>>>>> backup enable <<<<<<<<<<<<<<<<<<<<"
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
-		#echo ">>>>>>>>>>>>>>>>>>> bootup_time = $bootup_time_sec <<<<<<<<<<<<<<<<<<<<"
 		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
-			echo ">>>>>>>>>>>>>>>>>>> Logging in initial 10 min <<<<<<<<<<<<<<<<<<<<"
-			minute_count=0				
+			echo "Logging in initial 10 min"
 			syncLogs_nvram2
 		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
-			#echo ">>>>>>>>>>>>>>>>>>> normal backup case <<<<<<<<<<<<<<<<<<<<"
 			minute_count=0
 			syncLogs_nvram2
 		fi

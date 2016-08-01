@@ -1,11 +1,12 @@
 #!/bin/sh
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
+PING_PATH="/usr/sbin"
 MAC=`getMacAddressOnly`
 dte=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
@@ -116,6 +117,32 @@ backupLogsonReboot()
 	#fi
 	cd $LOG_BACK_UP_REBOOT
 	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dte
+
+	if [ "$atom_sync" = "yes" ]
+	then
+		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		if [ -f $PING_PATH/ping_peer ]
+		then
+
+   		        PING_RES=`ping_peer`
+			CHECK_PING_RES=`echo $PING_RES | grep "packet loss" | cut -d"," -f3 | cut -d"%" -f1`
+
+			if [ "$CHECK_PING_RES" != "" ]
+			then
+				if [ "$CHECK_PING_RES" -ne 100 ] 
+				then
+					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_BACK_UP_REBOOT$dte/
+				else
+					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				fi
+			else
+				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+			fi
+		fi
+
+	fi
+
 	tar -cvzf $MAC"_Logs_$dte.tgz" $dte
 	echo "Created backup of all logs..."
 	rm -rf $dte	
@@ -194,11 +221,12 @@ then
     rm -f $HAVECRASH
 fi
 
-if [ "$3" == "wan-stopped" ]
+if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ]
 then
 	echo "Wan-stopped, take log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
         createSysDescr
+
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else

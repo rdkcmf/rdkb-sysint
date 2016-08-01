@@ -1,10 +1,11 @@
 #!/bin/sh
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
 #. $RDK_LOGGER_PATH/commonUtils.sh
 
+PING_PATH="/usr/sbin"
 ARM_LOGS_NVRAM2="/nvram2/logs/ArmConsolelog.txt.0"
 
 TR69Log="TR69log.txt.0"
@@ -122,18 +123,44 @@ createSysDescr()
 syncLogs_nvram2()
 {
 
-	echo ">>>>>>>>>>>>>>>>>>> sync logs to nvram2 <<<<<<<<<<<<<<<<<<<<"	
+	echo "sync logs to nvram2"	
 	if [ ! -d "$LOG_SYNC_PATH" ]; then
-		#echo ">>>>>>>>>>>>>>>>>>> making sync dir <<<<<<<<<<<<<<<<<<<<"
+		#echo "making sync dir"
 		mkdir -p $LOG_SYNC_PATH
 	fi
+
+	 # Sync ATOM side logs in /nvram2/logs/ folder
+        if [ "$atom_sync" = "yes" ]
+        then
+		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		if [ -f $PING_PATH/ping_peer ]
+		then
+
+   		        PING_RES=`ping_peer`
+			CHECK_PING_RES=`echo $PING_RES | grep "packet loss" | cut -d"," -f3 | cut -d"%" -f1`
+
+			if [ "$CHECK_PING_RES" != "" ]
+			then
+				if [ "$CHECK_PING_RES" -ne 100 ] 
+				then
+					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+				        rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_PATH
+				else
+					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				fi
+			else
+				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+			fi
+		fi
+
+        fi
 
 	file_list=`ls $LOG_PATH`
 
 	for file in $file_list
 	do
 		end_char=`echo $file | grep -o '[^.]*$'` # getting the end char in file name
-		#echo ">>>>>>>>>>>>>>>>>>> end_char = $end_char <<<<<<<<<<<<<<<<<<<<"
+		#echo "end_char = $end_char"
 		# handling the scenario of txt.1 file
 		if [ "$end_char" == "1" ]; then
 	
@@ -145,7 +172,7 @@ syncLogs_nvram2()
 
 			file_name=`echo $file | grep -o '^.*\.'`
 			file_name=`echo $file_name'0'`
-			#echo ">>>>>>>>>>>>>>>>>>> file_name = $file_name <<<<<<<<<<<<<<<<<<<<"
+			#echo "file_name = $file_name"
 			file=$file_name # replacing txt.1 with txt.0
 			rm $LOG_SYNC_PATH$file # removing txt.0 file so that it will be copied again to nvram2
 		fi
@@ -193,6 +220,14 @@ backupnvram2logs()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	 # Removing ATOM side logs
+        if [ "$atom_sync" = "yes" ]
+        then
+                 # Remove the contents of ATOM side log files.
+                dmcli eRT setv Device.Logging.FlushAllLogs bool true
+
+        fi
+
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 
@@ -233,6 +268,7 @@ backupnvram2logs_on_reboot()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 
@@ -274,9 +310,35 @@ backupAllLogs()
 	do
 		$operation $source$fname $dt; >$source$fname;
 	done
-	cp /fss/gw/version.txt $dt
+	cp /version.txt $dt
+	# Syncing ATOM side logs
+	if [ "$atom_sync" = "yes" ]
+	then
+		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		if [ -f $PING_PATH/ping_peer ]
+		then
+
+   		        PING_RES=`ping_peer`
+			CHECK_PING_RES=`echo $PING_RES | grep "packet loss" | cut -d"," -f3 | cut -d"%" -f1`
+
+			if [ "$CHECK_PING_RES" != "" ]
+			then
+				if [ "$CHECK_PING_RES" -ne 100 ] 
+				then
+					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $destn/$dt/
+					dmcli eRT setv Device.Logging.FlushAllLogs bool true
+				else
+					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				fi
+			else
+				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+			fi
+		fi
+
+	fi
+
 	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
-	
  	rm -rf $dt
 	cd $workDir
 }

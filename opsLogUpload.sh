@@ -28,7 +28,7 @@
 #
 #
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
@@ -38,6 +38,7 @@ if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
 fi
 
+PING_PATH="/usr/sbin"
 CURLPATH="/fss/gw"
 MAC=`getMacAddressOnly`
 timeRequested=`date "+%m-%d-%y-%I-%M%p"`
@@ -340,7 +341,32 @@ uploadOnRequest()
 	done
 
 	cd $LOG_UPLOAD_ON_REQUEST
-	# Tar log files 	
+	# Tar log files
+	# Syncing ATOM side logs
+	if [ "$atom_sync" = "yes" ]
+	then
+		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		if [ -f $PING_PATH/ping_peer ]
+		then
+   		        PING_RES=`ping_peer`
+			CHECK_PING_RES=`echo $PING_RES | grep "packet loss" | cut -d"," -f3 | cut -d"%" -f1`
+
+			if [ "$CHECK_PING_RES" != "" ]
+			then
+				if [ "$CHECK_PING_RES" -ne 100 ] 
+				then
+					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_UPLOAD_ON_REQUEST$timeRequested/
+				else
+					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				fi
+			else
+				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+			fi
+		fi
+
+	fi
+ 	
 	tar -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
 	echo "Created backup of all logs..."
  	ls

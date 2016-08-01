@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script responsible for log upload based on protocol
 
-source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 
 . $RDK_LOGGER_PATH/utils.sh 
