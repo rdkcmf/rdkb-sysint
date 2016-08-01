@@ -3,27 +3,31 @@
 . /etc/include.properties
 . /etc/device.properties
 
-if [ -f /fss/gw/rdklogger/utils.sh  ]; then
-   . /fss/gw/rdklogger/utils.sh
+if [ -f /lib/rdk/utils.sh  ]; then
+   . /lib/rdk/utils.sh
 fi
 
 
+DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
+DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
+
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
-TELEMETRY_RESEND_FILE="$PERSISTENT_PATH/.resend.txt"
-TELEMETRY_PROFILE_DEFAULT_PATH="/tmp/DCMSettings.conf"
-TELEMETRY_PROFILE_RESEND_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
+TELEMETRY_PROFILE_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
 
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
-RTL_TEMP_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
+RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
 PATTERN_CONF_FILE="$TELEMETRY_PATH/dca.conf"
 MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
 TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
+
+# Persist this files for telemetry operation
+# Regenerate this only when there is a change identified from XCONF update
 SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_temp_file.conf"
-OUTPUT_FILE="$LOG_PATHdca_output.txt"
-MAX_RETRY_ATTEMPTS=12
-HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
-HTTP_CODE="$TELEMETRY_PATH/dca_curl_httpcode"
+
+current_cron_file="$PERSISTENT_PATH/cron_file.txt"
+
+OUTPUT_FILE="$LOG_PATH/dca_output.txt"
 
 #Performance oriented binaries
 TEMPFILE_CREATER_BINARY="/usr/bin/dcaseek"
@@ -31,6 +35,15 @@ TEMPFILE_PARSE_BINARY="/usr/bin/dcafind"
 PERFORMANCE_BINARY="/usr/bin/dcaprocess"
 LOAD_AVG_BINARY="/usr/bin/dcaloadave"
 IPVIDEO_BINARY="/usr/bin/ipvideo"
+
+TELEMETRY_INOTIFY_FOLDER=/telemetry
+TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+
+if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+    CRON_SPOOL=/tmp/cron
+fi
+# Retain source for future enabling. Defaulting to disable for now
+snmpCheck=false
 
 # exit if an instance is already running
 if [ ! -f /tmp/.dca-utility.pid ];then
@@ -43,21 +56,22 @@ else
     fi
 fi
 
-
 if [ "$LIGHTSLEEP_ENABLE" == "true" ] && [ -f /tmp/.standby ]; then
     if [ ! -f /etc/os-release ];then pidCleanup; fi    
     exit 0
 fi
 
-#0 indicates to store the information . 1 indicates to send information onto cloud.
-sendInformation=$2 
+mkdir -p $LOG_PATH
+touch $RTL_LOG_FILE
 
-if [ "$sendInformation" -ne 1 ] ; then
-   TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_RESEND_PATH
-else
-   TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_DEFAULT_PATH
+if [ ! -f /tmp/.dca_bootup ]; then
+   touch /tmp/.dca_bootup
+   rm -rf $TELEMETRY_PATH
 fi
-	
+
+
+PrevFileName=''
+
 echo "Telemetry Profile File Being Used : $TELEMETRY_PROFILE_PATH" >> $RTL_LOG_FILE
 	
 #Adding support for opt override for dcm.properties file
@@ -67,15 +81,6 @@ else
       . /etc/dcm.properties
 fi
 
-if [ -f "$TELEMETRY_PROFILE_DEFAULT_PATH" ]; then    
-    DCA_UPLOAD_URL=`grep '"uploadRepository:URL":"' $TELEMETRY_PROFILE_DEFAULT_PATH | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
-fi
-
-if [ -z $DCA_UPLOAD_URL ]; then
-    DCA_UPLOAD_URL="https://stbrtl.xcal.tv"
-fi
-
-PrevFileName=''
 
 if [ ! -d "$TELEMETRY_PATH_TEMP" ]
 then
@@ -84,8 +89,10 @@ then
 else
     echo "Telemetry Folder exists" >> $RTL_LOG_FILE
     cp $TELEMETRY_PATH/rtl_* $TELEMETRY_PATH_TEMP/
-     echo "Copied Files to temp directory" >> $RTL_LOG_FILE
+    echo "Copied Files to temp directory" >> $RTL_LOG_FILE
 fi
+
+mkdir -p $TELEMETRY_PATH
 
 pidCleanup()
 {
@@ -94,28 +101,17 @@ pidCleanup()
         rm -rf /tmp/.dca-utility.pid
    fi
 }
- 
-if [ $# -ne 2 ]; then
-   echo "Usage : `basename $0` <Trigger Type> sendInformation 0 or 1" >> $RTL_LOG_FILE
-   echo "Trigger Type : 1 (Upon log upload request)/ 0 (Count updating to file)" >> $RTL_LOG_FILE
-   echo "sendInformation : 1 (Will upload telemetry information)/ 0 (Will NOT upload telemetry information)" >> $RTL_LOG_FILE
-   
+
+if [ $# -ne 1 ]; then
+   echo "Usage : `basename $0` <0/1> 0 - Reinitialize Map 1 - Telemetry search " >> $RTL_LOG_FILE
    if [ ! -f /etc/os-release ];then pidCleanup; fi
    exit 0
 fi
 
+reconfigure=$1
+
 cd $LOG_PATH
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
-
-triggerType=1
-sleep_time=$1
-if [ -z $sleep_time ];then
-    sleep_time=10
-fi
-echo "$timestamp: dca: sleep_time = $sleep_time" >> $RTL_LOG_FILE
-
-TotalTuneCount=0
-TuneFailureCount=0
 
 isNum()
 {
@@ -164,6 +160,7 @@ getLoadAverage() {
      echo $load_average
 }
 
+## Reatining for future support when net-snmp tools will be enabled in XB3s
 getControllerId(){    
     ChannelMapId=''
     ControllerId=''
@@ -184,6 +181,7 @@ getControllerId(){
 }
 
 # Function to get RF status
+## Reatining for future support when net-snmp tools will be enabled in XB3s
 getRFStatus(){
     Dwn_RX_pwr=''
     Ux_TX_pwr=''
@@ -201,145 +199,245 @@ getRFStatus(){
     echo "{\"Dwn_RX_pwr\":\"$Dwn_RX_pwr\"},{\"Ux_TX_pwr\":\"$Ux_TX_pwr\"},{\"Dx_SNR\":\"$Dx_SNR\"}"
 }
 
-# Function to get Offline status 
-getOfflineStatus() {
-    offline_status=''
-    cablecard=''
-    filePath=`cat $TELEMETRY_PATH/lastlog_path`
-    echo "File Path = $filePath" >> $RTL_LOG_FILE
-    offline_status=`nice -20 grep 'CM  STATUS :' $filePath/ocapri_log.txt | tail -1`
-    echo "Last Cable Card Status = $offline_status" >> $RTL_LOG_FILE
-    operational_check=`echo $offline_status | grep -c "Operational"`
-    if [ $operational_check -eq 0 ]; then
-        cablecard=`echo $offline_status | awk -F ': ' '{print $NF}'`
-    fi
-    
-    rm -f $TELEMETRY_PATH/lastlog_path
-    
-    if [ -n "$cablecard" ]; then
-        echo "{\"Cable_Card\":\"$cablecard\"}"
-    fi
-}
-    
+###
+##  Dumps deltas from previous execution to file /tmp/.rtl_temp.log
+##  Get the number of occurence of pattern from the deltas to avoid duplicate error report
+##  Append the results to OUTPUT_FILE ie LOG_PATHdca_output.txt
+###    
 updateCount()
 {
     final_count=0
     timestamp=`date +%Y-%b-%d_%H-%M-%S`
-    
+    # Need not create the dela file is the previous file in MAP is the same 
     if [ "$filename" != "$PrevFileName" ]; then    
        PrevFileName=$filename
-       #echo "$timestamp: dca: filename = $filename" >> $RTL_LOG_FILE
+       rm -f $RTL_DELTA_LOG_FILE
        nice $TEMPFILE_CREATER_BINARY $filename
     fi
-	
-	header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-   
-	case "$header" in
-	*split*)  
-	 final_count=`$IPVIDEO_BINARY $RTL_TEMP_LOG_FILE "$pattern"` ;;
+    header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
+    case "$header" in
+        *split*)  
+	 final_count=`$IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
 	*) 
-	 final_count=`$TEMPFILE_PARSE_BINARY $RTL_TEMP_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
-	esac
-	
-           
+	 final_count=`$TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
+    esac
     # Update count and patterns in a single file 
-    #echo $final_count
-    if [ $final_count != "0" ]; then
+    if [ "$final_count" != "0" ]; then
        echo "$pattern<#=#>$filename<#=#>$final_count" >> $OUTPUT_FILE
     fi
-    #echo "$pattern<#=#>$filename<#=#>$final_count" >> $OUTPUT_FILE
 }     
-   
-#main app
-if [ -f $RTL_TEMP_LOG_FILE ]; then
-    echo "$timestamp: dca: Deleting : $RTL_TEMP_LOG_FILE" >> $RTL_LOG_FILE
-    rm -f $RTL_TEMP_LOG_FILE
-fi
 
-if [ -f $PATTERN_CONF_FILE ]; then
-    echo "$timestamp: dca: PATTERN_CONF_FILE : $PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-    rm -f $PATTERN_CONF_FILE
-fi
+processJsonResponse()
+{
+    FILENAME=$1
+    #Condider getting the filename as an argument instead of using global file name
+    if [ -f "$FILENAME" ]; then
+        # Start pre-processing the original file
+        sed -i 's/,"urn:/\n"urn:/g' $FILENAME # Updating the file by replacing all ',"urn:' with '\n"urn:'
+        sed -i 's/^{//g' $FILENAME # Delete first character from file '{'
+        sed -i 's/}$//g' $FILENAME # Delete first character from file '}'
+        echo "" >> $FILENAME         # Adding a new line to the file
+        # Start pre-processing the original file
 
-if [ -f $MAP_PATTERN_CONF_FILE ]; then
-    echo "$timestamp: dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-    rm -f $MAP_PATTERN_CONF_FILE
-fi
+        OUTFILE=$DCM_SETTINGS_CONF
+        OUTFILEOPT="$PERSISTENT_PATH/.DCMSettings.conf"
+        #rm -f $OUTFILE #delete old file
+        cat /dev/null > $OUTFILE #empty old file
+        cat /dev/null > $OUTFILEOPT
+        while read line
+        do
+            # Special processing for telemetry
+            profile_Check=`echo "$line" | grep -ci 'TelemetryProfile'`
+            if [ $profile_Check -ne 0 ];then
+                #echo "$line"
+                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' >> $OUTFILE
 
-if [ -f $TEMP_PATTERN_CONF_FILE ]; then
-    echo "$timestamp: dca: TEMP_PATTERN_CONF_FILE : $TEMP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-    rm -f $TEMP_PATTERN_CONF_FILE
-fi
-
-touch $TEMP_PATTERN_CONF_FILE
-
-rm -f $OUTPUT_FILE
-
-
-if [ -f $TELEMETRY_PROFILE_PATH ]; then
-    grep -i 'TelemetryProfile' $TELEMETRY_PROFILE_PATH | sed 's/=\[/\n/g' | sed 's/},/}\n/g' | sed 's/],/\n/g'| sed -e 's/^[ ]//' > $TEMP_PATTERN_CONF_FILE
-fi
-
-#Create map file from json message file
-while read line
-do         
-    header_Check=`echo "$line" | grep -c '{"header"'`
-     if [ $header_Check -ne 0 ];then
-       polling=`echo "$line" | grep -c 'pollingFrequency'`
-       if [ $polling -ne 0 ];then
-          header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          type=`echo "$line" | awk -F '"type" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          pollingFrequency=`echo "$line" | awk -F '"pollingFrequency" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`        
-          if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
-              echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
-          fi
-       else
-         #header=`echo "$line" | cut -d ':' -f2- | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-          type=`echo "$line" | awk -F '"type" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`
-          if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
-              echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
-          fi
-       fi 
+                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' | sed -e 's/uploadRepository:URL.*","//g'  >> $OUTFILEOPT
+            else
+                echo "$line" | sed 's/":/=/g' | sed 's/"//g' >> $OUTFILE
+            fi
+        done < $FILENAME
+    else
+        echo "$FILENAME not found." >> $RTL_LOG_FILE
+        return 1
     fi
-done < $TEMP_PATTERN_CONF_FILE
+}
 
-#Create conf file from map file
-while read line
-do
-    content=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-    type=`echo "$line" | awk -F '<#=#>' '{print $3}'`
-    echo "$content<#=#>$type" >> $PATTERN_CONF_FILE
-done < $MAP_PATTERN_CONF_FILE
+scheduleCron()
+{
+    cron=''
+    scheduler_Check=`grep '"schedule":' $DCM_SETTINGS_CONF`
+    if [ -n "$scheduler_Check" ]; then
+        cron=`cat $DCM_SETTINGS_CONF | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
+    fi
 
+    if [ -n "$cron" ]; then
+	# Dump existing cron jobs to a file
+	crontab -l -c $CRON_SPOOL > $current_cron_file
+	# Check whether any cron jobs are existing or not
+	existing_cron_check=`cat $current_cron_file | tail -n 1`
+	tempfile="$PERSISTENT_PATH/tempfile.txt"
+	rm -rf $tempfile  # Delete temp file if existing
+	if [ -n "$existing_cron_check" ]; then
+		rtl_cron_check=`grep -c 'dca_utility.sh' $current_cron_file`
+		if [ $rtl_cron_check -eq 0 ]; then
+			echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+		fi
+		while read line
+		do
+			retval=`echo "$line" | grep 'dca_utility.sh'`
+			if [ -n "$retval" ]; then
+				echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+			else
+				echo "$line" >> $tempfile
+			fi
+		done < $current_cron_file
+	else
+		# If no cron job exists, create one, with the value from DCMSettings.conf file
+		echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+	fi
+	# Set new cron job from the file
+	crontab $tempfile -c $CRON_SPOOL
+	rm -rf $current_cron_file # Delete temp file
+	rm -rf $tempfile          # Delete temp file
+    else
+	echo " `date` Failed to read \"schedule\" cronjob value from DCMSettings.conf." >> $RTL_LOG_FILE
+    fi
+}
+   
+clearTelemetryConfig()
+{
+    if [ -f $RTL_DELTA_LOG_FILE ]; then
+        echo "$timestamp: dca: Deleting : $RTL_DELTA_LOG_FILE" >> $RTL_LOG_FILE
+        rm -f $RTL_DELTA_LOG_FILE
+    fi
 
-# Search for all patterns and file from conf file
-if [ -f $PATTERN_CONF_FILE ]; then
+    if [ -f $PATTERN_CONF_FILE ]; then
+        echo "$timestamp: dca: PATTERN_CONF_FILE : $PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        rm -f $PATTERN_CONF_FILE
+    fi
+
+    if [ -f $MAP_PATTERN_CONF_FILE ]; then
+        echo "$timestamp: dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        rm -f $MAP_PATTERN_CONF_FILE
+    fi
+
+    if [ -f $TEMP_PATTERN_CONF_FILE ]; then
+        echo "$timestamp: dca: TEMP_PATTERN_CONF_FILE : $TEMP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        rm -f $TEMP_PATTERN_CONF_FILE
+    fi
+
     if [ -f $SORTED_PATTERN_CONF_FILE ]; then
+        echo "$timestamp: dca: SORTED_PATTERN_CONF_FILE : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $SORTED_PATTERN_CONF_FILE
     fi
-    awk -F '<#=#>' '{print $NF,$0}' $PATTERN_CONF_FILE | sort -n | cut -d ' ' -f 2- > $SORTED_PATTERN_CONF_FILE #Sort the conf file with the the filename
-    # Consider the list of files and patterns mentioned in conf file
+
+}
+
+## Pass The I/P O/P Files As Arguments
+generateTelemetryConfig()
+{
+    input_file=$1
+    output_file=$2
+    touch $TEMP_PATTERN_CONF_FILE
+    if [ -f $input_file ]; then
+      grep -i 'TelemetryProfile' $input_file | sed 's/=\[/\n/g' | sed 's/},/}\n/g' | sed 's/],/\n/g'| sed -e 's/^[ ]//' > $TEMP_PATTERN_CONF_FILE
+    fi
+
+  # Create map file from json message file
+    while read line
+    do         
+        header_Check=`echo "$line" | grep -c '{"header"'`
+        if [ $header_Check -ne 0 ];then
+           polling=`echo "$line" | grep -c 'pollingFrequency'`
+           if [ $polling -ne 0 ];then
+              header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              type=`echo "$line" | awk -F '"type" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              pollingFrequency=`echo "$line" | awk -F '"pollingFrequency" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`        
+              if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
+                  echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
+              fi
+           else
+              header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              type=`echo "$line" | awk -F '"type" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`
+              if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
+                  echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
+              fi
+           fi 
+        fi
+    done < $TEMP_PATTERN_CONF_FILE
+
+    #Create conf file from map file
+    while read line
+    do
+        content=`echo "$line" | awk -F '<#=#>' '{print $2}'`
+        type=`echo "$line" | awk -F '<#=#>' '{print $3}'`
+        echo "$content<#=#>$type" >> $PATTERN_CONF_FILE
+    done < $MAP_PATTERN_CONF_FILE
+
+    # Sort the config file based on file names to minimise the duplicate delta file generation
+    if [ -f $PATTERN_CONF_FILE ]; then
+        if [ -f $output_file ]; then
+            rm -f $output_file
+        fi
+        awk -F '<#=#>' '{print $NF,$0}' $PATTERN_CONF_FILE | sort -n | cut -d ' ' -f 2- > $output_file 
+    fi
+
+}
+
+# Regenerate config only during boot-up and when there is an update
+if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $reconfigure -eq 1 ] ; then
+# Start crond daemon for yocto builds
+    pidof crond
+    if [ $? -ne 0 ]; then
+        mkdir -p $CRON_SPOOL
+        touch $CRON_SPOOL/root
+        crond -c $CRON_SPOOL -l 9
+    fi
+
+    processJsonResponse "$DCMRESPONSE"
+    clearTelemetryConfig
+    generateTelemetryConfig $TELEMETRY_PROFILE_PATH $SORTED_PATTERN_CONF_FILE
+    scheduleCron
+fi
+
+
+#Clear the final result file
+rm -f $OUTPUT_FILE
+rm -f $TELEMETRY_JSON_RESPONSE
+
+if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+    # Need to move to rsync once rsync is enabled in master
+    mkdir -p $LOG_PATH
+    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/
+fi
+
+## Generate output file with pattern to match count values
+if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
+    echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
+else
     while read line
     do
         pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
         filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-        if [ $filename == "snmp" ] || [ $filename == "SNMP" ] || [ $filename == "top_log.txt" ]; then
-            continue
-        fi
         
         if [ ! -z "$pattern" ] && [ ! -z "$filename" ]; then
-            updateCount
+            ## updateCount "$pattern" "$filename"
+            if [ -f $LOG_PATH/$filename ]; then
+                updateCount
+            fi
         fi
     done < $SORTED_PATTERN_CONF_FILE
-    
-    if [ $triggerType -eq 1 ]; then
-       outputJson="{\"searchResult\":["
-       singleEntry=true
-       while read line
-       do
+fi
+
+## Form the message in JSON format
+if [ -f $OUTPUT_FILE ]; then    
+    outputJson="{\"searchResult\":["
+    singleEntry=true
+    while read line
+    do
          searchPattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
          filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
          header=`grep -F "$searchPattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
@@ -350,7 +448,7 @@ if [ -f $PATTERN_CONF_FILE ]; then
          fi
          searchCount=`echo "$line" | awk -F '<#=#>' '{print $NF}'`
          tempString=""
-         #if [ $searchCount != 0 ]; then
+         if [ ! -z "$searchCount" ]; then
              if $singleEntry ; then
                  tempString="{\"$header\":\"$searchCount\"}"
                  singleEntry=false
@@ -358,145 +456,85 @@ if [ -f $PATTERN_CONF_FILE ]; then
                  tempString=",{\"$header\":\"$searchCount\"}"
              fi
              outputJson="$outputJson$tempString"
-         #fi
-       done < $OUTPUT_FILE
+         fi
+    done < $OUTPUT_FILE
        
-       # Get the snmp and performance values 
-       #getSNMPUpdates
-       while read line
-       do
-            pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
-            filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-            if [ $filename == "snmp" ] || [ $filename == "SNMP" ]; then
-                retvalue=$(getSNMPUpdates $pattern)
-                header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-                if $singleEntry ; then
-                   tuneData="{\"$header\":\"$retvalue\"}"
-                   outputJson="$outputJson$tuneData"
-                   singleEntry=false
-                else
-                   tuneData=",{\"$header\":\"$retvalue\"}"
-                   outputJson="$outputJson$tuneData" 
-                fi                
-            fi
+    # Get the snmp and performance values when enabled 
+    # Need to check only when SNMP is enabled in future
+    if [ "$snmpCheck" == "true" ] ; then
+      while read line
+      do
+        pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
+        filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
+        if [ $filename == "snmp" ] || [ $filename == "SNMP" ]; then
+            retvalue=$(getSNMPUpdates $pattern)
+            header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
+            if $singleEntry ; then
+               tuneData="{\"$header\":\"$retvalue\"}"
+               outputJson="$outputJson$tuneData"
+               singleEntry=false
+            else
+               tuneData=",{\"$header\":\"$retvalue\"}"
+               outputJson="$outputJson$tuneData" 
+            fi                
+        fi
             
-            if [ $filename == "top_log.txt" ]; then            
-                header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-                if [ "$header" == "Load_Average" ]; then                    
-                    load_average=`getLoadAverage`
+        if [ $filename == "top_log.txt" ]; then            
+            header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
+            if [ "$header" == "Load_Average" ]; then                    
+                load_average=`getLoadAverage`
+                if $singleEntry ; then
+                    outputJson="$outputJson$load_average"
+                    singleEntry=false
+                else
+                    outputJson="$outputJson,$load_average"
+                fi              
+            else
+                retvalue=$(getPerformanceValue $pattern)
+                if [ -n "$retvalue" ]; then
                     if $singleEntry ; then
-                        outputJson="$outputJson$load_average"
+                        tuneData="$retvalue"
+                        outputJson="$outputJson$tuneData"
                         singleEntry=false
                     else
-                        outputJson="$outputJson,$load_average"
-                    fi              
-                else
-                    retvalue=$(getPerformanceValue $pattern)
-                    if [ -n "$retvalue" ]; then
-                        #header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-                        if $singleEntry ; then
-                           #tuneData="{\"$header\":\"$retvalue\"}"
-                           tuneData="$retvalue"
-                           outputJson="$outputJson$tuneData"
-                           singleEntry=false
-                        else
-                           #tuneData=",{\"$header\":\"$retvalue\"}"
-                           tuneData=",$retvalue"
-                           outputJson="$outputJson$tuneData" 
-                        fi
+                        tuneData=",$retvalue"
+                        outputJson="$outputJson$tuneData" 
                     fi
                 fi
-            fi
-            
+           fi
+       fi
        done < $SORTED_PATTERN_CONF_FILE
+     fi
 
-       estbMac=`getErouterMacAddress`
+       ## This interface is not accessible from ATOM, replace value from ARM
+       estbMac="ErouterMacAddress"
        firmwareVersion=$(getFWVersion)
+       firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
-	   
-        if [ -f $TELEMETRY_PATH/lastlog_path ] && [ "$DEVICE_TYPE" != "mediaclient" ];
-        then            
-            echo "File $TELEMETRY_PATH/lastlog_path exists." >> $RTL_LOG_FILE 
-            #offline_status=$(getOfflineStatus)
-            if [ -n "$offline_status" ]; then
-                if $singleEntry ; then
-                  outputJson="$outputJson$offline_status"
-                  singleEntry=false
-                else
-                  outputJson="$outputJson,$offline_status" 
-                fi
-            fi
-            
-            cntrl_id=$(getControllerId)
-            if $singleEntry ; then
-                outputJson="$outputJson$cntrl_id"
-                singleEntry=false
-            else
-                outputJson="$outputJson,$cntrl_id"                 
-            fi
-            
-            rfstatus=$(getRFStatus)
-            if $singleEntry ; then
-                outputJson="$outputJson$rfstatus"
-                singleEntry=false
-            else
-                outputJson="$outputJson,$rfstatus"                 
-            fi            
-           rm -f $TELEMETRY_PATH/lastlog_path 
-        else
-            echo "File $TELEMETRY_PATH/lastlog_path  does not exist. Not sending Cable Card Informtion " >> $RTL_LOG_FILE 
-        fi		
-        
      
-        if $singleEntry ; then
+       if $singleEntry ; then
             outputJson="$outputJson{\"mac\":\"$estbMac\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
             singleEntry=false
-        else
+       else
             outputJson="$outputJson,{\"mac\":\"$estbMac\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
-        fi
-        
-		 if [ "$sendInformation" != 1 ] ; then
-           echo $outputJson >> $TELEMETRY_RESEND_FILE
-		   echo "$timestamp: dca resend : Storing data to resend" >> $RTL_LOG_FILE
-		   mv $TELEMETRY_PATH_TEMP/* $TELEMETRY_PATH/
-        else
-           timestamp=`date +%Y-%b-%d_%H-%M-%S` 
-           CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 10 --insecure"
-           echo "$timestamp: dca: CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
-           echo "$timestamp: dca: sleeping $sleep_time seconds" >> $RTL_LOG_FILE 
-           sleep $sleep_time
-           timestamp=`date +%Y-%b-%d_%H-%M-%S`
-           ret= eval $CURL_CMD > $HTTP_CODE
-           http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-	       echo "$timestamp: dca: HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
-           if [ $http_code -eq 200 ];then
-              echo "$timestamp: dca: Json message successfully submitted. Moving files from $TELEMETRY_PATH_TEMP to $TELEMETRY_PATH" >> $RTL_LOG_FILE
-		      mv $TELEMETRY_PATH_TEMP/* $TELEMETRY_PATH/
-           else
-              echo "$timestamp: dca: Json message submit failed. Removing files from $TELEMETRY_PATH_TEMP" >> $RTL_LOG_FILE
-		      rm -f $TELEMETRY_PATH_TEMP/*
-           fi
-           rm -f $OUTPUT_FILE
-		   while read resend
-		   do
-			  echo "$timestamp: dca resend : $resend" >> $RTL_LOG_FILE 
-			  CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 10 --insecure"
-                          ret= eval $CURL_CMD > $HTTP_CODE
-                          echo "$timestamp: dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
-		          sleep 10
-			  http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-	                  echo "$timestamp: dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
-		   done < $TELEMETRY_RESEND_FILE
-		rm -f $TELEMETRY_RESEND_FILE
-        fi
-		
-    fi
+       fi
+       echo "$outputJson" > $TELEMETRY_JSON_RESPONSE
+       sleep 2
+
+       if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+           echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk"
+           echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
+           # Trigger inotify event on ARM to upload message to splunk
+           ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT"
+       else
+           sh /lib/rdk/dcaSplunkUpload.sh &
+       fi
 else
     echo "$timestamp: dca: Configuration File Not Found" >> $RTL_LOG_FILE
 fi
 
-if [ -f $RTL_TEMP_LOG_FILE ]; then
-    rm -f $RTL_TEMP_LOG_FILE
+if [ -f $RTL_DELTA_LOG_FILE ]; then
+    rm -f $RTL_DELTA_LOG_FILE
 fi
 
 if [ -f $TEMP_PATTERN_CONF_FILE ]; then

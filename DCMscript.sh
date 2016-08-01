@@ -22,8 +22,8 @@ else
       . /etc/dcm.properties
 fi
 
-if [ -f /fss/gw/rdklogger/utils.sh  ]; then 
-   . /fss/gw/rdklogger/utils.sh
+if [ -f /lib/rdk/utils.sh  ]; then 
+   . /lib/rdk/utils.sh
 fi
 
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
@@ -41,6 +41,9 @@ TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 DCMFLAG="/tmp/.DCMSettingsFlag"
 DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
 DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
+TELEMETRY_INOTIFY_FOLDER=/telemetry
+TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+
 # http header
 HTTP_HEADERS='Content-Type: application/json'
 ## RETRY DELAY in secs
@@ -81,30 +84,12 @@ if [ -f $DCM_SETTINGS_CONF ]; then
     fi
 fi
 
-# Start crond daemon for yocto builds
-if [ -f /etc/os-release ]; then
-    mkdir -p $CRON_SPOOL
-    touch $CRON_SPOOL/root
-    pidof crond
-    if [ $? -ne 0 ]; then
-        crond -l 9 
-    fi
-fi
-
-# Clean up for telemetry during bootup
-if [ -d $TELEMETRY_PATH ]; then
-    echo "Removing Telemetry directory $TELEMETRY_PATH" >> $DCM_LOG_FILE
-    rm -rf $TELEMETRY_PATH
-fi
-
 # File to save curl response 
 #FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 # File to save http code
 HTTP_CODE="$PERSISTENT_PATH/http_code"
 rm -rf $HTTP_CODE
-# Cron job file name
-current_cron_file="$PERSISTENT_PATH/cron_file.txt"
 # Timeout value
 timeout=10
 default_IP=$DEFAULT_IP
@@ -141,47 +126,6 @@ getVODId()
     echo "15660"
 }
 
-## Process the responce and update it in a file DCMSettings.conf
-## Function to remove HTML from curl response obtained from server and makes the conf file in a easy to read format
-processJsonResponse()
-{  
-    FILENAME=$1
-    #Condider getting the filename as an argument instead of using global file name 
-    if [ -f "$FILENAME" ]; then
-        # Start pre-processing the original file
-        sed -i 's/,"urn:/\n"urn:/g' $FILENAME # Updating the file by replacing all ',"urn:' with '\n"urn:'
-        sed -i 's/^{//g' $FILENAME # Delete first character from file '{'
-        sed -i 's/}$//g' $FILENAME # Delete first character from file '}'
-        echo "" >> $FILENAME         # Adding a new line to the file 
-        # Start pre-processing the original file
-
-        OUTFILE=$DCM_SETTINGS_CONF
-	OUTFILEOPT="$PERSISTENT_PATH/.DCMSettings.conf"
-        #rm -f $OUTFILE #delete old file
-        cat /dev/null > $OUTFILE #empty old file
-	cat /dev/null > $OUTFILEOPT
-
-        while read line
-        do 
-            # Special processing for telemetry 
-            profile_Check=`echo "$line" | grep -ci 'TelemetryProfile'`
-            if [ $profile_Check -ne 0 ];then
-                #echo "$line"
-                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' >> $OUTFILE
-
-		echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' | sed -e 's/uploadRepository:URL.*","//g'  >> $OUTFILEOPT
-            else
-                echo "$line" | sed 's/":/=/g' | sed 's/"//g' >> $OUTFILE 
-            fi            
-        done < $FILENAME
-        
-        rm -rf $FILENAME #Delete the $PERSISTENT_PATH/DCMresponse.txt
-    else
-        echo "$FILENAME not found." >> $DCM_LOG_FILE
-        return 1
-    fi
-}
-
 sendHttpRequestToServer()
 {
     resp=0
@@ -198,7 +142,7 @@ sendHttpRequestToServer()
     echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
     result= eval $CURL_CMD > $HTTP_CODE
     ret=$?
-    sleep $timeout
+    sleep 2
     http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
     echo "`date` ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
 	
@@ -225,18 +169,6 @@ sendHttpRequestToServer()
         resp=1
     else
         echo "`date` HTTP request success. Processing response.." >> $DCM_LOG_FILE
-        # Create DCM settings conf from DCM response 
-        processJsonResponse "$FILENAME"
-        stat=$?
-        echo "`date` processJsonResponse returned $stat" >> $DCM_LOG_FILE
-        if [ $stat -ne 0 ] ; then
-            echo "`date` Processing response failed." >> $DCM_LOG_FILE
-            rm -rf $DCM_SETTINGS_CONF
-            resp=1
-        else
-            resp=0
-            echo 1 > $DCMFLAG
-        fi
     fi
     echo "`date` resp = $resp" >> $DCM_LOG_FILE
     return $resp
@@ -244,7 +176,6 @@ sendHttpRequestToServer()
 
 
 # Safe wait for IP acquisition
-# TBD this logic may be different for RDKB devices
 loop=1
 counter=0
 while [ $loop -eq 1 ]
@@ -252,11 +183,8 @@ do
     estbIp=`getCMIPAddress`   # This needs to be changed to wait for erouter IP address
     if [ "X$estbIp" == "X" ]; then
          echo "`date` waiting for IP" >> $DCM_LOG_FILE
-         sleep 10
+         sleep 2
          let counter++
-         if [ "$counter" -eq 30 ] || [ "$counter" -eq 90 ]; then
-             sh $RDK_PATH/dca_utility.sh 0 0
-         fi
     else
          loop=0
     fi
@@ -281,7 +209,7 @@ do
 	echo "`date` sendHttpRequestToServer has not executed since the value of 'checkon_reboot' is $checkon_reboot" >> $DCM_LOG_FILE
     fi                
 
-    sleep 15
+    sleep 5
 
     if [ $ret -ne 0 ]; then
         echo "`date` Processing response failed." >> $DCM_LOG_FILE
@@ -292,59 +220,21 @@ do
             echo 0 > $DCMFLAG
             exit 1
         fi
-        echo "`date` count = $count. Sleeping $RETRY_DELAY seconds ..." >> $LOG_PATH/dcmscript.log
+        echo "`date` count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
         sleep $RETRY_DELAY
     else
-        # 2] Initialize telemetry and schedule cron for telemetry
         loop=0
-	cron=''
-	scheduler_Check=`grep '"schedule":' $DCM_SETTINGS_CONF`
-	if [ -n "$scheduler_Check" ]; then
-	    cron=`cat $DCM_SETTINGS_CONF | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
-	fi
 
-	if [ -n "$cron" ]; then
-            #Get the cronjob time (minutes)
-	    sleep_time=`echo "$cron" | awk -F '/' '{print $2}' | cut -d ' ' -f1`
-	    if [ -n $sleep_time ];then
-		sleep_time=`expr $sleep_time - 1` #Subtract 1 miute from it
-		sleep_time=`expr $sleep_time \* 60` #Make it to seconds
-                # Adding generic RANDOM number implementation as sh in RDK_B doesn't support RANDOM
-                RANDOM=`awk -v min=5 -v max=10 'BEGIN{srand(); print int(min+rand()*(max-min+1)*(max-min+1)*1000)}'`
-		sleep_time=$(($RANDOM%$sleep_time)) #Generate a random value out of it
-	    else
-		sleep_time=10
-	    fi
-	    # Dump existing cron jobs to a file
-	    crontab -l -c $CRON_SPOOL > $current_cron_file
-	    # Check whether any cron jobs are existing or not
-	    existing_cron_check=`cat $current_cron_file | tail -n 1`
-	    tempfile="$PERSISTENT_PATH/tempfile.txt"
-	    rm -rf $tempfile  # Delete temp file if existing
-	    if [ -n "$existing_cron_check" ]; then
-		rtl_cron_check=`grep -c 'dca_utility.sh' $current_cron_file`
-		if [ $rtl_cron_check -eq 0 ]; then
-		    echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh $sleep_time 1" >> $tempfile
-		fi
-		while read line
-		do
-		    retval=`echo "$line" | grep 'dca_utility.sh'`
-		    if [ -n "$retval" ]; then
-			echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh $sleep_time 1" >> $tempfile
-		    else
-			echo "$line" >> $tempfile
-		    fi
-		done < $current_cron_file
-	    else
-		# If no cron job exists, create one, with the value from DCMSettings.conf file
-		echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh $sleep_time 1" >> $tempfile
-	    fi
-	    # Set new cron job from the file
-	    crontab $tempfile -c $CRON_SPOOL
-	    rm -rf $current_cron_file # Delete temp file
-	    rm -rf $tempfile          # Delete temp file
-	else
-	    echo " `date` Failed to read \"schedule\" cronjob value from DCMSettings.conf." >> $DCM_LOG_FILE
-	fi
+        if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
+            scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH
+            if [ $? -ne 0 ]; then
+                scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH
+            fi
+            echo "Signal atom to pick the XCONF config data $DCMRESPONSE and schedule telemetry !!! " >> $DCM_LOG_FILE
+            ## Trigger an inotify event on ATOM 
+            ssh root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT"
+        else
+            sh /lib/rdk/dca_utility.sh 1 &
+        fi
     fi
 done
