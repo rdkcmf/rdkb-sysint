@@ -4,6 +4,15 @@ source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
+if [ -f /etc/device.properties ]
+then
+    source /etc/device.properties
+fi
+MAINTENANCEWINDOW="/tmp/maint_upload"
+
+TELEMETRY_INOTIFY_FOLDER=/telemetry
+TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+
 CRON_TAB="/var/spool/cron/crontabs/root"
 DCM_PATH="/lib/rdk"
 
@@ -28,46 +37,63 @@ calcRandTimeandUpload()
     sec_to_sleep=$(($min_to_sleep*60 + $rand_sec))
     sleep $sec_to_sleep;
    
+    if [ -f "$MAINTENANCEWINDOW" ]
+    then
+        rm -rf $MAINTENANCEWINDOW
+    fi
+    
+    # Create sys descriptor before log sync and upload
+    createSysDescr
+    touch $MAINTENANCEWINDOW
+
     # Telemetry data should be sent before log upload 
     echo "RDK Logger : Process Telemetry logs before log upload.."
-    CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
 
-    if [ "$CMD" != "" ]
+    if [ "$DCA_MULTI_CORE_SUPPORTED" = "yes" ]
     then
-        echo "RDK Logger : Telemetry command received is #$CMD"
-        $CMD &
-
-        # We have slept enough, have a sleep of 1 more minute.
-        # We do not know at what time telemetry script parses the script
-        # let's put this 60 sec sleep
-        sleep 60
+        ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT"
+        # This delay is to make sure that scp of all files from ARM to ATOM is done
+        sleep 30
     else
-        echo "RDK Logger : DCA cron job is not configured"
+        CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
+
+        if [ "$CMD" != "" ]
+        then
+           echo "RDK Logger : Telemetry command received is #$CMD"
+           $CMD &
+
+           # We have slept enough, have a sleep of 1 more minute.
+           # We do not know at what time telemetry script parses the script
+           # let's put this 60 sec sleep
+           sleep 60
+        else
+           echo "RDK Logger : DCA cron job is not configured"
+        fi
     fi
+    # Check if nvram2 log back up is enabled
+    nvram2Backup="false"
+    backupenabled=`syscfg get logbackup_enable`
+    nvram2Supported="no"
+    
+    if [ -f /etc/device.properties ]
+    then
+       nvram2Supported=`echo $NVRAM2_SUPPORTED`
+    fi
+
+    if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+    then
+	nvram2Backup="true"
+    else
+        nvram2Backup="false"
+    fi
+
     echo "RDK Logger : Trigger Maintenance Window log upload.."
-
-	nvram2Backup="false"
-	backupenabled=`syscfg get logbackup_enable`
-	nvram2Supported="no"
-	if [ -f /etc/device.properties ]
-	then
-	   nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
-	fi
-
-	if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
-	then
-	   nvram2Backup="true"
-	else
-	   nvram2Backup="false"
-	fi
-
-	if [ "$nvram2Backup" == "true" ]; then		
-                createSysDescr
-		syncLogs_nvram2	
-		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
-	else
-		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
-	fi
+    if [ "$nvram2Backup" == "true" ]; then
+       syncLogs_nvram2	
+       backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+    else
+       backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+    fi
 
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0

@@ -4,6 +4,7 @@ source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
 #. $RDK_LOGGER_PATH/commonUtils.sh
+MAINTENANCE_WINDOW="/tmp/maint_upload"
 
 PING_PATH="/usr/sbin"
 ARM_LOGS_NVRAM2="/nvram2/logs/ArmConsolelog.txt.0"
@@ -285,8 +286,15 @@ backupAllLogs()
 	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 	
-	# Put system descriptor string in log file
-	createSysDescr
+        # MAINTENANCE_WINDOW is flagged by maintenance window upload script so that 
+        # we will not print the sysDecr value again
+        if [ ! -f "$MAINTENANCE_WINDOW" ]
+        then
+          # Put system descriptor string in log file
+	  createSysDescr
+        else
+           rm -rf $MAINTENANCE_WINDOW
+        fi
 
 	if [ ! -d "$destn" ]
 	then
