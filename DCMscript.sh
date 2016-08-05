@@ -22,7 +22,7 @@ else
       . /etc/dcm.properties
 fi
 
-if [ -f /lib/rdk/utils.sh  ]; then 
+if [ -f /lib/rdk/utils.sh ]; then 
    . /lib/rdk/utils.sh
 fi
 
@@ -40,9 +40,9 @@ fi
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 DCMFLAG="/tmp/.DCMSettingsFlag"
 DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
-DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
-TELEMETRY_INOTIFY_FOLDER=/telemetry
+TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 
 # http header
 HTTP_HEADERS='Content-Type: application/json'
@@ -72,10 +72,10 @@ echo "`date` BOOT_FLAG: $reboot_flag" >> $DCM_LOG_FILE
 echo "`date` CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
 
 # This override doesn't happen during device bootup
-if [ -f $DCM_SETTINGS_CONF ]; then
-    Check_URL=`grep 'urn:settings:ConfigurationServiceURL' $DCM_SETTINGS_CONF | cut -d '=' -f2 | head -n 1`
+if [ -f $DCMRESPONSE ]; then
+    Check_URL=`grep 'urn:settings:ConfigurationServiceURL' $DCMRESPONSE | cut -d '=' -f2 | head -n 1`
     if [ -n "$Check_URL" ]; then
-        URL=`grep 'urn:settings:ConfigurationServiceURL' $DCM_SETTINGS_CONF | cut -d '=' -f2 | sed 's/^"//' | sed 's/"$//' | head -n 1`
+        URL=`grep 'urn:settings:ConfigurationServiceURL' $DCMRESPONSE | cut -d '=' -f2 | sed 's/^"//' | sed 's/"$//' | head -n 1`
         #last_char=`echo $URL | sed -e 's/\(^.*\)\(.$\)/\2/'`
         last_char=`echo $URL | awk '$0=$NF' FS=`
         if [ "$last_char" != "?" ]; then
@@ -86,7 +86,6 @@ fi
 
 # File to save curl response 
 #FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
-DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 # File to save http code
 HTTP_CODE="$PERSISTENT_PATH/http_code"
 rm -rf $HTTP_CODE
@@ -165,7 +164,7 @@ sendHttpRequestToServer()
 	 resp=1
     elif [ $ret -ne 0 -o $http_code -ne 200 ] ; then
         echo "`date` HTTP request failed" >> $DCM_LOG_FILE
-        rm -rf $DCM_SETTINGS_CONF
+        rm -rf $DCMRESPONSE
         resp=1
     else
         echo "`date` HTTP request success. Processing response.." >> $DCM_LOG_FILE
@@ -174,6 +173,15 @@ sendHttpRequestToServer()
     return $resp
 }
 
+dropbearRecovery()
+{
+   dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
+   if [ -z "$dropbearPid" ]; then
+       echo "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
+       dropbear -E -B -p $ARM_INTERFACE_IP:22 &
+       sleep 2
+   fi
+}
 
 # Safe wait for IP acquisition
 loop=1
@@ -226,6 +234,7 @@ do
         loop=0
 
         if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
+            dropbearRecovery
             scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH
             if [ $? -ne 0 ]; then
                 scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH

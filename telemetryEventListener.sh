@@ -17,6 +17,7 @@
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 
 eventType=""
 
@@ -33,11 +34,15 @@ case "$eventType" in
   *splunkUpload* )
     sh /lib/rdk/dcaSplunkUpload.sh &
     ;;
+  *notifyFlushLogs* )
+    touch $TELEMETRY_EXEC_COMPLETE
+    sh /lib/rdk/dcaSplunkUpload.sh &
+    ;;
   *xconf_update* )
     sh /lib/rdk/dca_utility.sh 1 &
     ;;
   *execTelemetry* )
-    sh /lib/rdk/dca_utility.sh 0 &
+    sh /lib/rdk/dca_utility.sh 2 &
     ;;
 esac
 

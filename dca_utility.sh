@@ -15,7 +15,7 @@ TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
 TELEMETRY_PROFILE_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
 
-RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
+RTL_LOG_FILE="$LOG_PATH/dcmProcessing.log"
 RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
 PATTERN_CONF_FILE="$TELEMETRY_PATH/dca.conf"
 MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
@@ -23,7 +23,7 @@ TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
 
 # Persist this files for telemetry operation
 # Regenerate this only when there is a change identified from XCONF update
-SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_temp_file.conf"
+SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_sorted_file.conf"
 
 current_cron_file="$PERSISTENT_PATH/cron_file.txt"
 
@@ -38,6 +38,7 @@ IPVIDEO_BINARY="/usr/bin/ipvideo"
 
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
@@ -67,12 +68,13 @@ touch $RTL_LOG_FILE
 if [ ! -f /tmp/.dca_bootup ]; then
    touch /tmp/.dca_bootup
    rm -rf $TELEMETRY_PATH
+   rm -f $RTL_LOG_FILE
 fi
 
 
 PrevFileName=''
 
-echo "Telemetry Profile File Being Used : $TELEMETRY_PROFILE_PATH" >> $RTL_LOG_FILE
+echo "Telemetry Profile File Being Used : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
 	
 #Adding support for opt override for dcm.properties file
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
@@ -103,12 +105,15 @@ pidCleanup()
 }
 
 if [ $# -ne 1 ]; then
-   echo "Usage : `basename $0` <0/1> 0 - Reinitialize Map 1 - Telemetry search " >> $RTL_LOG_FILE
+   echo "Usage : `basename $0` <0/1/2> 0 - Telemtry From Cron 1 - Reinitialize Map 2 - Forced Telemetry search " >> $RTL_LOG_FILE
    if [ ! -f /etc/os-release ];then pidCleanup; fi
    exit 0
 fi
 
-reconfigure=$1
+# 0 if as part of normal execution
+# 1 if initiated due to an XCONF update
+# 2 if forced execution before log upload
+triggerType=$1
 
 cd $LOG_PATH
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
@@ -304,6 +309,15 @@ scheduleCron()
 	echo " `date` Failed to read \"schedule\" cronjob value from DCMSettings.conf." >> $RTL_LOG_FILE
     fi
 }
+
+dropbearRecovery()
+{
+   dropbearPid=`ps | grep -i dropbear | grep "$ATOM_INTERFACE_IP" | grep -v grep`
+   if [ -z "$dropbearPid" ]; then
+       dropbear -E -B -p $ATOM_INTERFACE_IP:22 &
+       sleep 2
+   fi
+}
    
 clearTelemetryConfig()
 {
@@ -388,7 +402,7 @@ generateTelemetryConfig()
 }
 
 # Regenerate config only during boot-up and when there is an update
-if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $reconfigure -eq 1 ] ; then
+if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
 # Start crond daemon for yocto builds
     pidof crond
     if [ $? -ne 0 ]; then
@@ -397,27 +411,41 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $reconfigure -eq 1 ] ; then
         crond -c $CRON_SPOOL -l 9
     fi
 
+    if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+        while [ ! -f $DCMRESPONSE ]
+        do
+             echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
+            scp -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE
+            sleep 10
+        done
+    fi
     processJsonResponse "$DCMRESPONSE"
     clearTelemetryConfig
     generateTelemetryConfig $TELEMETRY_PROFILE_PATH $SORTED_PATTERN_CONF_FILE
     scheduleCron
+    if [ $triggerType -eq 1 ]; then
+        ## Telemetry must be invoked only via cron and not during boot-up
+        exit 0
+    fi
 fi
 
+if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+    dropbearRecovery
+    mkdir -p $LOG_PATH
+    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/
+    sleep 2
+fi
 
 #Clear the final result file
 rm -f $OUTPUT_FILE
 rm -f $TELEMETRY_JSON_RESPONSE
 
-if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
-    # Need to move to rsync once rsync is enabled in master
-    mkdir -p $LOG_PATH
-    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/
-fi
 
 ## Generate output file with pattern to match count values
 if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
     echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
 else
+    echo "$timestamp Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
     while read line
     do
         pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
@@ -425,6 +453,7 @@ else
         
         if [ ! -z "$pattern" ] && [ ! -z "$filename" ]; then
             ## updateCount "$pattern" "$filename"
+            echo "$timestamp Checking for pattern "$pattern" in $filename" >> $RTL_LOG_FILE
             if [ -f $LOG_PATH/$filename ]; then
                 updateCount
             fi
@@ -525,12 +554,19 @@ if [ -f $OUTPUT_FILE ]; then
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk"
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
-           ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT"
+           if [ $triggerType -eq 2 ]; then
+               ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"
+           else
+               ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT"
+           fi
        else
+           if [ $triggerType -eq 2 ]; then
+               touch $TELEMETRY_EXEC_COMPLETE
+           fi
            sh /lib/rdk/dcaSplunkUpload.sh &
        fi
 else
-    echo "$timestamp: dca: Configuration File Not Found" >> $RTL_LOG_FILE
+    echo "$timestamp: dca: Error messages matching with telemetry pattern is not present .." >> $RTL_LOG_FILE
 fi
 
 if [ -f $RTL_DELTA_LOG_FILE ]; then
@@ -539,6 +575,13 @@ fi
 
 if [ -f $TEMP_PATTERN_CONF_FILE ]; then
     rm -f $TEMP_PATTERN_CONF_FILE
+fi
+
+if [ $triggerType -eq 2 ]; then
+   # Forced execution before flusing of logs, so clear the markers
+   if [ -d $TELEMETRY_PATH_TEMP ]; then
+       rm -rf $TELEMETRY_PATH_TEMP
+   fi
 fi
 
 # PID file cleanup

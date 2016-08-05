@@ -25,6 +25,8 @@ RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
 HTTP_CODE="$TELEMETRY_PATH/dca_curl_httpcode"
 
+DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
+
 # exit if an instance is already running
 if [ ! -f /tmp/.dca-splunk.upload ];then
     # store the PID
@@ -51,8 +53,8 @@ else
       . /etc/dcm.properties
 fi
 
-if [ -f "$TELEMETRY_PROFILE_DEFAULT_PATH" ]; then    
-    DCA_UPLOAD_URL=`grep '"uploadRepository:URL":"' $TELEMETRY_PROFILE_DEFAULT_PATH | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
+if [ -f "$DCMRESPONSE" ]; then    
+    DCA_UPLOAD_URL=`grep '"uploadRepository:URL":"' $DCMRESPONSE | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
 fi
 
 if [ -z $DCA_UPLOAD_URL ]; then
@@ -79,6 +81,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    if [ $? -ne 0 ]; then
        scp root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE
    fi
+   echo "$timestamp: Copied $TELEMETRY_JSON_RESPONSE " >> $RTL_LOG_FILE 
    sleep 2
 fi
 
@@ -99,7 +102,8 @@ if [ -f $TELEMETRY_RESEND_FILE ]; then
 	http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
         echo "$timestamp: dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
         if [ "$http_code" != "200" ]; then
-            Store this line from resend file to a temp resend file
+            # Store this line from resend file to a temp resend file
+            # This is to address the use case when device is offline
             echo "$resend" >> $TELEMETRY_TEMP_RESEND_FILE
         fi
    done < $TELEMETRY_RESEND_FILE
@@ -114,6 +118,12 @@ if [ -f $TELEMETRY_RESEND_FILE ]; then
 fi
 
 ##  3] Attempt to post current message. Check for status if failed add it to resend que
+if [ ! -f $TELEMETRY_JSON_RESPONSE ]; then
+    echo "$timestamp: dca: Unable to find Json message ." >> $RTL_LOG_FILE
+    if [ ! -f /etc/os-release ];then pidCleanup; fi
+    exit 0
+fi
+
 outputJson=`cat $TELEMETRY_JSON_RESPONSE`
 timestamp=`date +%Y-%b-%d_%H-%M-%S` 
 CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 10 --insecure"
