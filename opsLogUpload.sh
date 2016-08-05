@@ -356,7 +356,8 @@ uploadOnRequest()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo "Ping to ATOM ip success, syncing ATOM side logs"					
-					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_UPLOAD_ON_REQUEST$timeRequested/
+				        rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/
+			
 				else
 					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi

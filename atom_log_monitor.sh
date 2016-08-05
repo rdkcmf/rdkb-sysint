@@ -2,6 +2,7 @@
 
 loop=1
 LOG_PATH=/rdklogs/logs/
+FILES="AtomConsolelog.txt.0 CRlog.txt.0"
 while [ "$loop" -eq 1 ]
 do
 
@@ -17,7 +18,11 @@ do
 	totalSize=0
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 
-		totalSize=`du -c | tail -1 | awk '{print $1}'`
+		for f in $FILES
+		do
+			tempSize=`du -c $f | tail -1 | awk '{print $1}'`
+			totalSize=`expr $totalSize + $tempSize`
+		done
         else
 
 		for f in $FILES

@@ -6,6 +6,16 @@ source $RDK_LOGGER_PATH/utils.sh
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 
+
+if [ -f /etc/device.properties ]
+then
+    source /etc/device.properties
+fi
+
+TELEMETRY_INOTIFY_FOLDER=/telemetry
+TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+
+DCA_COMPLETED="/tmp/.dca_done"
 PING_PATH="/usr/sbin"
 ARM_LOGS_NVRAM2="/nvram2/logs/ArmConsolelog.txt.0"
 
@@ -65,6 +75,9 @@ DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
 
 MiscLog="Misc.txt.0"
 
+AtomConsoleLog="AtomConsolelog.txt.0"
+
+ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog}"
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
 dte=`date "+%m-%d-%y-%I-%M%p"`
@@ -121,6 +134,27 @@ createSysDescr()
 	
 }
 
+flush_atom_logs()
+{
+ 	ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT"
+ 	loop=0
+	while :
+	do
+		sleep 10
+		loop=$((loop+1))
+		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
+		then
+			# Remove the contents of ATOM side log files.
+			echo "DCA completed or wait for 60 sec is over, flushing ATOM logs"
+		        dmcli eRT setv Device.Logging.FlushAllLogs bool true
+			rm -rf $DCA_COMPLETED	
+			break
+		fi
+
+	done
+	
+}
+
 syncLogs_nvram2()
 {
 
@@ -145,7 +179,7 @@ syncLogs_nvram2()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo "Ping to ATOM ip success, syncing ATOM side logs"					
-				        rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_PATH
+					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
 				else
 					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -213,6 +247,15 @@ backupnvram2logs()
 	   fi
 	fi
 
+        if [ "$atom_sync" = "yes" ]
+        then
+                 # Remove the contents of ATOM side log files.
+#                dmcli eRT setv Device.Logging.FlushAllLogs bool true
+		 echo "call dca for log processing and then flush ATOM logs"
+		 flush_atom_logs &
+
+        fi
+
 	cd $destn
         if [ -f "/version.txt" ]
         then
@@ -222,12 +265,6 @@ backupnvram2logs()
         fi
 	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 	 # Removing ATOM side logs
-        if [ "$atom_sync" = "yes" ]
-        then
-                 # Remove the contents of ATOM side log files.
-                dmcli eRT setv Device.Logging.FlushAllLogs bool true
-
-        fi
 
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
@@ -307,18 +344,7 @@ backupAllLogs()
           	rm -rf $LOG_BACK_UP_PATH*
 	   fi
 	fi	
-	
-	cd $destn
-	mkdir $dt
 
-	# Check all files in source folder rather just the main log files
-	SOURCE_FILES=`ls $source`
-
-	for fname in $SOURCE_FILES
-	do
-		$operation $source$fname $dt; >$source$fname;
-	done
-	cp /version.txt $dt
 	# Syncing ATOM side logs
 	if [ "$atom_sync" = "yes" ]
 	then
@@ -334,8 +360,11 @@ backupAllLogs()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo "Ping to ATOM ip success, syncing ATOM side logs"					
-					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $destn/$dt/
-					dmcli eRT setv Device.Logging.FlushAllLogs bool true
+					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
+					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
+					echo "Call dca for log processing and then flush ATOM logs"
+					flush_atom_logs &
+					 
 				else
 					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -344,7 +373,18 @@ backupAllLogs()
 			fi
 		fi
 
-	fi
+	fi	
+	cd $destn
+	mkdir $dt
+
+	# Check all files in source folder rather just the main log files
+	SOURCE_FILES=`ls $source`
+
+	for fname in $SOURCE_FILES
+	do
+		$operation $source$fname $dt; >$source$fname;
+	done
+	cp /version.txt $dt
 
 	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
  	rm -rf $dt

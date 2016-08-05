@@ -132,7 +132,7 @@ backupLogsonReboot()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo "Ping to ATOM ip success, syncing ATOM side logs"					
-					rsync -r -e "ssh -y " root@$ATOM_IP:$ATOM_LOG_PATH $LOG_BACK_UP_REBOOT$dte/
+				        rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dte/
 				else
 					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -223,7 +223,7 @@ fi
 
 if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ]
 then
-	echo "Wan-stopped, take log back up"
+	echo "Taking log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
         createSysDescr
 
