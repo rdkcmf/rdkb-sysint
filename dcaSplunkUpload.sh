@@ -38,6 +38,8 @@ else
     fi
 fi
 
+mkdir -p $TELEMETRY_PATH
+
 if [ "$sendInformation" -ne 1 ] ; then
    TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_RESEND_PATH
 else
