@@ -15,6 +15,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 
 CRON_TAB="/var/spool/cron/crontabs/root"
 DCM_PATH="/lib/rdk"
+SELFHEAL_PATH="/usr/ccsp/tad"
 
 calcRandTimeandUpload()
 {
@@ -97,6 +98,9 @@ calcRandTimeandUpload()
 
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0
+    
+    echo "RDKB_MEM_HEALTH : Check device memory health"
+    sh $SELFHEAL_PATH/check_memory_health.sh
     
     # RDKB-6095 : DCM service should sync with XCONF daily on 
     # the maintenance window
