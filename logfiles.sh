@@ -77,7 +77,7 @@ MiscLog="Misc.txt.0"
 
 AtomConsoleLog="AtomConsolelog.txt.0"
 
-ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog}"
+ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog}"
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
 dte=`date "+%m-%d-%y-%I-%M%p"`
