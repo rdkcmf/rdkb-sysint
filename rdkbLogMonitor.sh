@@ -230,6 +230,10 @@ upload_nvram2_logs()
 			    fi
 			done
 			sleep 120
+			randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+			RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
+			echo "Random sleep for $RANDOM_SLEEP"
+			sleep $RANDOM_SLEEP
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 			UPLOADED_AFTER_REBOOT="true"
 		fi
@@ -304,6 +308,14 @@ then
    done
    sleep 120
 
+   #RDKB-7196: Randomize log upload within 30 minutes
+   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
+   randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+   RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
+   echo "Random sleep for $RANDOM_SLEEP"
+   sleep $RANDOM_SLEEP
+
+
    if [ "$fileToUpload" != "" ]
    then
       $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
@@ -344,7 +356,12 @@ then
 		        break
 	            fi
 	        done
-	        sleep 120
+		sleep 120
+
+		randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+		RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
+		echo "Random sleep for $RANDOM_SLEEP"
+		sleep $RANDOM_SLEEP
 		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 		UPLOADED_AFTER_REBOOT="true"
 	fi
