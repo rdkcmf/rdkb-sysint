@@ -111,6 +111,8 @@ calcRandTimeandUpload()
     else
         echo "RDK Logger : No DCM service file"
     fi
+
+    createSysDescr
 }
 
 
