@@ -32,7 +32,7 @@ calcRandTimeandUpload()
     # Calculate random hour
     rand_hr=`awk -v min=0 -v max=2 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
 
-    echo "RDK Logger : Random Time Generated : $rand_hr hr $rand_min min $rand_sec sec"
+    echo_t "RDK Logger : Random Time Generated : $rand_hr hr $rand_min min $rand_sec sec"
 	
     min_to_sleep=$(($rand_hr*60 + $rand_min))
     sec_to_sleep=$(($min_to_sleep*60 + $rand_sec))
@@ -48,7 +48,7 @@ calcRandTimeandUpload()
     touch $MAINTENANCEWINDOW
 
     # Telemetry data should be sent before log upload 
-    echo "RDK Logger : Process Telemetry logs before log upload.."
+    echo_t "RDK Logger : Process Telemetry logs before log upload.."
 
     if [ "$DCA_MULTI_CORE_SUPPORTED" = "yes" ]
     then
@@ -60,7 +60,7 @@ calcRandTimeandUpload()
 
         if [ "$CMD" != "" ]
         then
-           echo "RDK Logger : Telemetry command received is #$CMD"
+           echo_t "RDK Logger : Telemetry command received is #$CMD"
            $CMD &
 
            # We have slept enough, have a sleep of 1 more minute.
@@ -68,7 +68,7 @@ calcRandTimeandUpload()
            # let's put this 60 sec sleep
            sleep 60
         else
-           echo "RDK Logger : DCA cron job is not configured"
+           echo_t "RDK Logger : DCA cron job is not configured"
         fi
     fi
     # Check if nvram2 log back up is enabled
@@ -88,7 +88,7 @@ calcRandTimeandUpload()
         nvram2Backup="false"
     fi
 
-    echo "RDK Logger : Trigger Maintenance Window log upload.."
+    echo_t "RDK Logger : Trigger Maintenance Window log upload.."
     if [ "$nvram2Backup" == "true" ]; then
        syncLogs_nvram2	
        backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
@@ -99,17 +99,17 @@ calcRandTimeandUpload()
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     upload_logfile=0
     
-    echo "RDKB_MEM_HEALTH : Check device memory health"
+    echo_t "RDKB_MEM_HEALTH : Check device memory health"
     sh $SELFHEAL_PATH/check_memory_health.sh
     
     # RDKB-6095 : DCM service should sync with XCONF daily on 
     # the maintenance window
     if [ -f $DCM_PATH/dcm.service ]; 
     then
-        echo "RDK Logger : Run DCM service"
+        echo_t "RDK Logger : Run DCM service"
         sh $DCM_PATH/dcm.service &
     else
-        echo "RDK Logger : No DCM service file"
+        echo_t "RDK Logger : No DCM service file"
     fi
 
     createSysDescr

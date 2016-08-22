@@ -120,7 +120,7 @@ backupLogsonReboot()
 
 	if [ "$atom_sync" = "yes" ]
 	then
-		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
 		then
 
@@ -131,20 +131,20 @@ backupLogsonReboot()
 			then
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
-					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 				        rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dte/
 				else
-					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
 			else
-				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 			fi
 		fi
 
 	fi
 
 	tar -cvzf $MAC"_Logs_$dte.tgz" $dte
-	echo "Created backup of all logs..."
+	echo_t "Created backup of all logs..."
 	rm -rf $dte	
  	ls
 
@@ -187,7 +187,7 @@ backupLogsonReboot_nvram2()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 	tar -cvzf $MAC"_Logs_$dte.tgz" $LOG_SYNC_PATH
-	echo "Created backup of all logs..."
+	echo_t "Created backup of all logs..."
  	ls
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
@@ -215,7 +215,7 @@ if [ -e $HAVECRASH ]
 then
     if [ "$Crashed_Process_Is" != "" ]
     then
-	    echo "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
+	    echo_t "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
     fi
 
     rm -f $HAVECRASH
@@ -223,7 +223,7 @@ fi
 
 if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ]
 then
-	echo "Taking log back up"
+	echo_t "Taking log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
         createSysDescr
 

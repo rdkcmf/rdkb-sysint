@@ -151,14 +151,14 @@ TFTPLogUpload()
         # This check is to handle migration scenario from /nvram to /nvram2
         if [ "$FILE_NAME" = "" ] && [ "$nvram2Backup" = "true" ]
         then
-           echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+           echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
            FILE_NAME=`ls $LOG_BACK_UP_REBOOT | grep tgz`
            if [ "$FILE_NAME" != "" ]
            then
                cd $LOG_BACK_UP_REBOOT
            fi
         fi
-	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
+	echo_t "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
 	#tftp -l $FILE_NAME -p $TFTP_SERVER  
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 	curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
@@ -193,14 +193,14 @@ HttpLogUpload()
    # This check is to handle migration scenario from /nvram to /nvram2
    if [ "$UploadFile" = "" ] && [ "$nvram2Backup" = "true" ]
    then
-       echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
        UploadFile=`ls $LOG_BACK_UP_REBOOT | grep tgz`
        if [ "$UploadFile" != "" ]
        then
          cd $LOG_BACK_UP_REBOOT
        fi
    fi
-   echo "Upload file is : $UploadFile"
+   echo_t "Upload file is : $UploadFile"
     S3_URL=$UploadHttpLink
     
 	
@@ -228,17 +228,17 @@ HttpLogUpload()
     fi
     
 
-    echo "File to be uploaded: $UploadFile"
+    echo_t "File to be uploaded: $UploadFile"
     UPTIME=`uptime`
-    echo "System Uptime is $UPTIME"
-    echo "S3 URL is : $S3_URL"
+    echo_t "System Uptime is $UPTIME"
+    echo_t "S3 URL is : $S3_URL"
 
     # Performing 3 tries for successful curl command execution.
     # $http_code --> Response code retrieved from HTTP_CODE file path.
     retries=0
     while [ "$retries" -lt 3 ]
     do  
-	echo "Trial $retries..."            
+	echo_t "Trial $retries..."            
         # nice value can be normal as the first trial failed
         if [ $retries -ne 0 ]
         then
@@ -248,7 +248,7 @@ HttpLogUpload()
                CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
             fi
         fi
-        echo "Curl Command built: $CURL_CMD"
+        echo_t "Curl Command built: $CURL_CMD"
         ret= eval $CURL_CMD > $HTTP_CODE
 
 	if [ -f $HTTP_CODE ];
@@ -256,7 +256,7 @@ HttpLogUpload()
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo "HttpCode received is : $http_code"
+			echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 				rm -f $HTTP_CODE
 	       			break
@@ -274,7 +274,7 @@ HttpLogUpload()
         #So get the key from FILENAME
         Key=$(awk '{print $0}' $OutputFile)
 
-	echo "Generated KeyIs : "
+	echo_t "Generated KeyIs : "
 	echo $Key
 
 	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
@@ -286,7 +286,7 @@ HttpLogUpload()
         retries=0
         while [ "$retries" -lt 3 ]
         do 
-	    echo "Trial $retries..."  
+	    echo_t "Trial $retries..."  
             # nice value can be normal as the first trial failed
             if [ $retries -ne 0 ]
             then
@@ -296,14 +296,14 @@ HttpLogUpload()
                    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
                 fi
             fi   
-            echo "Curl Command built: $CURL_CMD"       
+            echo_t "Curl Command built: $CURL_CMD"       
             ret= eval $CURL_CMD > $HTTP_CODE
 	    if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo "HttpCode received is : $http_code"
+			echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 				rm -f $HTTP_CODE
 	       			break
@@ -316,7 +316,7 @@ HttpLogUpload()
 
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ $http_code -eq 200 ];then
-	     echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	     rm -rf $UploadFile
         fi
 
@@ -333,7 +333,7 @@ HttpLogUpload()
         retries=0
         while [ "$retries" -lt 3 ]
         do       
-	    echo "Trial $retries..."   
+	    echo_t "Trial $retries..."   
             # nice value can be normal as the first trial failed
             if [ $retries -ne 0 ]
             then
@@ -343,14 +343,14 @@ HttpLogUpload()
                    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
                 fi
             fi
-            echo "Curl Command built: $CURL_CMD"
+            echo_t "Curl Command built: $CURL_CMD"
             ret= eval $CURL_CMD > $HTTP_CODE
 	    if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo "HttpCode received is : $http_code"
+			echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 				rm -f $HTTP_CODE
 	       			break
@@ -375,7 +375,7 @@ HttpLogUpload()
         retries=0
         while [ "$retries" -lt 3 ]
         do     
-	    echo "Trial $retries..." 
+	    echo_t "Trial $retries..." 
             # nice value can be normal as the first trial failed
             if [ $retries -ne 0 ]
             then
@@ -385,7 +385,7 @@ HttpLogUpload()
                    CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
                 fi
             fi   
-            echo "Curl Command built: $CURL_CMD"          
+            echo_t "Curl Command built: $CURL_CMD"          
             ret= eval $CURL_CMD > $HTTP_CODE
             if [ -f $HTTP_CODE ];
 	    then
@@ -405,21 +405,21 @@ HttpLogUpload()
         #Logs upload successful when the return code is 200 after the second curl execution.
         if [ $http_code -eq 200 ];then
 		
-            	echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+            	echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
             	result=0
 		rm -rf $UploadFile	
         fi
     fi
     # Any other response code, log upload is unsuccessful.
     else 
-	    	echo "INVALID RETURN CODE: $http_code"
-        	echo "LOG UPLOAD UNSUCCESSFUL TO S3"
-		echo "Do TFTP log Upload"
+	    	echo_t "INVALID RETURN CODE: $http_code"
+        	echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+		echo_t "Do TFTP log Upload"
 		TFTPLogUpload
 		rm -rf $UploadFile
 		
     fi    
-    echo $result
+    echo_t $result
 }
 
 
@@ -444,16 +444,16 @@ then
 
    if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
    then
-	   echo "Upload HTTP_LOGS"
+	   echo_t "Upload HTTP_LOGS"
 	   HttpLogUpload
    else
-	   echo "WAN is down, waiting for Upload LOGS"
+	   echo_t "WAN is down, waiting for Upload LOGS"
 	   touch $WAITINGFORUPLOAD
 	   retryUpload &
    fi
 elif [ "$UploadProtocol" = "TFTP" ]
 then
-   echo "Upload TFTP_LOGS"
+   echo_t "Upload TFTP_LOGS"
    TFTPLogUpload
 fi
 
