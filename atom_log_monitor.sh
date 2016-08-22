@@ -1,8 +1,17 @@
 #!/bin/sh
 
+source /etc/device.properties
+
 loop=1
 LOG_PATH=/rdklogs/logs/
-FILES="AtomConsolelog.txt.0 CRlog.txt.0"
+
+if [ "$UI_IN_ATOM" = "true" ]
+then
+   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log"
+else
+   FILES="AtomConsolelog.txt.0 CRlog.txt.0"
+fi
+
 while [ "$loop" -eq 1 ]
 do
 
