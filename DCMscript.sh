@@ -43,6 +43,7 @@ DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
+TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 
 # http header
 HTTP_HEADERS='Content-Type: application/json'
@@ -70,6 +71,8 @@ echo "`date` URL: $URL" >> $DCM_LOG_FILE
 echo "`date` DCM_TFTP_SERVER: $tftp_server" >> $DCM_LOG_FILE
 echo "`date` BOOT_FLAG: $reboot_flag" >> $DCM_LOG_FILE
 echo "`date` CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
+
+rm -f $TELEMETRY_TEMP_RESEND_FILE
 
 # This override doesn't happen during device bootup
 if [ -f $DCMRESPONSE ]; then
