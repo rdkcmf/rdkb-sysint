@@ -213,26 +213,26 @@ upload_nvram2_logs()
 	UploadFile=`ls | grep "tgz"`
 	if [ "$UploadFile" != "" ]
 	then
-	   echo "File to be uploaded from is $UploadFile "
+	   echo_t "File to be uploaded from is $UploadFile "
 		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 		then
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 		else
 			while [ $loop -eq 1 ]
 			do
-		    	     echo "Waiting for stack to come up completely to upload logs..."
+		    	     echo_t "Waiting for stack to come up completely to upload logs..."
 		      	     sleep 30
 			     WEBSERVER_STARTED=`sysevent get webserver`
 		 	     if [ "$WEBSERVER_STARTED" == "started" ]
 			     then
-				echo "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+				echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
 				break
 			    fi
 			done
 			sleep 120
 			randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
 			RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-			echo "Random sleep for $RANDOM_SLEEP"
+			echo_t "Random sleep for $RANDOM_SLEEP"
 			sleep $RANDOM_SLEEP
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 			UPLOADED_AFTER_REBOOT="true"
@@ -241,7 +241,7 @@ upload_nvram2_logs()
 
 	cd $curDir
 
-	echo "uploading over from nvram2 "
+	echo_t "uploading over from nvram2 "
 }
 
 
@@ -287,22 +287,22 @@ then
    # This check is to handle migration scenario from /nvram to /nvram2
    if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
    then
-       echo "Checking if any file available in $LOG_BACK_UP_REBOOT"
+       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
        fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
    fi
        
-   echo "File to be uploaded is $fileToUpload ...."
+   echo_t "File to be uploaded is $fileToUpload ...."
 
    HAS_WAN_IP=""
    
    while [ $loop -eq 1 ]
    do
-      echo "Waiting for stack to come up completely to upload logs..."
+      echo_t "Waiting for stack to come up completely to upload logs..."
       sleep 30
       WEBSERVER_STARTED=`sysevent get webserver`
       if [ "$WEBSERVER_STARTED" == "started" ]
       then
-           echo "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+           echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
            break
       fi
    done
@@ -312,7 +312,7 @@ then
    # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
    randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
    RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-   echo "Random sleep for $RANDOM_SLEEP"
+   echo_t "Random sleep for $RANDOM_SLEEP"
    sleep $RANDOM_SLEEP
 
 
@@ -320,7 +320,7 @@ then
    then
       $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
    else 
-      echo "No log file found in logbackupreboot folder"
+      echo_t "No log file found in logbackupreboot folder"
    fi
    UPLOADED_AFTER_REBOOT="true"
    sleep 2
@@ -328,7 +328,7 @@ then
    cd $curDir
 fi
 
-echo "Check if any tar file available in /logbackup/ "
+echo_t "Check if any tar file available in /logbackup/ "
 curDir=`pwd`
 
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
@@ -340,19 +340,19 @@ curDir=`pwd`
 UploadFile=`ls | grep "tgz"`
 if [ "$UploadFile" != "" ]
 then
-   echo "File to be uploaded from logbackup/ is $UploadFile "
+   echo_t "File to be uploaded from logbackup/ is $UploadFile "
 	if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 	then
 		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
 	else
 	        while [ $loop -eq 1 ]
 	        do
-	    	     echo "Waiting for stack to come up completely to upload logs..."
+	    	     echo_t "Waiting for stack to come up completely to upload logs..."
 	      	     sleep 30
 	             WEBSERVER_STARTED=`sysevent get webserver`
          	     if [ "$WEBSERVER_STARTED" == "started" ]
 	             then
-		        echo "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+		        echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
 		        break
 	            fi
 	        done
@@ -360,7 +360,7 @@ then
 
 		randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
 		RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-		echo "Random sleep for $RANDOM_SLEEP"
+		echo_t "Random sleep for $RANDOM_SLEEP"
 		sleep $RANDOM_SLEEP
 		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 		UPLOADED_AFTER_REBOOT="true"
@@ -372,7 +372,7 @@ cd $curDir
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
 	file_list=`ls $LOG_SYNC_PATH`
 	if [ "$file_list" != "" ]; then
-	 	echo "RDK_LOGGER: Uploading logs from nvram2 on reboot"
+	 	echo_t "RDK_LOGGER: Uploading logs from nvram2 on reboot"
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		upload_nvram2_logs
 	fi
@@ -380,7 +380,7 @@ fi
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then
   #Sync log files immediately after reboot
-  echo "RDK_LOGGER: Sync logs to nvram2 after reboot"
+  echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
   syncLogs_nvram2
 fi
 
@@ -397,13 +397,13 @@ do
 		if [ "$DeviceUP" -eq 0 ]; then
 			#for rdkb-4260
 			if [ -f "$SW_UPGRADE_REBOOT" ]; then
-				echo "RDKB_REBOOT: Device is up after reboot due to software upgrade"
+				echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
 				#deleting reboot_due_to_sw_upgrade file
-				echo "Deleting file /nvram/reboot_due_to_sw_upgrade"
+				echo_t "Deleting file /nvram/reboot_due_to_sw_upgrade"
 				rm -rf /nvram/reboot_due_to_sw_upgrade
 				DeviceUP=1
 			else
-				echo "RDKB_REBOOT: Device is up after reboot"
+				echo_t "RDKB_REBOOT: Device is up after reboot"
 				DeviceUP=1
 			fi
 		fi
@@ -448,7 +448,7 @@ do
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
 		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
-			echo "Logging in initial 10 min"
+			echo_t "Logging in initial 10 min"
 			syncLogs_nvram2
 		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
 			minute_count=0
@@ -458,7 +458,7 @@ do
 		# Suppress ls errors to prevent constant prints in non supported devices
 		file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 		if [ "$file_list" != "" ]; then
-			echo "RDK_LOGGER: Disabling nvram2 logging"
+			echo_t "RDK_LOGGER: Disabling nvram2 logging"
                         createSysDescr
 			syncLogs_nvram2
 			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"

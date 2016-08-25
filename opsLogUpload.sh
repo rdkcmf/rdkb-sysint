@@ -106,7 +106,7 @@ TFTPLogUploadOnRequest()
 	
 	# Get the file and upload it
 	FILE_NAME=`ls | grep "tgz"`
-	echo "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER for build type "$BUILD_TYPE"..."
+	echo_t "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER for build type "$BUILD_TYPE"..."
     if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
        curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT 
     else
@@ -145,16 +145,16 @@ HTTPLogUploadOnRequest()
         CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
     fi
 
-    echo "Curl Command built: $CURL_CMD"
-    echo "File to be uploaded: $UploadFile"
-    echo "S3 URL is : $S3_URL"
+    echo_t "Curl Command built: $CURL_CMD"
+    echo_t "File to be uploaded: $UploadFile"
+    echo_t "S3 URL is : $S3_URL"
 
     # Performing 3 tries for successful curl command execution.
     # $http_code --> Response code retrieved from HTTP_CODE file path.
     retries=0
     while [ "$retries" -lt 3 ]
     do      
-	echo "Trial $retries..."              
+	echo_t "Trial $retries..."              
         ret= eval $CURL_CMD > $HTTP_CODE
 
 	if [ -f $HTTP_CODE ];
@@ -162,7 +162,7 @@ HTTPLogUploadOnRequest()
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo "HttpCode received is : $http_code"
+			echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
 					rm -f $HTTP_CODE
@@ -183,7 +183,7 @@ HTTPLogUploadOnRequest()
         #So get the key from FILENAME
         Key=$(awk '{print $0}' $OutputFile)
 	
-		echo "Generated KeyIs : "
+		echo_t "Generated KeyIs : "
 		echo $Key
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
@@ -191,18 +191,18 @@ HTTPLogUploadOnRequest()
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 10 -m 10"
         fi
                
-		echo "Curl Command built: $CURL_CMD"
+		echo_t "Curl Command built: $CURL_CMD"
         retries=0
         while [ "$retries" -lt 3 ]
         do 
-	    echo "Trial $retries..."                  
+	    echo_t "Trial $retries..."                  
             ret= eval $CURL_CMD > $HTTP_CODE
             if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo "HttpCode received is : $http_code"
+			echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
 					rm -f $HTTP_CODE
@@ -218,33 +218,33 @@ HTTPLogUploadOnRequest()
 
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ $http_code -eq 200 ];then
-	     echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
 	     rm -rf $LOG_UPLOAD_ON_REQUEST
         fi
 
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
     elif [ $http_code -eq 302 ];then
-		echo "Inside 302"
+		echo_t "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
         else
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 10 -m 10"
         fi
-		echo "Curl Command built: $CURL_CMD"               
+		echo_t "Curl Command built: $CURL_CMD"               
 
         retries=0
         while [ "$retries" -lt 3 ]
         do       
-	    echo "Trial $retries..."            
+	    echo_t "Trial $retries..."            
             ret= eval $CURL_CMD > $HTTP_CODE
             if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-				echo "HttpCode received is : $http_code"
+				echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
 					rm -f $HTTP_CODE
@@ -267,11 +267,11 @@ HTTPLogUploadOnRequest()
         else
            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
         fi       
-		echo "Curl Command built: $CURL_CMD"               
+		echo_t "Curl Command built: $CURL_CMD"               
         retries=0
         while [ "$retries" -lt 3 ]
         do       
-	    echo "Trial $retries..."              
+	    echo_t "Trial $retries..."              
             ret= eval $CURL_CMD > $HTTP_CODE
             if [ -f $HTTP_CODE ];
 	    then
@@ -293,7 +293,7 @@ HTTPLogUploadOnRequest()
         done
         #Logs upload successful when the return code is 200 after the second curl execution.
         if [ $http_code -eq 200 ];then
-            echo "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+            echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
 	    rm -rf $LOG_UPLOAD_ON_REQUEST
             result=0
@@ -301,14 +301,14 @@ HTTPLogUploadOnRequest()
     fi
     # Any other response code, log upload is unsuccessful.
     else 
-       	echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
-	echo "Do TFTP log Upload"
+       	echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+	echo_t "Do TFTP log Upload"
 	TFTPLogUploadOnRequest
 	#Keep tar ball and remove only the log folder
 	rm -rf $LOG_UPLOAD_ON_REQUEST$timeRequested
 		
     fi    
-    echo $result
+    echo_t $result
 
 }
 
@@ -345,7 +345,7 @@ uploadOnRequest()
 	# Syncing ATOM side logs
 	if [ "$atom_sync" = "yes" ]
 	then
-		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
 		then
    		        PING_RES=`ping_peer`
@@ -355,21 +355,21 @@ uploadOnRequest()
 			then
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
-					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 				        rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/
 			
 				else
-					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
 			else
-				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 			fi
 		fi
 
 	fi
  	
 	tar -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
-	echo "Created backup of all logs..."
+	echo_t "Created backup of all logs..."
  	ls
 
 	#if [ ! -e $UPLOAD_ON_REQUEST ] && [ ! -e $REGULAR_UPLOAD ]
@@ -380,11 +380,11 @@ uploadOnRequest()
 	fi
 	touch $UPLOAD_ON_REQUEST
 	#TFTPLogUploadOnRequest
-	echo "Calling function to uploadLogs"
+	echo_t "Calling function to uploadLogs"
 	HTTPLogUploadOnRequest
 	#fi
 	cd $curDir
-	echo "Log file Upload completed..."
+	echo_t "Log file Upload completed..."
 	# Indicate upload on request is success
 	touch $UPLOAD_ON_REQUEST_SUCCESS
 	echo $timeToUpload > $UPLOAD_ON_REQUEST_SUCCESS

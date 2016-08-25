@@ -119,7 +119,7 @@ createFiles()
 createSysDescr()
 {
 	#Create sysdecr value
-	echo "Get all parameters to create sysDescr..."
+	echo_t "Get all parameters to create sysDescr..."
 	description=`dmcli eRT getv Device.DeviceInfo.Description | grep value | cut -f3 -d :`
 	hwRevision=`dmcli eRT getv Device.DeviceInfo.HardwareVersion | grep value | cut -f3 -d : | tr -d ' '`
 	vendor=`dmcli eRT getv Device.DeviceInfo.Manufacturer | grep value | cut -f3 -d :`
@@ -130,7 +130,7 @@ createSysDescr()
 	sw_fw_version="$swVersion"_"$fwVersion"
 
 	modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -f3 -d : | tr -d ' '`
-	echo "RDKB_SYSDESCR : $description HW_REV: $hwRevision; VENDOR: $vendor; BOOTR: $bootloader; SW_REV: $sw_fw_version; MODEL: $modelName "
+	echo_t "RDKB_SYSDESCR : $description HW_REV: $hwRevision; VENDOR: $vendor; BOOTR: $bootloader; SW_REV: $sw_fw_version; MODEL: $modelName "
 	
 }
 
@@ -145,7 +145,7 @@ flush_atom_logs()
 		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
 		then
 			# Remove the contents of ATOM side log files.
-			echo "DCA completed or wait for 60 sec is over, flushing ATOM logs"
+			echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
 		        dmcli eRT setv Device.Logging.FlushAllLogs bool true
 			rm -rf $DCA_COMPLETED	
 			break
@@ -158,7 +158,7 @@ flush_atom_logs()
 syncLogs_nvram2()
 {
 
-	echo "sync logs to nvram2"	
+	echo_t "sync logs to nvram2"	
 	if [ ! -d "$LOG_SYNC_PATH" ]; then
 		#echo "making sync dir"
 		mkdir -p $LOG_SYNC_PATH
@@ -167,7 +167,7 @@ syncLogs_nvram2()
 	 # Sync ATOM side logs in /nvram2/logs/ folder
         if [ "$atom_sync" = "yes" ]
         then
-		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
 		then
 
@@ -178,13 +178,13 @@ syncLogs_nvram2()
 			then
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
-					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
 				else
-					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
 			else
-				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 			fi
 		fi
 
@@ -251,7 +251,7 @@ backupnvram2logs()
         then
                  # Remove the contents of ATOM side log files.
 #                dmcli eRT setv Device.Logging.FlushAllLogs bool true
-		 echo "call dca for log processing and then flush ATOM logs"
+		 echo_t "call dca for log processing and then flush ATOM logs"
 		 flush_atom_logs &
 
         fi
@@ -348,7 +348,7 @@ backupAllLogs()
 	# Syncing ATOM side logs
 	if [ "$atom_sync" = "yes" ]
 	then
-		echo "Check whether ATOM ip accessible before syncing ATOM side logs"
+		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
 		then
 
@@ -359,17 +359,17 @@ backupAllLogs()
 			then
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
-					echo "Ping to ATOM ip success, syncing ATOM side logs"					
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
 					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
-					echo "Call dca for log processing and then flush ATOM logs"
+					echo_t "Call dca for log processing and then flush ATOM logs"
 					flush_atom_logs &
 					 
 				else
-					echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
 			else
-				echo "Ping to ATOM ip falied, not syncing ATOM side logs"
+				echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 			fi
 		fi
 
@@ -466,5 +466,5 @@ logCleanup()
 {
   rm $LOG_PATH/*
   rm $LOG_BACK_UP_PATH/*
-  echo "Done Log Backup"
+  echo_t "Done Log Backup"
 }

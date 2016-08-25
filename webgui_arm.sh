@@ -130,24 +130,24 @@ do
 	echo "$iter"
 	SET_CONFIGURE_FLAG=`psmcli get eRT.com.cisco.spvtg.ccsp.Device.WiFi.NotifyWiFiChanges`
 done
-echo "WEBGUI : NotifyWiFiChanges is $SET_CONFIGURE_FLAG"
-echo "WEBGUI : redirection_flag val is $WIFIUNCONFIGURED"
+echo_t "WEBGUI : NotifyWiFiChanges is $SET_CONFIGURE_FLAG"
+echo_t "WEBGUI : redirection_flag val is $WIFIUNCONFIGURED"
 if [ "$WIFIUNCONFIGURED" = "true" ]
 then
 	if [ "$NETWORKRESPONSEVALUE" = "204" ] && [ "$SET_CONFIGURE_FLAG" = "true" ]
 	then
 		while : ; do
-		echo "WEBGUI : Waiting for PandM to initalize completely to set ConfigureWiFi flag"
+		echo_t "WEBGUI : Waiting for PandM to initalize completely to set ConfigureWiFi flag"
 		CHECK_PAM_INITIALIZED=`find /tmp/ -name "pam_initialized"`
-		echo "CHECK_PAM_INITIALIZED is $CHECK_PAM_INITIALIZED"
+		echo_t "CHECK_PAM_INITIALIZED is $CHECK_PAM_INITIALIZED"
   	        	if [ "$CHECK_PAM_INITIALIZED" != "" ]
    			then
-			   echo "WEBGUI : WiFi is not configured, setting ConfigureWiFi to true"
+			   echo_t "WEBGUI : WiFi is not configured, setting ConfigureWiFi to true"
 	         	   output=`dmcli eRT setvalues Device.DeviceInfo.X_RDKCENTRAL-COM_ConfigureWiFi bool TRUE`
 			   check_success=`echo $output | grep  "Execution succeed."`
   	        		if [ "$check_success" != "" ]
    				then
-     			 	   echo "WEBGUI : Setting ConfigureWiFi to true is success"
+     			 	   echo_t "WEBGUI : Setting ConfigureWiFi to true is success"
  	       			fi
       			   break
  	       		fi
@@ -160,10 +160,10 @@ then
 		then
 			# We reached here as redirection_flag is "true". But WiFi is configured already as per notification status.
 			# Set syscfg value to false now.
-			echo "WEBGUI : WiFi is already personalized... Setting redirection_flag to false"
+			echo_t "WEBGUI : WiFi is already personalized... Setting redirection_flag to false"
 			syscfg set redirection_flag false
 			syscfg commit
-			echo "WEBGUI: WiFi is already personalized. Set reverted flag in nvram"	
+			echo_t "WEBGUI: WiFi is already personalized. Set reverted flag in nvram"	
 			touch $REVERT_FLAG
 		fi
 	fi
@@ -182,5 +182,5 @@ fi
 
 LD_LIBRARY_PATH=/fss/gw/usr/ccsp:$LD_LIBRARY_PATH lighttpd -f $LIGHTTPD_CONF
 
-echo "WEBGUI : Set event"
+echo_t "WEBGUI : Set event"
 sysevent set webserver started
