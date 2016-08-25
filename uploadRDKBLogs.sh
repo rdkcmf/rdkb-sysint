@@ -200,226 +200,230 @@ HttpLogUpload()
          cd $LOG_BACK_UP_REBOOT
        fi
    fi
-   echo_t "Upload file is : $UploadFile"
+   echo_t "files to be uploaded is : $UploadFile"
     S3_URL=$UploadHttpLink
     
+    file_list=$UploadFile
 	
+    for UploadFile in $file_list
+    do
+	    echo_t "Upload file is : $UploadFile"
+	    ######################CURL COMMAND PARAMETERS##############################
+	    #/fss/gw/curl 	--> Path to curl.
+	    #-w           	--> Write to console.
+	    #%{http_code} 	--> Header response code.
+	    #-d           	--> HTTP POST data.
+	    #$UploadFile  	--> File to upload.
+	    #-o           	--> Write output to.
+	    #$OutputFile  	--> Output File.
+	    #--cacert     	--> certificate to verify peer.
+	    #/nvram/cacert.pem	--> Certificate.
+	    #$S3_URL		--> Public key URL Link.
+	    #--connect-timeout	--> Maximum time allowed for connection in seconds. 
+	    #-m			--> Maximum time allowed for the transfer in seconds.
+	    #-T			--> Transfer FILE given to destination.
+	    #--interface	--> Network interface to be used [eg:erouter1]
+	    ##########################################################################
+	    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+	       CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+	    else
+	       CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+	    fi
+	    
 
-    ######################CURL COMMAND PARAMETERS##############################
-    #/fss/gw/curl 	--> Path to curl.
-    #-w           	--> Write to console.
-    #%{http_code} 	--> Header response code.
-    #-d           	--> HTTP POST data.
-    #$UploadFile  	--> File to upload.
-    #-o           	--> Write output to.
-    #$OutputFile  	--> Output File.
-    #--cacert     	--> certificate to verify peer.
-    #/nvram/cacert.pem	--> Certificate.
-    #$S3_URL		--> Public key URL Link.
-    #--connect-timeout	--> Maximum time allowed for connection in seconds. 
-    #-m			--> Maximum time allowed for the transfer in seconds.
-    #-T			--> Transfer FILE given to destination.
-    #--interface	--> Network interface to be used [eg:erouter1]
-    ##########################################################################
-    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-       CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-    else
-       CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-    fi
-    
+	    echo_t "File to be uploaded: $UploadFile"
+	    UPTIME=`uptime`
+	    echo_t "System Uptime is $UPTIME"
+	    echo_t "S3 URL is : $S3_URL"
 
-    echo_t "File to be uploaded: $UploadFile"
-    UPTIME=`uptime`
-    echo_t "System Uptime is $UPTIME"
-    echo_t "S3 URL is : $S3_URL"
-
-    # Performing 3 tries for successful curl command execution.
-    # $http_code --> Response code retrieved from HTTP_CODE file path.
-    retries=0
-    while [ "$retries" -lt 3 ]
-    do  
-	echo_t "Trial $retries..."            
-        # nice value can be normal as the first trial failed
-        if [ $retries -ne 0 ]
-        then
-            if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-               CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-            else
-               CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-            fi
-        fi
-        echo_t "Curl Command built: $CURL_CMD"
-        ret= eval $CURL_CMD > $HTTP_CODE
-
-	if [ -f $HTTP_CODE ];
-	then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
-
-		if [ "$http_code" != "" ];then
-			echo_t "HttpCode received is : $http_code"
-	       		if [ $http_code -eq 200 ];then
-				rm -f $HTTP_CODE
-	       			break
-	       		fi
+	    # Performing 3 tries for successful curl command execution.
+	    # $http_code --> Response code retrieved from HTTP_CODE file path.
+	    retries=0
+	    while [ "$retries" -lt 3 ]
+	    do  
+		echo_t "Trial $retries..."            
+		# nice value can be normal as the first trial failed
+		if [ $retries -ne 0 ]
+		then
+		    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		       CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+		    else
+		       CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+		    fi
 		fi
-	fi
+		echo_t "Curl Command built: $CURL_CMD"
+		ret= eval $CURL_CMD > $HTTP_CODE
+
+		if [ -f $HTTP_CODE ];
+		then
+			http_code=$(awk '{print $0}' $HTTP_CODE)
+
+			if [ "$http_code" != "" ];then
+				echo_t "HttpCode received is : $http_code"
+		       		if [ $http_code -eq 200 ];then
+					rm -f $HTTP_CODE
+		       			break
+		       		fi
+			fi
+		fi
 		
-        retries=`expr $retries + 1`
-        sleep 1
+		retries=`expr $retries + 1`
+		sleep 1
+	    done
+
+	    # If 200, executing second curl command with the public key.
+	    if [ $http_code -eq 200 ];then
+		#This means we have received the key to which we need to curl again in order to upload the file.
+		#So get the key from FILENAME
+		Key=$(awk '{print $0}' $OutputFile)
+
+		echo_t "Generated KeyIs : "
+		echo $Key
+
+		if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+			CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+		else
+			CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+		fi
+	    	
+		retries=0
+		while [ "$retries" -lt 3 ]
+		do 
+		    echo_t "Trial $retries..."  
+		    # nice value can be normal as the first trial failed
+		    if [ $retries -ne 0 ]
+		    then
+		        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		           CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+		        else
+		           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+		        fi
+		    fi   
+		    echo_t "Curl Command built: $CURL_CMD"       
+		    ret= eval $CURL_CMD > $HTTP_CODE
+		    if [ -f $HTTP_CODE ];
+		    then
+			http_code=$(awk '{print $0}' $HTTP_CODE)
+
+			if [ "$http_code" != "" ];then
+				echo_t "HttpCode received is : $http_code"
+		       		if [ $http_code -eq 200 ];then
+					rm -f $HTTP_CODE
+		       			break
+		       		fi
+			fi
+		    fi
+		    retries=`expr $retries + 1`
+		    sleep 1
+		done
+
+		# Response after executing curl with the public key is 200, then file uploaded successfully.
+		if [ $http_code -eq 200 ];then
+		     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+		     rm -rf $UploadFile
+		fi
+
+	    #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
+	    elif [ $http_code -eq 302 ];then
+		NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
+
+		if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+			CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+		else
+			CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+		fi
+	
+		retries=0
+		while [ "$retries" -lt 3 ]
+		do       
+		    echo_t "Trial $retries..."   
+		    # nice value can be normal as the first trial failed
+		    if [ $retries -ne 0 ]
+		    then
+		        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		           CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+		        else
+		           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
+		        fi
+		    fi
+		    echo_t "Curl Command built: $CURL_CMD"
+		    ret= eval $CURL_CMD > $HTTP_CODE
+		    if [ -f $HTTP_CODE ];
+		    then
+			http_code=$(awk '{print $0}' $HTTP_CODE)
+
+			if [ "$http_code" != "" ];then
+				echo_t "HttpCode received is : $http_code"
+		       		if [ $http_code -eq 200 ];then
+					rm -f $HTTP_CODE
+		       			break
+		       		fi
+			fi
+		    fi
+		    retries=`expr $retries + 1`
+		    sleep 1
+		done
+
+	   
+
+		#Executing curl with the response key when return code after the first curl execution is 200.
+		if [ $http_code -eq 200 ];then
+		Key=$(awk '{print $0}' $OutputFile)
+		if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		    CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+		else
+		    CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+		fi
+		     
+		retries=0
+		while [ "$retries" -lt 3 ]
+		do     
+		    echo_t "Trial $retries..." 
+		    # nice value can be normal as the first trial failed
+		    if [ $retries -ne 0 ]
+		    then
+		        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		           CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+		        else
+		           CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+		        fi
+		    fi   
+		    echo_t "Curl Command built: $CURL_CMD"          
+		    ret= eval $CURL_CMD > $HTTP_CODE
+		    if [ -f $HTTP_CODE ];
+		    then
+			http_code=$(awk '{print $0}' $HTTP_CODE)
+
+			if [ "$http_code" != "" ];then
+	
+		       		if [ $http_code -eq 200 ];then
+					rm -f $HTTP_CODE
+		       			break
+		       		fi
+			fi
+		    fi
+		    retries=`expr $retries + 1`
+		    sleep 1
+		done
+		#Logs upload successful when the return code is 200 after the second curl execution.
+		if [ $http_code -eq 200 ];then
+		
+		    	echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+		    	result=0
+			rm -rf $UploadFile	
+		fi
+	    fi
+	    # Any other response code, log upload is unsuccessful.
+	    else 
+		    	echo_t "INVALID RETURN CODE: $http_code"
+			echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+			echo_t "Do TFTP log Upload"
+			TFTPLogUpload
+			rm -rf $UploadFile
+		
+	    fi    
+	    echo_t $result
     done
-
-    # If 200, executing second curl command with the public key.
-    if [ $http_code -eq 200 ];then
-        #This means we have received the key to which we need to curl again in order to upload the file.
-        #So get the key from FILENAME
-        Key=$(awk '{print $0}' $OutputFile)
-
-	echo_t "Generated KeyIs : "
-	echo $Key
-
-	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-		CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-	else
-		CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-	fi
-    	
-        retries=0
-        while [ "$retries" -lt 3 ]
-        do 
-	    echo_t "Trial $retries..."  
-            # nice value can be normal as the first trial failed
-            if [ $retries -ne 0 ]
-            then
-                if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                   CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                else
-                   CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                fi
-            fi   
-            echo_t "Curl Command built: $CURL_CMD"       
-            ret= eval $CURL_CMD > $HTTP_CODE
-	    if [ -f $HTTP_CODE ];
-	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
-
-		if [ "$http_code" != "" ];then
-			echo_t "HttpCode received is : $http_code"
-	       		if [ $http_code -eq 200 ];then
-				rm -f $HTTP_CODE
-	       			break
-	       		fi
-		fi
-	    fi
-            retries=`expr $retries + 1`
-            sleep 1
-        done
-
-	# Response after executing curl with the public key is 200, then file uploaded successfully.
-        if [ $http_code -eq 200 ];then
-	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-	     rm -rf $UploadFile
-        fi
-
-    #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
-    elif [ $http_code -eq 302 ];then
-        NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
-
-	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-		CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-	else
-		CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-	fi
-	
-        retries=0
-        while [ "$retries" -lt 3 ]
-        do       
-	    echo_t "Trial $retries..."   
-            # nice value can be normal as the first trial failed
-            if [ $retries -ne 0 ]
-            then
-                if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                   CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                else
-                   CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                fi
-            fi
-            echo_t "Curl Command built: $CURL_CMD"
-            ret= eval $CURL_CMD > $HTTP_CODE
-	    if [ -f $HTTP_CODE ];
-	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
-
-		if [ "$http_code" != "" ];then
-			echo_t "HttpCode received is : $http_code"
-	       		if [ $http_code -eq 200 ];then
-				rm -f $HTTP_CODE
-	       			break
-	       		fi
-		fi
-	    fi
-            retries=`expr $retries + 1`
-            sleep 1
-        done
-
-   
-
-        #Executing curl with the response key when return code after the first curl execution is 200.
-        if [ $http_code -eq 200 ];then
-        Key=$(awk '{print $0}' $OutputFile)
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-            CURL_CMD="nice -n 20 curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-        else
-            CURL_CMD="nice -n 20 /fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-        fi
-             
-        retries=0
-        while [ "$retries" -lt 3 ]
-        do     
-	    echo_t "Trial $retries..." 
-            # nice value can be normal as the first trial failed
-            if [ $retries -ne 0 ]
-            then
-                if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                   CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-                else
-                   CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-                fi
-            fi   
-            echo_t "Curl Command built: $CURL_CMD"          
-            ret= eval $CURL_CMD > $HTTP_CODE
-            if [ -f $HTTP_CODE ];
-	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
-
-		if [ "$http_code" != "" ];then
-	
-	       		if [ $http_code -eq 200 ];then
-				rm -f $HTTP_CODE
-	       			break
-	       		fi
-		fi
-	    fi
-            retries=`expr $retries + 1`
-            sleep 1
-        done
-        #Logs upload successful when the return code is 200 after the second curl execution.
-        if [ $http_code -eq 200 ];then
-		
-            	echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-            	result=0
-		rm -rf $UploadFile	
-        fi
-    fi
-    # Any other response code, log upload is unsuccessful.
-    else 
-	    	echo_t "INVALID RETURN CODE: $http_code"
-        	echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
-		echo_t "Do TFTP log Upload"
-		TFTPLogUpload
-		rm -rf $UploadFile
-		
-    fi    
-    echo_t $result
 }
 
 

@@ -40,6 +40,22 @@ upload_httplink='None'
 LOGBACKUP_ENABLE='false'
 LOGBACKUP_INTERVAL=30
 
+loop=1
+
+minute_count=0
+#tmp disable the flag now 
+#UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
+
+#For rdkb-4260
+SW_UPGRADE_REBOOT="/nvram/reboot_due_to_sw_upgrade"
+
+#echo "Build Type is: $BUILD_TYPE"
+#echo "SERVER is: $SERVER"
+DeviceUP=0
+# ARRISXB3-2544 :
+# Check if upload on reboot flag is ON. If "yes", then we will upload the 
+# log files first before starting monitoring of logs.
+
 #---------------------------------
 # Function declarations
 #---------------------------------
@@ -81,6 +97,14 @@ getBuildType()
    
 }
 
+random_sleep()
+{
+
+	   randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+	   RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
+	   echo_t "Random sleep for $RANDOM_SLEEP"
+	   sleep $RANDOM_SLEEP
+}
 
 ## Process the responce and update it in a file DCMSettings.conf
 processJsonResponse()
@@ -184,6 +208,9 @@ reset_offset()
 
 }
 
+BUILD_TYPE=`getBuildType`
+SERVER=`getTFTPServer $BUILD_TYPE`
+
 get_logbackup_cfg()
 {
 backupenable=`syscfg get logbackup_enable`
@@ -230,10 +257,7 @@ upload_nvram2_logs()
 			    fi
 			done
 			sleep 120
-			randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
-			RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-			echo_t "Random sleep for $RANDOM_SLEEP"
-			sleep $RANDOM_SLEEP
+			random_sleep
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 			UPLOADED_AFTER_REBOOT="true"
 		fi
@@ -244,139 +268,132 @@ upload_nvram2_logs()
 	echo_t "uploading over from nvram2 "
 }
 
+bootup_upload()
+{
+	if [ -e "$UPLOAD_ON_REBOOT" ]
+	then
+	   curDir=`pwd`
+
+		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
+		then
+		    mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
+		fi
+			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+		else
+	   		cd $LOG_BACK_UP_REBOOT
+		fi
+
+	   macOnly=`getMacAddressOnly`
+	   fileToUpload=`ls | grep tgz`
+	   # This check is to handle migration scenario from /nvram to /nvram2
+	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	   then
+	       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
+	       fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+	   fi
+	       
+	   echo_t "File to be uploaded is $fileToUpload ...."
+
+	   HAS_WAN_IP=""
+	   
+	   while [ $loop -eq 1 ]
+	   do
+	      echo_t "Waiting for stack to come up completely to upload logs..."
+	      sleep 30
+	      WEBSERVER_STARTED=`sysevent get webserver`
+	      if [ "$WEBSERVER_STARTED" == "started" ]
+	      then
+		   echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+		   break
+	      fi
+
+		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
+		if [ $bootup_time_sec -ge 600 ] ; then
+			echo_t "Boot time is more than 10 min, Breaking Loop"
+			break
+		fi
+	   done
+	   sleep 120
+
+	   #RDKB-7196: Randomize log upload within 30 minutes
+	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
+
+	   if [ "$fileToUpload" != "" ]
+	   then
+		random_sleep
+	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
+	   else 
+	      echo_t "No log file found in logbackupreboot folder"
+	   fi
+	   UPLOADED_AFTER_REBOOT="true"
+	   sleep 2
+	   rm $UPLOAD_ON_REBOOT
+	   cd $curDir
+	fi
+
+	echo_t "Check if any tar file available in /logbackup/ "
+	curDir=`pwd`
+
+		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+			cd $LOG_SYNC_BACK_UP_PATH
+		else
+	   		cd $LOG_BACK_UP_PATH
+		fi
+
+	UploadFile=`ls | grep "tgz"`
+	if [ "$UploadFile" != "" ]
+	then
+	   echo_t "File to be uploaded from logbackup/ is $UploadFile "
+		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
+		then
+			random_sleep		
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+		else
+			while [ $loop -eq 1 ]
+			do
+		    	     echo_t "Waiting for stack to come up completely to upload logs..."
+		      	     sleep 30
+			     WEBSERVER_STARTED=`sysevent get webserver`
+		 	     if [ "$WEBSERVER_STARTED" == "started" ]
+			     then
+				echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
+				break
+			    fi
+
+				bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
+				if [ $bootup_time_sec -ge 600 ] ; then
+					echo_t "Boot time is more than 10 min, Breaking Loop"
+					break
+				fi
+			done
+			sleep 120
+			random_sleep
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+			UPLOADED_AFTER_REBOOT="true"
+		fi
+	fi
+
+	cd $curDir
+}	
+
 
 #---------------------------------
 #        Main App
 #---------------------------------
-loop=1
-BUILD_TYPE=`getBuildType`
-SERVER=`getTFTPServer $BUILD_TYPE`
-
-minute_count=0
-#tmp disable the flag now 
-#UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
-
-#For rdkb-4260
-SW_UPGRADE_REBOOT="/nvram/reboot_due_to_sw_upgrade"
-
-#echo "Build Type is: $BUILD_TYPE"
-#echo "SERVER is: $SERVER"
-DeviceUP=0
-# ARRISXB3-2544 :
-# Check if upload on reboot flag is ON. If "yes", then we will upload the 
-# log files first before starting monitoring of logs.
 
 get_logbackup_cfg
 
-if [ -e "$UPLOAD_ON_REBOOT" ]
-then
-   curDir=`pwd`
-
-	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-        if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
-        then
-            mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
-        fi
-		cd $LOG_SYNC_BACK_UP_REBOOT_PATH
-	else
-   		cd $LOG_BACK_UP_REBOOT
-	fi
-
-   macOnly=`getMacAddressOnly`
-   fileToUpload=`ls | grep tgz`
-   # This check is to handle migration scenario from /nvram to /nvram2
-   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
-   then
-       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
-       fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
-   fi
-       
-   echo_t "File to be uploaded is $fileToUpload ...."
-
-   HAS_WAN_IP=""
-   
-   while [ $loop -eq 1 ]
-   do
-      echo_t "Waiting for stack to come up completely to upload logs..."
-      sleep 30
-      WEBSERVER_STARTED=`sysevent get webserver`
-      if [ "$WEBSERVER_STARTED" == "started" ]
-      then
-           echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
-           break
-      fi
-   done
-   sleep 120
-
-   #RDKB-7196: Randomize log upload within 30 minutes
-   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
-   randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
-   RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-   echo_t "Random sleep for $RANDOM_SLEEP"
-   sleep $RANDOM_SLEEP
-
-
-   if [ "$fileToUpload" != "" ]
-   then
-      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
-   else 
-      echo_t "No log file found in logbackupreboot folder"
-   fi
-   UPLOADED_AFTER_REBOOT="true"
-   sleep 2
-   rm $UPLOAD_ON_REBOOT
-   cd $curDir
-fi
-
-echo_t "Check if any tar file available in /logbackup/ "
-curDir=`pwd`
-
-	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-		cd $LOG_SYNC_BACK_UP_PATH
-	else
-   		cd $LOG_BACK_UP_PATH
-	fi
-
-UploadFile=`ls | grep "tgz"`
-if [ "$UploadFile" != "" ]
-then
-   echo_t "File to be uploaded from logbackup/ is $UploadFile "
-	if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
-	then
-		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
-	else
-	        while [ $loop -eq 1 ]
-	        do
-	    	     echo_t "Waiting for stack to come up completely to upload logs..."
-	      	     sleep 30
-	             WEBSERVER_STARTED=`sysevent get webserver`
-         	     if [ "$WEBSERVER_STARTED" == "started" ]
-	             then
-		        echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
-		        break
-	            fi
-	        done
-		sleep 120
-
-		randomizedNumber=`awk -v min=0 -v max=30 -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
-		RANDOM_SLEEP=`expr $randomizedNumber \\* 60`
-		echo_t "Random sleep for $RANDOM_SLEEP"
-		sleep $RANDOM_SLEEP
-		$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
-		UPLOADED_AFTER_REBOOT="true"
-	fi
-fi
-
-cd $curDir
-
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
-	file_list=`ls $LOG_SYNC_PATH`
+	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	if [ "$file_list" != "" ]; then
-	 	echo_t "RDK_LOGGER: Uploading logs from nvram2 on reboot"
+	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
-		upload_nvram2_logs
+		#upload_nvram2_logs
 	fi
-fi	
+fi
+
+bootup_upload &
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then
   #Sync log files immediately after reboot

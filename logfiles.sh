@@ -5,7 +5,7 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
-
+PATTERN_FILE="/tmp/pattern_file"
 
 if [ -f /etc/device.properties ]
 then
@@ -289,14 +289,14 @@ backupnvram2logs_on_reboot()
 
 	createSysDescr >> $ARM_LOGS_NVRAM2
 
-	if [ ! -d "$destn" ]; then
-	   mkdir -p $destn
-	else
-	   FILE_EXISTS=`ls $destn`
-	   if [ "$FILE_EXISTS" != "" ]; then
-          	rm -rf $destn*.tgz
-	   fi
-	fi
+#	if [ ! -d "$destn" ]; then
+#	   mkdir -p $destn
+#	else
+#	   FILE_EXISTS=`ls $destn`
+#	   if [ "$FILE_EXISTS" != "" ]; then
+#          	rm -rf $destn*.tgz
+#	   fi
+#	fi
 
 	cd $destn
         if [ -f "/version.txt" ]
@@ -305,8 +305,10 @@ backupnvram2logs_on_reboot()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
-	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	rm $PATTERN_FILE
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 
