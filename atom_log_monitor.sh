@@ -7,9 +7,9 @@ LOG_PATH=/rdklogs/logs/
 
 if [ "$UI_IN_ATOM" = "true" ]
 then
-   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log"
+   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log WiFilog.txt.0"
 else
-   FILES="AtomConsolelog.txt.0 CRlog.txt.0"
+   FILES="AtomConsolelog.txt.0 CRlog.txt.0 WiFilog.txt.0"
 fi
 
 while [ "$loop" -eq 1 ]
