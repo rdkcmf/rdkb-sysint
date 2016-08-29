@@ -166,6 +166,9 @@ fi
 outputJson=`cat $TELEMETRY_JSON_RESPONSE`
 timestamp=`date +%Y-%b-%d_%H-%M-%S` 
 CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 10 --insecure"
+
+# Save data to resend list so that data will be uploaded in next boot-up cycle if device reboots in maintenance 
+echo "$outputJson" >> $TELEMETRY_RESEND_FILE
 echo "$timestamp: dca: CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
 # sleep for random time before upload to avoid bulk requests on splunk server
 echo "$timestamp: dca: Sleeping for $sleep_time before upload." >> $RTL_LOG_FILE
@@ -176,9 +179,9 @@ http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
 echo "$timestamp: dca: HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
 if [ $http_code -eq 200 ];then
     echo "$timestamp: dca: Json message successfully submitted." >> $RTL_LOG_FILE
+    rm -f $TELEMETRY_RESEND_FILE
 else
     echo "$timestamp: dca: Json message submit failed. Adding message to resend que" >> $RTL_LOG_FILE
-    echo "$outputJson" >> $TELEMETRY_RESEND_FILE
 fi
 
 rm -f $TELEMETRY_JSON_RESPONSE
