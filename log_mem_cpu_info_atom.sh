@@ -4,6 +4,8 @@ LOG_FOLDER="/rdklogs/logs/"
 ATOMCONSOLELOGFILE="$LOG_FOLDER/AtomConsolelog.txt.0"
 exec 3>&1 4>&2 >>$ATOMCONSOLELOGFILE 2>&1
 
+COUNTINFO="/tmp/cpuinfocount.txt"
+
 getDate()
 {
 	dandt_now=`date +'%Y:%m:%d:%H:%M:%S'`
@@ -33,11 +35,14 @@ change() {
 
 max_count=12
 DELAY=30
-count=0
-while :
-do
-	sleep 3600
-	timestamp=`getDate`
+if [ -f $COUNTINFO ]
+then
+	count=`cat $COUNTINFO`
+else
+	count=0
+fi
+
+timestamp=`getDate`
 
 	totalMemSys=`free | awk 'FNR == 2 {print $2}'`
 	usedMemSys=`free | awk 'FNR == 2 {print $3}'`
@@ -103,4 +108,12 @@ do
 		top -m -b n 1 | head -n 14
 	fi
 
-done
+
+if [ -f $COUNTINFO ]
+then
+	echo $count > $COUNTINFO
+else
+	touch $COUNTINFO
+	echo $count > $COUNTINFO
+fi
+
