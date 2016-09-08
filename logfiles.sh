@@ -179,7 +179,7 @@ syncLogs_nvram2()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
+					nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -362,7 +362,7 @@ backupAllLogs()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
+					nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH
 					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
 					echo_t "Call dca for log processing and then flush ATOM logs"
 					flush_atom_logs &
