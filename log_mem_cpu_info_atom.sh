@@ -1,8 +1,14 @@
 #!/bin/sh
 
-LOG_FOLDER="/rdklogs/logs/"
-ATOMCONSOLELOGFILE="$LOG_FOLDER/AtomConsolelog.txt.0"
-exec 3>&1 4>&2 >>$ATOMCONSOLELOGFILE 2>&1
+if [ -e /rdklogger/log_capture_path_atom.sh ]
+then
+	source /rdklogger/log_capture_path_atom.sh 
+else
+	echo_t()
+	{
+        	echo $1
+	}
+fi
 
 COUNTINFO="/tmp/cpuinfocount.txt"
 
@@ -57,7 +63,7 @@ timestamp=`getDate`
 
     LOAD_AVG=`uptime | awk -F'[a-z]:' '{ print $2}' | sed 's/^ *//g' | sed 's/,//g' | sed 's/ /:/g'`
 	echo " RDKB_LOAD_AVERAGE_ATOM : Load Average is $LOAD_AVG at timestamp $timestamp"
-    echo "LOAD_AVERAGE_ATOM :$LOAD_AVG"
+    echo_t "LOAD_AVERAGE_ATOM :$LOAD_AVG"
     
     #Record the start statistics
 
@@ -81,30 +87,30 @@ timestamp=`getDate`
 	Curr_CPULoad=$(( $ACTIVE * 100 / $TOTAL ))
 	timestamp=`getDate`
   	echo "RDKB_CPU_USAGE_ATOM : CPU usage is $Curr_CPULoad at timestamp $timestamp"
-	echo "USED_CPU_ATOM :$Curr_CPULoad"
+	echo_t "USED_CPU_ATOM :$Curr_CPULoad"
 	count=$((count + 1))
 
-        echo "Count = $count"
+        echo_t "Count = $count"
         CPU_INFO=`mpstat | tail -1` 
 	echo "RDKB_CPUINFO_ATOM : Cpu Info is $CPU_INFO at timestamp $timestamp"
 
 	if [ "$count" -eq "$max_count" ]
 	then
 		echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is"
-		echo ""
+		echo_t ""
 		top -m -b n 1
 
-		echo "================================================================================"
-		echo ""
+		echo_t "================================================================================"
+		echo_t ""
 		echo "RDKB_DISK_USAGE_ATOM : Systems Disk Space Usage log at $timestamp is"
-		echo ""
+		echo_t ""
 		disk_usage="df"
 		eval $disk_usage
 		count=0
 	
 	else
 		echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is"
-		echo ""
+		echo_t ""
 		top -m -b n 1 | head -n 14
 	fi
 
