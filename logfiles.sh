@@ -76,11 +76,12 @@ DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
 MiscLog="Misc.txt.0"
 
 AtomConsoleLog="AtomConsolelog.txt.0"
+ApInitLog="ap_init.txt.0"
 HostapdErrorLog="hostapd_error_log.txt"
 
 if [ "$UI_IN_ATOM" = "true" ]
 then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$HostapdErrorLog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$ApInitLog,$HostapdErrorLog}"
 else
    ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog}"
 fi

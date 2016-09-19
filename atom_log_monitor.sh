@@ -7,7 +7,7 @@ LOG_PATH=/rdklogs/logs/
 
 if [ "$UI_IN_ATOM" = "true" ]
 then
-   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log WiFilog.txt.0 hostapd_error_log.txt"
+   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log WiFilog.txt.0 ap_init.txt.0 hostapd_error_log.txt"
 else
    FILES="AtomConsolelog.txt.0 CRlog.txt.0 WiFilog.txt.0"
 fi
