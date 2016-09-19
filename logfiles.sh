@@ -76,8 +76,15 @@ DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
 MiscLog="Misc.txt.0"
 
 AtomConsoleLog="AtomConsolelog.txt.0"
+HostapdErrorLog="hostapd_error_log.txt"
 
-ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog}"
+if [ "$UI_IN_ATOM" = "true" ]
+then 
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$HostapdErrorLog}"
+else
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog}"
+fi
+
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
 dte=`date "+%m-%d-%y-%I-%M%p"`
