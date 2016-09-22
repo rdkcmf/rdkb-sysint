@@ -8,7 +8,7 @@ source $RDK_LOGGER_PATH/utils.sh
 
 PING_PATH="/usr/sbin"
 MAC=`getMacAddressOnly`
-dte=`date "+%m-%d-%y-%I-%M%p"`
+dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 needReboot="true"
 
@@ -81,7 +81,7 @@ backupLogsonReboot()
 	rm -rf $LOG_BACK_UP_REBOOT*
 	
 	cd $LOG_BACK_UP_REBOOT
-	mkdir $dte
+	mkdir $dt
 
 	# Put system descriptor string in log file
 	createSysDescr
@@ -92,7 +92,7 @@ backupLogsonReboot()
 	for fname in $FILES
 	do
 		# Copy all log files from the log directory to non-volatile memory
-		cp $fname $LOG_BACK_UP_REBOOT$dte ; >$fname;
+		cp $fname $LOG_BACK_UP_REBOOT$dt ; >$fname;
 
 	done
 
@@ -104,19 +104,19 @@ backupLogsonReboot()
 	
 	#if [ "$ret" = "yes" ]
 	#then
-	    #moveFiles $LOG_PATH $LOG_BACK_UP_REBOOT$dte
-	#    moveFiles $LOGTEMPPATH $LOG_BACK_UP_REBOOT$dte
+	    #moveFiles $LOG_PATH $LOG_BACK_UP_REBOOT$dt
+	#    moveFiles $LOGTEMPPATH $LOG_BACK_UP_REBOOT$dt
 	#elif [ "$ret" = "no" ]
 	#then
 
 	#	for fname in $LOG_FILES_NAMES
 	#	do
-	#	    	if [ -f "$LOGTEMPPATH$fname" ] ; then moveFile $LOGTEMPPATH$fname $LOG_BACK_UP_REBOOT$dte; fi
+	#	    	if [ -f "$LOGTEMPPATH$fname" ] ; then moveFile $LOGTEMPPATH$fname $LOG_BACK_UP_REBOOT$dt; fi
 	#	done
 
 	#fi
 	cd $LOG_BACK_UP_REBOOT
-	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dte
+	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dt
 
 	if [ "$atom_sync" = "yes" ]
 	then
@@ -132,7 +132,7 @@ backupLogsonReboot()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-				        nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dte/
+				        nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dt/
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -143,9 +143,9 @@ backupLogsonReboot()
 
 	fi
 
-	tar -cvzf $MAC"_Logs_$dte.tgz" $dte
+	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
 	echo_t "Created backup of all logs..."
-	rm -rf $dte	
+	rm -rf $dt	
  	ls
 
 	# ARRISXB3-2544 :
@@ -186,7 +186,7 @@ backupLogsonReboot_nvram2()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
-	tar -cvzf $MAC"_Logs_$dte.tgz" $LOG_SYNC_PATH
+	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 	echo_t "Created backup of all logs..."
  	ls
 	rm -rf $LOG_SYNC_PATH*.txt*
@@ -202,6 +202,7 @@ then
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else
+	    syncLogs
 		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 	fi
 
@@ -230,6 +231,7 @@ then
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else
+	    syncLogs
 		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 	fi
 else
