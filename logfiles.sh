@@ -229,8 +229,7 @@ syncLogs_nvram2()
 
 		tail -n +$offset $LOG_PATH$file >> $LOG_SYNC_PATH$file # appeding the logs to nvram2
 
-		offset=`wc -l $LOG_PATH$file | cut -d " " -f1`
-		offset=$((offset + 1))
+		offset=`wc -l $LOG_SYNC_PATH$file | cut -d " " -f1`
 		#echo "new offset = $offset for file $LOG_PATH$file"
 		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
 	done
