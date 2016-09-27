@@ -391,6 +391,11 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
 	fi
+	corefile=`ls $LOG_SYNC_PATH | grep core`
+	if [ "$corefile" != "" ]
+	then
+		rm -rf $LOG_SYNC_PATH*core*
+	fi
 fi
 
 bootup_upload &
