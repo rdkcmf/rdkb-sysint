@@ -404,6 +404,11 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
   #Sync log files immediately after reboot
   echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
   syncLogs_nvram2
+else
+  BACKUPENABLE=`syscfg get logbackup_enable`
+  if [ "$BACKUPENABLE" = "true" ]; then
+    syncLogs
+  fi
 fi
 
 
@@ -457,6 +462,7 @@ do
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			else
+				syncLogs
 				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 			fi	
 			
@@ -466,7 +472,7 @@ do
 #   fi
 	# Syncing logs after perticular interval
 	get_logbackup_cfg
-	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+	if [ "$LOGBACKUP_ENABLE" == "true" ]; then # nvram2 supported and backup is true
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
 		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
@@ -475,6 +481,9 @@ do
 		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
 			minute_count=0
 			syncLogs_nvram2
+			if [ $ATOM_SYNC == "" ]; then
+				syncLogs
+			fi
 		fi
 	else
 		# Suppress ls errors to prevent constant prints in non supported devices
@@ -483,6 +492,9 @@ do
 			echo_t "RDK_LOGGER: Disabling nvram2 logging"
                         createSysDescr
 			syncLogs_nvram2
+			if [ $ATOM_SYNC == "" ]; then
+				syncLogs
+			fi
 			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"
 		fi

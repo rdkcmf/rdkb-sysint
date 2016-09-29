@@ -93,6 +93,7 @@ calcRandTimeandUpload()
        syncLogs_nvram2	
        backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
     else
+       syncLogs
        backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     fi
 

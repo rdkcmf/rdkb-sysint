@@ -90,7 +90,7 @@ fi
 
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
-dte=`date "+%m-%d-%y-%I-%M%p"`
+dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 
 LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog $HotspotLog $DhcpSnoopLog"
@@ -447,10 +447,21 @@ allFileExists()
 
 syncLogs()
 {
+    if [ ! -d $NVRAM_LOG_PATH ]; then
+	#echo "making directory"
+	mkdir -p $NVRAM_LOG_PATH  # used by no nvram2 device
+    fi
     #result=`allFileExists $LOG_PATH`
     #if [ "$result" = "no" ]
     #then
-	    #return
+    #return
+
+    file_list=`ls $LOG_PATH`
+
+    for file in $file_list
+    do
+	cp $LOG_PATH$file $NVRAM_LOG_PATH$file # Copying all log files directly
+    done
     for fname in $LOG_FILES_NAMES
     do
 	if [ -f $LOG_PATH$fname ]
@@ -458,10 +469,10 @@ syncLogs()
    		cat $LOG_PATH$fname >> $LOG_BACK_UP_REBOOT$fname
    	fi
 
-        if [ -f $LOG_BACK_UP_REBOOT$fname ]
-	then
-		$LOG_BACK_UP_REBOOT$fname > $LOG_PATH$fname
-	fi
+    #    if [ -f $LOG_BACK_UP_REBOOT$fname ]
+	#then
+	#	$LOG_BACK_UP_REBOOT$fname > $LOG_PATH$fname
+	#fi
    done
     #fi
 	
