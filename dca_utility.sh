@@ -66,6 +66,8 @@ mkdir -p $LOG_PATH
 touch $RTL_LOG_FILE
 
 if [ ! -f /tmp/.dca_bootup ]; then
+   timestamp=`date +%Y-%b-%d_%H-%M-%S`
+   echo "$timestamp First dca execution after bootup. Clearing all markers." >> $RTL_LOG_FILE
    touch /tmp/.dca_bootup
    rm -rf $TELEMETRY_PATH
    rm -f $RTL_LOG_FILE
@@ -74,8 +76,6 @@ fi
 
 PrevFileName=''
 
-echo "Telemetry Profile File Being Used : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-	
 #Adding support for opt override for dcm.properties file
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
       . $PERSISTENT_PATH/dcm.properties
@@ -89,9 +89,7 @@ then
     echo "Telemetry Folder does not exist . Creating now" >> $RTL_LOG_FILE
     mkdir -p "$TELEMETRY_PATH_TEMP"
 else
-    echo "Telemetry Folder exists" >> $RTL_LOG_FILE
     cp $TELEMETRY_PATH/rtl_* $TELEMETRY_PATH_TEMP/
-    echo "Copied Files to temp directory" >> $RTL_LOG_FILE
 fi
 
 mkdir -p $TELEMETRY_PATH
@@ -216,9 +214,25 @@ updateCount()
     # Need not create the dela file is the previous file in MAP is the same 
     if [ "$filename" != "$PrevFileName" ]; then    
        PrevFileName=$filename
+       if [ -f "$TELEMETRY_PATH_TEMP/rtl_$filename" ]; then
+           lastSeekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
+       else
+           lastSeekVal=0
+       fi
        rm -f $RTL_DELTA_LOG_FILE
        nice $TEMPFILE_CREATER_BINARY $filename
+       timestamp=`date +%Y-%b-%d_%H-%M-%S`
+       seekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
+       if [ $seekVal -lt $lastSeekVal ]; then
+           # This should never happen in RDKB as we don't have log rotation
+           # Instead upload & flush logs are present which is already taken care
+           echo "$timestamp dca seek value for $filename is Previous : $lastSeekVal Current : $seekVal" >> $RTL_LOG_FILE   
+           echo "Restoring markers" >> $RTL_LOG_FILE   
+           # Can be due to rsync/scp errors. Restore previous well known markers
+           echo "$lastSeekVal" > $TELEMETRY_PATH_TEMP/rtl_$filename
+       fi
     fi
+
     header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
     case "$header" in
         *split*)  
@@ -321,6 +335,7 @@ dropbearRecovery()
    
 clearTelemetryConfig()
 {
+    timestamp=`date +%Y-%b-%d_%H-%M-%S`
     if [ -f $RTL_DELTA_LOG_FILE ]; then
         echo "$timestamp: dca: Deleting : $RTL_DELTA_LOG_FILE" >> $RTL_LOG_FILE
         rm -f $RTL_DELTA_LOG_FILE
@@ -453,7 +468,6 @@ else
         
         if [ ! -z "$pattern" ] && [ ! -z "$filename" ]; then
             ## updateCount "$pattern" "$filename"
-            echo "$timestamp Checking for pattern "$pattern" in $filename" >> $RTL_LOG_FILE
             if [ -f $LOG_PATH/$filename ]; then
                 updateCount
             fi
@@ -551,11 +565,11 @@ if [ -f $OUTPUT_FILE ]; then
        sleep 2
 
        if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
-           echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk"
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
            if [ $triggerType -eq 2 ]; then
                ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"
+               echo "$timestamp notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
                ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT"
            fi
@@ -565,8 +579,6 @@ if [ -f $OUTPUT_FILE ]; then
            fi
            sh /lib/rdk/dcaSplunkUpload.sh &
        fi
-else
-    echo "$timestamp: dca: Error messages matching with telemetry pattern is not present .." >> $RTL_LOG_FILE
 fi
 
 if [ -f $RTL_DELTA_LOG_FILE ]; then
@@ -578,6 +590,8 @@ if [ -f $TEMP_PATTERN_CONF_FILE ]; then
 fi
 
 if [ $triggerType -eq 2 ]; then
+   timestamp=`date +%Y-%b-%d_%H-%M-%S`
+   echo "$timestamp forced DCA execution before log upload/reboot. Clearing all markers !!!" >> $RTL_LOG_FILE
    # Forced execution before flusing of logs, so clear the markers
    if [ -d $TELEMETRY_PATH_TEMP ]; then
        rm -rf $TELEMETRY_PATH_TEMP
