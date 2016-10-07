@@ -164,7 +164,7 @@ backupLogsonReboot_nvram2()
 	    mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
 	fi
 
-	rm -rf $LOG_SYNC_BACK_UP_REBOOT_PATH*
+	#rm -rf $LOG_SYNC_BACK_UP_REBOOT_PATH*
 
 	# Put system descriptor string in log file
 	createSysDescr
