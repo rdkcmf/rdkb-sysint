@@ -93,7 +93,7 @@ fi
 HTTP_CODE="$PERSISTENT_PATH/http_code"
 rm -rf $HTTP_CODE
 # Timeout value
-timeout=10
+timeout=30
 default_IP=$DEFAULT_IP
 upload_protocol='TFTP'
 upload_httplink=$HTTP_UPLOAD_LINK
