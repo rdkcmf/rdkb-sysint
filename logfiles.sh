@@ -460,7 +460,7 @@ syncLogs()
 
     for file in $file_list
     do
-	cp $LOG_PATH$file $NVRAM_LOG_PATH # Copying all log files directly
+	cp $LOG_PATH$file $NVRAM_LOG_PATH$file # Copying all log files directly
     done
     for fname in $LOG_FILES_NAMES
     do
