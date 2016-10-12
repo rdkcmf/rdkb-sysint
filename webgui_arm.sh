@@ -104,6 +104,18 @@ else
     echo "\$SERVER[\"socket\"] == \"erouter0:$HTTPS_PORT\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
 fi
 
+echo "\$SERVER[\"socket\"] == \":51515\" { 
+                                                
+proxy.server      =    ( \"\" =>              
+                               ( \"localhost\" =>
+                                 (                                      
+                                  \"host\" => \"$ATOM_PROXY_SERVER\",
+                                   \"port\" => 51515              
+                                 )                            
+                               )                              
+                             )                                
+}" >> $LIGHTTPD_CONF
+        
 
 echo "proxy.server      =    ( \"\" =>
                                ( \"localhost\" =>
