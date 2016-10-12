@@ -77,15 +77,16 @@ wifihealth="wifihealth.txt"
 
 MiscLog="Misc.txt.0"
 
+DcmLog="dcmProcessing.log"
 AtomConsoleLog="AtomConsolelog.txt.0"
 ApInitLog="ap_init.txt.0"
 HostapdErrorLog="hostapd_error_log.txt"
 
 if [ "$UI_IN_ATOM" = "true" ]
 then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog}"
 else
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog}"
 fi
 
 MAC=`getMacAddressOnly`
