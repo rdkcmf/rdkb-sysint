@@ -114,10 +114,17 @@ retryUpload()
 	   sleep 10
 	   WAN_STATE=`sysevent get wan_service-status`
        EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
-
+       SYSEVENT_PID=`pidof syseventd`
 	   if [ -f $WAITINGFORUPLOAD ]
 	   then
 		   if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
+		   then
+			touch $REGULAR_UPLOAD
+			HttpLogUpload
+			rm $REGULAR_UPLOAD
+			rm $WAITINGFORUPLOAD
+
+  		   elif [ "$EROUTER_IP" != "" ] && [ "$SYSEVENT_PID" == "" ]
 		   then
 			touch $REGULAR_UPLOAD
 			HttpLogUpload
@@ -445,10 +452,14 @@ if [ "$UploadProtocol" = "HTTP" ]
 then
    WAN_STATE=`sysevent get wan_service-status`
    EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
-
+   SYSEVENT_PID=`pidof syseventd`
    if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
    then
 	   echo_t "Upload HTTP_LOGS"
+	   HttpLogUpload
+   elif [ "$EROUTER_IP" != "" ] && [ "$SYSEVENT_PID" == "" ]
+   then
+	   echo_t "syseventd is crashed, $WAN_INTERFACE has IP Uploading HTTP_LOGS"
 	   HttpLogUpload
    else
 	   echo_t "WAN is down, waiting for Upload LOGS"
