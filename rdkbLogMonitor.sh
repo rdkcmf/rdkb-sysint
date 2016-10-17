@@ -407,6 +407,15 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 else
   BACKUPENABLE=`syscfg get logbackup_enable`
   if [ "$BACKUPENABLE" = "true" ]; then
+  # First time call syncLogs after boot,
+  #  remove existing log files (in $LOG_FILES_NAMES) in $LOG_BACK_UP_REBOOT
+    curDir=`pwd`
+    cd $LOG_BACK_UP_REBOOT
+    for fileName in $LOG_FILES_NAMES
+    do
+      rm 2>/dev/null $fileName #avoid error message
+    done
+    cd $curDir
     syncLogs
   fi
 fi
