@@ -171,6 +171,17 @@ backupLogsonReboot_nvram2()
 
 	syncLogs_nvram2
 
+        if [ -e $HAVECRASH ]
+        then
+            if [ "$atom_sync" = "yes" ]
+            then
+               # Remove the contents of ATOM side log files.
+                echo_t "Call dca for log processing and then flush ATOM logs"
+                flush_atom_logs 
+            fi
+            rm -rf $HAVECRASH
+        fi
+
 	cd $LOG_PATH
 	FILES=`ls`
 
@@ -218,8 +229,8 @@ then
     then
 	    echo_t "RDKB_REBOOT : Rebooting due to $Crashed_Process_Is PROCESS_CRASH"
     fi
-
-    rm -f $HAVECRASH
+    # We will remove the HAVECRASH flag after handling the log back up.
+    #rm -f $HAVECRASH
 fi
 
 if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ] || [ "$2" == "DS_MANAGER_HIGH_CPU" ]
