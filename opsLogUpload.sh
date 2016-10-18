@@ -44,7 +44,7 @@ MAC=`getMacAddressOnly`
 timeRequested=`date "+%m-%d-%y-%I-%M%p"`
 timeToUpload=`date`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
-
+PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 
 
@@ -374,8 +374,9 @@ uploadOnRequest()
 		fi
 
 	fi
- 	
-	tar -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
+ 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
+	rm $PATTERN_FILE
 	echo_t "Created backup of all logs..."
  	ls
 

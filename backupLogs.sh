@@ -11,6 +11,7 @@ MAC=`getMacAddressOnly`
 dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 needReboot="true"
+PATTERN_FILE="/tmp/pattern_file"
 
 nvram2Backup="false"
 backupenabled=`syscfg get logbackup_enable`
@@ -149,8 +150,9 @@ backupLogsonReboot()
 		fi
 
 	fi
-
-	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
+	rm $PATTERN_FILE
 	echo_t "Created backup of all logs..."
 	rm -rf $dt	
  	ls
@@ -204,7 +206,9 @@ backupLogsonReboot_nvram2()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
-	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	rm $PATTERN_FILE
 	echo_t "Created backup of all logs..."
  	ls
 	rm -rf $LOG_SYNC_PATH*.txt*

@@ -283,7 +283,9 @@ backupnvram2logs()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
-	tar -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	rm $PATTERN_FILE
 	 # Removing ATOM side logs
 
 	rm -rf $LOG_SYNC_PATH*.txt*
@@ -417,7 +419,9 @@ backupAllLogs()
 	done
 	cp /version.txt $dt
 
-	tar -cvzf $MAC"_Logs_$dt.tgz" $dt
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
+	rm $PATTERN_FILE
  	rm -rf $dt
 	cd $workDir
 }
