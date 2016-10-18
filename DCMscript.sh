@@ -147,11 +147,60 @@ sendHttpRequestToServer()
     if [ "$last_char" != "?" ]; then
         URL="$URL?"
     fi
-        
-    CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$URL$JSONSTR'"
+
+    #Retrieve protocol from current URL
+    PROTO=`echo $URL | cut -d ":" -f1`
+    #Replace the current protocol with https
+    HTTPS_URL=`echo $URL | sed "s/$PROTO/https/g"`
+    tls="--tlsv1.2"
+
+    CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
     echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
     result= eval $CURL_CMD > $HTTP_CODE
     ret=$?
+
+    #Check for https tls1.2 failure
+    case $ret in
+      35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+         echo "Switching to TLS1.1 as TLS1.2 failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
+         # log server info for failed connection using nslookup
+         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         tls="--tlsv1.1"
+         CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
+         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         result= eval $CURL_CMD > $HTTP_CODE
+         ret=$?
+         ;;
+    esac
+
+    #Check for https tls1.1 failure
+    case $ret in
+      35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+         echo "Switching to HTTPS insecure as HTTPS failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
+         # log server info for failed connection using nslookup
+         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         CURL_CMD="curl -w '%{http_code}\n' $tls --insecure --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
+         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         result= eval $CURL_CMD > $HTTP_CODE
+         ret=$?
+         ;;
+    esac
+
+    #Check for https tls1.1 --insecure failure
+    case $ret in
+      35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+         echo "Switching to HTTP as HTTPS insecure failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
+         # log server info for failed connection using nslookup
+         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         # make sure protocol is HTTP
+         URL=`echo $URL | sed "s/[Hh][Tt][Tt][Pp][Ss]:/http:/"`
+         CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$URL$JSONSTR'"
+         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         result= eval $CURL_CMD > $HTTP_CODE
+         ret=$?
+         ;;
+    esac
+
     sleep 2
     http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
     echo "`date` ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
@@ -164,7 +213,7 @@ sendHttpRequestToServer()
         eval $SIGN_CMD > /tmp/.signedRequest
         CB_SIGNED_REQUEST=`cat /tmp/.signedRequest`
         rm -f /tmp/.signedRequest
-        CURL_CMD="curl --cacert /nvram/cacert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
+        CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
         result= eval $CURL_CMD > $HTTP_CODE
         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
         ret=$?
@@ -258,3 +307,4 @@ do
         fi
     fi
 done
+
