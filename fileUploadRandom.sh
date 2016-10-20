@@ -164,8 +164,10 @@ upload_logfile=1
 while [ $loop -eq 1 ]
 do
     sleep 60
-    cur_hr=`date +"%H"`
-    cur_min=`date +"%M"`
+   # cur_hr=`date +"%H"`
+    cur_hr=`LTime H`
+   # cur_min=`date +"%M"`
+    cur_min=`LTime M`
 	if [ "$cur_hr" -ge 02 ] && [ "$cur_hr" -le 05 ]
 	then
       	     if [ "$cur_hr" -eq 05 ] && [ "$cur_min" -ne 00 ]
