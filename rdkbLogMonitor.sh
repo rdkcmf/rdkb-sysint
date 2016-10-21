@@ -423,46 +423,25 @@ fi
 
 while [ $loop -eq 1 ]
 do
-#    wanIp=`getIPAddress`
-#    if [ ! $wanIp ] ;then
-            #echo "waiting for IP ..."
-#            sleep 15
-#    else
-	
-		#cp /fss/gw/version.txt /var/tmp/logs/
-		if [ "$DeviceUP" -eq 0 ]; then
-			#for rdkb-4260
-			if [ -f "$SW_UPGRADE_REBOOT" ]; then
-				echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
-				#deleting reboot_due_to_sw_upgrade file
-				echo_t "Deleting file /nvram/reboot_due_to_sw_upgrade"
-				rm -rf /nvram/reboot_due_to_sw_upgrade
-				DeviceUP=1
-			else
-				echo_t "RDKB_REBOOT: Device is up after reboot"
-				DeviceUP=1
-			fi
-		fi
+	    if [ "$DeviceUP" -eq 0 ]; then
+	        #for rdkb-4260
+	        if [ -f "$SW_UPGRADE_REBOOT" ]; then
+	           echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
+	           #deleting reboot_due_to_sw_upgrade file
+	           echo_t "Deleting file /nvram/reboot_due_to_sw_upgrade"
+	           rm -rf /nvram/reboot_due_to_sw_upgrade
+	           DeviceUP=1
+	        else
+	           echo_t "RDKB_REBOOT: Device is up after reboot"
+	           DeviceUP=1
+	        fi
+	    fi
 
 	    sleep 60
 	    
 	    if [ ! -e $REGULAR_UPLOAD ]
 	    then
-		
-	#	if [ ! -d "$LOGTEMPPATH" ]
-	#	then
-		#	mkdir -p $LOGTEMPPATH
-					
-	#	fi
-
-	#	if [ ! -e $LOG_FILE_FLAG ]
-	#	then
-	#		createFiles
-	#	fi
-
-		#getLineSizeandRotate	
-
-	    	getLogfileSize "$LOG_PATH"
+		getLogfileSize "$LOG_PATH"
 
 	    	if [ $totalSize -ge $MAXSIZE ]; then
 			get_logbackup_cfg
@@ -478,20 +457,21 @@ do
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 	    	fi
 	    fi
-#   fi
+
 	# Syncing logs after perticular interval
 	get_logbackup_cfg
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then # nvram2 supported and backup is true
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
 		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
-			echo_t "Logging in initial 10 min"
+			minute_count=0
+			echo_t "RDK_LOGGER: Syncing every 10 minutes for initial 30 minutes"
 			syncLogs_nvram2
 		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
 			minute_count=0
 			syncLogs_nvram2
 			if [ $ATOM_SYNC == "" ]; then
-				syncLogs
+			   syncLogs
 			fi
 		fi
 	else
