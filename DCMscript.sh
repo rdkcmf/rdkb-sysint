@@ -149,7 +149,7 @@ sendHttpRequestToServer()
     echo "`date` ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
 	
     # Retry for STBs hosted in open internet
-    if [ ! -z "$ENABLE_CB" -a "$ENABLE_CB"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
+    if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
         echo "`date` Retry attempt to get logupload setting for STB in wild " >> $DCM_LOG_FILE
 
         SIGN_CMD="configparamgen 3 \"$JSONSTR\""
