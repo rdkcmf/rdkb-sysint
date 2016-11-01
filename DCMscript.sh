@@ -156,7 +156,7 @@ sendHttpRequestToServer()
         eval $SIGN_CMD > /tmp/.signedRequest
         CB_SIGNED_REQUEST=`cat /tmp/.signedRequest`
         rm -f /tmp/.signedRequest
-        CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
+        CURL_CMD="curl --cacert /nvram/cacert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
         result= eval $CURL_CMD > $HTTP_CODE
         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
         ret=$?
