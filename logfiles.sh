@@ -73,6 +73,9 @@ HotspotLogsBackup="Hotspotlog.txt.1"
 DhcpSnoopLog="Dhcpsnooplog.txt.0"
 DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
 
+XsmartLog="Xsmartlog.txt.0"
+XsmartLogsBackup="Xsmartlog.txt.1"
+
 wifihealth="wifihealth.txt"
 
 MiscLog="Misc.txt.0"
@@ -84,9 +87,9 @@ HostapdErrorLog="hostapd_error_log.txt"
 
 if [ "$UI_IN_ATOM" = "true" ]
 then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog}"
 else
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog,$XsmartLog}"
 fi
 
 MAC=`getMacAddressOnly`
