@@ -356,7 +356,14 @@ uploadOnRequest()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-				        nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/
+				        nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/ > /dev/null 2>&1
+					sync_res=$?
+					if [ "$sync_res" -eq 0 ]
+					then
+						echo "Sync from ATOM success during log upload trigger"
+					else
+						echo "Sync from ATOM failed during log upload trigger, return code is $sync_res"
+					fi
 			
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"

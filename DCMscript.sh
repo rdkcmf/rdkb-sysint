@@ -238,13 +238,13 @@ do
 
         if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
-            scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH
+            scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             if [ $? -ne 0 ]; then
-                scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH
+                scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             fi
             echo "Signal atom to pick the XCONF config data $DCMRESPONSE and schedule telemetry !!! " >> $DCM_LOG_FILE
             ## Trigger an inotify event on ATOM 
-            ssh root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT"
+            ssh root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
         else
             sh /lib/rdk/dca_utility.sh 1 &
         fi

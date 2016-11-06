@@ -430,7 +430,7 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
         while [ ! -f $DCMRESPONSE ]
         do
              echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
-            scp -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE
+            scp -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE > /dev/null 2>&1
             sleep 10
         done
     fi
@@ -447,7 +447,7 @@ fi
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     dropbearRecovery
     mkdir -p $LOG_PATH
-    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/
+    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/ > /dev/null 2>&1
     sleep 2
 fi
 
@@ -568,10 +568,10 @@ if [ -f $OUTPUT_FILE ]; then
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
            if [ $triggerType -eq 2 ]; then
-               ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"
+               ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
                echo "$timestamp notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
-               ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT"
+               ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
            fi
        else
            if [ $triggerType -eq 2 ]; then

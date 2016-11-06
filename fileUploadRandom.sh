@@ -52,7 +52,7 @@ calcRandTimeandUpload()
 
     if [ "$DCA_MULTI_CORE_SUPPORTED" = "yes" ]
     then
-        ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT"
+        ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
         # This delay is to make sure that scp of all files from ARM to ATOM is done
         sleep 30
     else
