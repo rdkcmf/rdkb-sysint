@@ -84,11 +84,12 @@ DcmLog="dcmProcessing.log"
 AtomConsoleLog="AtomConsolelog.txt.0"
 ApInitLog="ap_init.txt.0"
 HostapdErrorLog="hostapd_error_log.txt"
-BandSteeringLog="bandsteering_log.txt"
+BandSteeringLog="bandsteering_periodic_status.txt"
+BandSteeringLBDLog="bandsteering_log.txt"
 
 if [ "$UI_IN_ATOM" = "true" ]
 then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog,$BandSteeringLog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog,$BandSteeringLog,$BandSteeringLBDLog}"
 else
    ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog,$XsmartLog}"
 fi
