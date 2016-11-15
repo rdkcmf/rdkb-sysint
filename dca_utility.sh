@@ -3,6 +3,7 @@
 . /etc/include.properties
 . /etc/device.properties
 
+
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
@@ -42,6 +43,9 @@ TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
+    if [ -f /etc/logFiles.properties ]; then
+        . /etc/logFiles.properties
+    fi
 fi
 # Retain source for future enabling. Defaulting to disable for now
 snmpCheck=false
@@ -447,7 +451,22 @@ fi
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     dropbearRecovery
     mkdir -p $LOG_PATH
-    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $LOG_PATH/ > /dev/null 2>&1
+    TMP_SCP_PATH="/tmp/scp_logs"
+    mkdir -p $TMP_SCP_PATH
+    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
+    ATOM_FILE_LIST=`echo ${ATOM_FILE_LIST} | sed -e "s/{//g" -e "s/}//g" -e "s/,/ /g"`
+    for file in $ATOM_FILE_LIST
+    do
+        if [ -f $TMP_SCP_PATH/$file ]; then
+            rm -f $TMP_SCP_PATH/$file
+        fi
+    done
+
+    if [ -d $TMP_SCP_PATH ]; then
+        cp -r $TMP_SCP_PATH/* $LOG_PATH/
+        rm -rf $TMP_SCP_PATH
+    fi
+
     sleep 2
 fi
 
