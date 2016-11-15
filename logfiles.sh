@@ -73,8 +73,11 @@ HotspotLogsBackup="Hotspotlog.txt.1"
 DhcpSnoopLog="Dhcpsnooplog.txt.0"
 DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
 
-XsmartLog="Xsmartlog.txt.0"
-XsmartLogsBackup="Xsmartlog.txt.1"
+XsmartLog="XsmartLog.txt.0"
+XsmartLogsBackup="XsmartLog.txt.1"
+
+TouchstoneLog="TouchstoneLog.txt.0"
+TouchstoneLogsBackup="TouchstoneLog.txt.1"
 
 wifihealth="wifihealth.txt"
 
@@ -89,9 +92,9 @@ BandSteeringLBDLog="bandsteering_log.txt"
 
 if [ "$UI_IN_ATOM" = "true" ]
 then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog,$BandSteeringLog,$BandSteeringLBDLog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog,$BandSteeringLog,$BandSteeringLBDLog,$TouchstoneLog}"
 else
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog,$XsmartLog}"
+   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog,$XsmartLog,$TouchstoneLog}"
 fi
 
 MAC=`getMacAddressOnly`
@@ -99,7 +102,7 @@ HOST_IP=`getIPAddress`
 dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 
-LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog $HotspotLog $DhcpSnoopLog"
+LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog $HotspotLog $DhcpSnoopLog $XsmartLog $TouchstoneLog"
 
 moveFile()
 {        
