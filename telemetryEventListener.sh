@@ -52,6 +52,9 @@ case "$eventType" in
   *execTelemetry* )
     sh /lib/rdk/dca_utility.sh 2 &
     ;;
+  *update_cronschedule* )
+    sh /lib/rdk/dca_utility.sh 3 &
+    ;;
 esac
 
 # Clean up even listeners to receive further events

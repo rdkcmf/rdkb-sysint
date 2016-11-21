@@ -133,6 +133,8 @@ fi
 # 0 if as part of normal execution
 # 1 if initiated due to an XCONF update
 # 2 if forced execution before log upload
+# 3 if modify the cron schedule 
+
 triggerType=$1
 
 cd $LOG_PATH
@@ -312,6 +314,24 @@ scheduleCron()
         cron=`cat $DCM_SETTINGS_CONF | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
     fi
 
+	#During diagnostic mode need to apply the cron schedule value through this custom configuraion 
+	DiagnosticMode=`dmcli eRT getv Device.SelfHeal.X_RDKCENTRAL-COM_DiagnosticMode | grep value | cut -f3 -d : | cut -f2 -d" "`
+	if [ "$DiagnosticMode" == "true" ];then
+	LogUploadFrequency=`dmcli eRT getv Device.SelfHeal.X_RDKCENTRAL-COM_DiagMode_LogUploadFrequency | grep value | cut -f3 -d : | cut -f2 -d" "`
+		if [ "$LogUploadFrequency" != "" ]; then
+			cron=''
+			cron="*/$LogUploadFrequency * * * *"
+			echo "$timestamp dca: the default Cron schedule from XCONF is ignored and instead SNMP overriden value is used" >> $RTL_LOG_FILE
+		fi
+	fi	
+
+	#Check whether cron having empty value if it is empty then need to assign 
+	#15mins by default
+	if [ -z "$cron" ]; then
+		echo "$timestamp: dca: Empty cron value so set default as 15mins" >> $RTL_LOG_FILE
+		cron="*/15 * * * *"
+	fi	
+
     if [ -n "$cron" ]; then
 	# Dump existing cron jobs to a file
 	crontab -l -c $CRON_SPOOL > $current_cron_file
@@ -437,6 +457,14 @@ generateTelemetryConfig()
     fi
 
 }
+
+# Reschedule the cron based on diagnositic mode
+if [ $triggerType -eq 3 ] ; then
+	echo "$timestamp: dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
+    scheduleCron
+    ## Telemetry must be invoked only for reschedule cron job
+    exit 0
+fi
 
 # Regenerate config only during boot-up and when there is an update
 if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
