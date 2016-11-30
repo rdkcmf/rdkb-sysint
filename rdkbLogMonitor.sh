@@ -290,17 +290,38 @@ bootup_upload()
 {
 	if [ -e "$UPLOAD_ON_REBOOT" ]
 	then
-	   curDir=`pwd`
+	        curDir=`pwd`
 
 		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-		if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
-		then
-		    mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
-		fi
+		    if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
+		    then
+		        mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
+		    fi
 			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+                        filesPresent=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep -v tgz`
 		else
 	   		cd $LOG_BACK_UP_REBOOT
+                        filesPresent=`ls $LOG_BACK_UP_REBOOT | grep -v tgz`
 		fi
+
+            if [ "$filesPresent" != "" ]
+            then
+               
+               # Print sys descriptor value if bootup is not after software upgrade.
+               # During software upgrade, we print this value before reboot.
+               # This is done to reduce user triggered reboot time 
+               if [ ! -f "/nvram/reboot_due_to_sw_upgrade" ]
+               then
+                   echo "Create sysdescriptor before creating tar ball after reboot.."
+                   createSysDescr >> $ARM_LOGS_NVRAM2
+               fi 
+               echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+               tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+               rm $PATTERN_FILE
+               rm -rf $LOG_SYNC_PATH*.txt*
+	       rm -rf $LOG_SYNC_PATH*.log
+	       rm -rf $LOG_SYNC_PATH*core*
+            fi
 
 	   macOnly=`getMacAddressOnly`
 	   fileToUpload=`ls | grep tgz`
@@ -339,7 +360,7 @@ bootup_upload()
 
 	   if [ "$fileToUpload" != "" ]
 	   then
-		random_sleep
+              random_sleep
 	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
 	   else 
 	      echo_t "No log file found in logbackupreboot folder"
@@ -353,16 +374,16 @@ bootup_upload()
 	echo_t "Check if any tar file available in /logbackup/ "
 	curDir=`pwd`
 
-		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-			cd $LOG_SYNC_BACK_UP_PATH
-		else
-	   		cd $LOG_BACK_UP_PATH
-		fi
+        if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+            cd $LOG_SYNC_BACK_UP_PATH
+        else
+            cd $LOG_BACK_UP_PATH
+        fi
 
 	UploadFile=`ls | grep "tgz"`
 	if [ "$UploadFile" != "" ]
 	then
-	   echo_t "File to be uploaded from logbackup/ is $UploadFile "
+	        echo_t "File to be uploaded from logbackup/ is $UploadFile "
 		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 		then
 			random_sleep		
@@ -377,13 +398,13 @@ bootup_upload()
 			     then
 				echo_t "Webserver $WEBSERVER_STARTED..., uploading logs after 2 mins"
 				break
-			    fi
+			     fi
 
-				bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
-				if [ $bootup_time_sec -ge 600 ] ; then
-					echo_t "Boot time is more than 10 min, Breaking Loop"
-					break
-				fi
+                             bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
+                             if [ $bootup_time_sec -ge 600 ] ; then
+                                  echo_t "Boot time is more than 10 min, Breaking Loop"
+                                  break
+                             fi
 			done
 			sleep 120
 			random_sleep
@@ -404,13 +425,16 @@ get_logbackup_cfg
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
 	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
-	if [ "$file_list" != "" ]; then
+	if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
 
 		#ARRISXB6-2821:
-		#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors and time sync needed before logbackup.
-		#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file having correct timestamp.
-		#Will use default time if time not synchronized even after 2 mini of bootup to unblock other rdkbLogMonitor.sh functionality
+		#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
+                #and time sync needed before logbackup.
+		#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
+                #having correct timestamp.
+		#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
+                #other rdkbLogMonitor.sh functionality
 
 		DOCSIS_TIME_SYNC_NEEDED=`cat /etc/device.properties | grep DOCSIS_TIME_SYNC_NEEDED | cut -f2 -d=`
 		if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
@@ -438,11 +462,6 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
-	fi
-	corefile=`ls $LOG_SYNC_PATH | grep core`
-	if [ "$corefile" != "" ]
-	then
-		rm -rf $LOG_SYNC_PATH*core*
 	fi
 fi
 

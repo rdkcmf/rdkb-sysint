@@ -103,7 +103,7 @@ backupLogsonReboot()
 	mkdir $dt
 
 	# Put system descriptor string in log file
-	createSysDescr
+	#createSysDescr
 
 	cd $LOG_PATH
 	FILES=`ls`
@@ -168,9 +168,9 @@ backupLogsonReboot()
 		fi
 
 	fi
-	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
-	rm $PATTERN_FILE
+	#echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	#tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
+	#rm $PATTERN_FILE
 	echo_t "Created backup of all logs..."
 	rm -rf $dt	
  	ls
@@ -193,8 +193,12 @@ backupLogsonReboot_nvram2()
 
 	#rm -rf $LOG_SYNC_BACK_UP_REBOOT_PATH*
 
-	# Put system descriptor string in log file
-	createSysDescr
+	# Put system descriptor string in log file if it is a software upgrade.
+        # For non-software upgrade reboots, sysdescriptor will be printed during bootup
+	if [ -f "/nvram/reboot_due_to_sw_upgrade" ]
+        then
+             createSysDescr
+        fi 
 
 	syncLogs_nvram2
 
@@ -224,13 +228,13 @@ backupLogsonReboot_nvram2()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
-	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
-	rm $PATTERN_FILE
+	#echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	#tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	#rm $PATTERN_FILE
 	echo_t "Created backup of all logs..."
  	ls
-	rm -rf $LOG_SYNC_PATH*.txt*
-	rm -rf $LOG_SYNC_PATH*.log
+	#rm -rf $LOG_SYNC_PATH*.txt*
+	#rm -rf $LOG_SYNC_PATH*.log
 	touch $UPLOAD_ON_REBOOT
 	cd $curDir
 }
@@ -238,12 +242,12 @@ backupLogsonReboot_nvram2()
 if [ "$2" = "l2sd0" ]
 then
 	if [ "$nvram2Backup" == "true" ]; then	
-        createSysDescr
-		syncLogs_nvram2	
-		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+                createSysDescr
+                syncLogs_nvram2	
+                backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else
-	    syncLogs
-		backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
+                syncLogs
+                backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 	fi
 
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
@@ -266,7 +270,7 @@ if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ] || [ "$2
 then
 	echo_t "Taking log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
-        createSysDescr
+                createSysDescr
 
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
