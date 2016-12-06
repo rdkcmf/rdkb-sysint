@@ -25,6 +25,9 @@ source $RDK_LOGGER_PATH/utils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 PATTERN_FILE="/tmp/pattern_file"
 
+RSYNC_RUNNING="/tmp/rsync_running"
+RSYNC_WAITING="/tmp/rsync_waiting"
+
 if [ -f /etc/device.properties ]
 then
     source /etc/device.properties
@@ -192,6 +195,63 @@ flush_atom_logs()
 	
 }
 
+protected_rsync()
+{
+
+	destination=$1
+	RSYNC_PID=`pidof rsync`
+	if [ "$RSYNC_PID" != "" ] && [ -f $RSYNC_RUNNING ] && [ ! -f $RSYNC_WAITING ]; then
+		i=0;
+		timeout=1;
+		echo_t "Already rsync running"
+		touch $RSYNC_WAITING
+		while [ $i -le 60 ]; do
+			RSYNC_PID=`pidof rsync`
+			if [ "$RSYNC_PID" == "" ]; then
+				timeout=0
+				echo_t "rsync running over"
+				break
+			fi
+			i=$((i + 1))
+			sleep 1
+		done
+
+		if [ $timeout -eq 1 ]; then
+			echo_t "killing all rsync"
+			killall rsync
+		fi
+
+		if [ -f $RSYNC_RUNNING ]; then
+			rm $RSYNC_RUNNING
+		fi
+		nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		sync_res=$?
+		if [ "$sync_res" -eq 0 ]
+		then
+			echo "Sync from ATOM complete"
+		else
+			echo "Sync from ATOM failed , retrun code is $sync_res"
+		fi
+
+		if [ -f $RSYNC_WAITING ]; then
+			rm $RSYNC_WAITING
+		fi
+
+	elif [ "$RSYNC_PID" == "" ]; then
+		touch $RSYNC_RUNNING
+		nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		sync_res=$?
+		if [ "$sync_res" -eq 0 ]
+		then
+			echo "Sync from ATOM complete"
+		else
+			echo "Sync from ATOM failed , retrun code is $sync_res"
+		fi
+		rm $RSYNC_RUNNING
+	fi
+
+}
+
 syncLogs_nvram2()
 {
 
@@ -216,14 +276,8 @@ syncLogs_nvram2()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
-					sync_res=$?
-					if [ "$sync_res" -eq 0 ]
-					then
-						echo "Sync from ATOM complete"
-					else
-						echo "Sync from ATOM failed, return code is $sync_res"
-					fi
+					protected_rsync $LOG_PATH
+#nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
@@ -414,14 +468,8 @@ backupAllLogs()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
-					sync_res=$?
-					if [ "$sync_res" -eq 0 ]
-					then
-						echo "Sync from ATOM complete"
-					else
-						echo "Sync from ATOM failed , retrun code is $sync_res"
-					fi
+					protected_rsync $LOG_PATH
+#nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
 					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
 					echo_t "Call dca for log processing and then flush ATOM logs"
 					flush_atom_logs &

@@ -151,14 +151,8 @@ backupLogsonReboot()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-				        nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dt/ > /dev/null 2>&1
-					sync_res=$?
-					if [ "$sync_res" -eq 0 ]
-					then
-						echo "Sync from ATOM complete"
-					else
-						echo "Sync from ATOM failed, return code is $sync_res"
-					fi
+					protected_rsync $LOG_BACK_UP_REBOOT$dt/
+#nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_BACK_UP_REBOOT$dt/ > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
