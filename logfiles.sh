@@ -537,3 +537,38 @@ logCleanup()
   rm $LOG_BACK_UP_PATH/*
   echo_t "Done Log Backup"
 }
+
+processDCMResponse()
+{
+
+    if [ -f "$DCMRESPONSE" ] 
+    then
+	
+		 cp $DCMRESPONSE $DCMRESPONSE_TMP
+
+        	# Start pre-processing the original file
+		sed -i 's/,"urn:/\n"urn:/g' $DCMRESPONSE_TMP # Updating the file by replacing all ',"urn:' with '\n"urn:'
+		sed -i 's/^{//g' $DCMRESPONSE_TMP # Delete first character from file '{'
+		sed -i 's/}$//g' $DCMRESPONSE_TMP # Delete first character from file '}'
+		echo "" >> $DCMRESPONSE_TMP         # Adding a new line to the file
+		# Start pre-processing the original file
+
+		while read line
+		do
+		    # Special processing for telemetry
+		   #  echo "line = $line"
+		    Check_For_Log_Upload_Setting=`echo "$line" | grep  "LogUploadSettings:upload"`
+		    if [ "$Check_For_Log_Upload_Setting" != "" ];then
+				UPLOAD_LOGS=`echo "$line" | awk -F ":" '{print $NF}'`
+				sysevent set UPLOAD_LOGS_VAL_DCM $UPLOAD_LOGS
+				touch $DCM_SETTINGS_PARSED
+				echo "$UPLOAD_LOGS"
+				break			
+		    fi
+		done < $DCMRESPONSE_TMP
+
+		UPLOAD_LOGS="true"
+		echo "$UPLOAD_LOGS"	
+ 
+    fi
+}
