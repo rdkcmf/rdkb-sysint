@@ -115,7 +115,32 @@ calcRandTimeandUpload()
        backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     fi
 
-    $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
+if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+then
+	echo_t "processDCMResponse to get the logUploadSettings"
+	UPLOAD_LOGS=`processDCMResponse`
+	echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+	if [ "$UPLOAD_LOGS" = "" ]
+	then
+		UPLOAD_LOGS="true"
+	fi
+fi
+
+    if [ "$UPLOAD_LOGS" =  "true" ]
+    then
+	    $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+    else
+		if [ "$nvram2Backup" == "true" ]; then	
+			cd $LOG_SYNC_BACK_UP_PATH
+		else
+			cd $LOG_BACK_UP_PATH
+		fi
+		
+		TAR_FILE=`ls | grep "tgz"`
+	         rm -rf $TAR_FILE
+		
+    fi
     upload_logfile=0
     
     echo_t "RDKB_MEM_HEALTH : Check device memory health"
@@ -126,7 +151,11 @@ calcRandTimeandUpload()
     if [ -f $DCM_PATH/dcm.service ]; 
     then
         echo_t "RDK Logger : Run DCM service"
-        sh $DCM_PATH/dcm.service &
+	if [ -f "$DCM_SETTINGS_PARSED" ]
+	then
+		rm -rf $DCM_SETTINGS_PARSED
+	fi
+	 sh $DCM_PATH/dcm.service &
     else
         echo_t "RDK Logger : No DCM service file"
     fi

@@ -487,6 +487,7 @@ else
   fi
 fi
 
+UPLOAD_LOGS=`processDCMResponse`
 
 while [ $loop -eq 1 ]
 do
@@ -513,15 +514,41 @@ do
 	    	if [ $totalSize -ge $MAXSIZE ]; then
 			get_logbackup_cfg
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
-                                createSysDescr
+                           createSysDescr
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			else
 				syncLogs
 				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
-			fi	
-			
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+			fi
+	
+			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+			then
+				 echo_t "processDCMResponse to get the logUploadSettings"
+				UPLOAD_LOGS=`processDCMResponse`
+				echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+				if [ "$UPLOAD_LOGS" = ""]
+				then
+					UPLOAD_LOGS="true"
+				fi
+			fi
+
+		        if [ "$UPLOAD_LOGS" = "true" ] 
+			then	
+				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+			else
+
+				if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
+					cd $LOG_SYNC_BACK_UP_PATH
+				else
+					cd $LOG_BACK_UP_PATH
+				fi
+
+			        TAR_FILE=`ls | grep "tgz"`
+
+				 rm -rf $TAR_FILE
+				cd - > /dev/null
+			fi
 	    	fi
 	    fi
 
@@ -546,13 +573,38 @@ do
 		file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 		if [ "$file_list" != "" ]; then
 			echo_t "RDK_LOGGER: Disabling nvram2 logging"
-                        createSysDescr
+                     createSysDescr
 			syncLogs_nvram2
 			if [ $ATOM_SYNC == "" ]; then
 				syncLogs
 			fi
 			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"
+
+			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+			then		
+
+				UPLOAD_LOGS=`processDCMResponse`
+				if [ "$UPLOAD_LOGS" = "" ]
+				then
+					UPLOAD_LOGS="true"
+				fi
+			fi
+
+		        if [ "$UPLOAD_LOGS" = "true" ]
+			then			
+				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"
+			else
+				if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
+					cd $LOG_SYNC_BACK_UP_PATH
+				else
+					cd $LOG_BACK_UP_PATH
+				fi
+			
+			        TAR_FILE=`ls | grep "tgz"`
+				 rm -rf $TAR_FILE
+			         cd - > /dev/null
+			fi
+
 		fi
 	fi
               	
