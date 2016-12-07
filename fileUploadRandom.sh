@@ -107,6 +107,28 @@ calcRandTimeandUpload()
     fi
 
     echo_t "RDK Logger : Trigger Maintenance Window log upload.."
+
+    UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
+    if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+    then
+    	echo_t "processDCMResponse to get the logUploadSettings"
+	UPLOAD_LOGS=`processDCMResponse`
+    fi
+    echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+    
+    if [ "$UPLOAD_LOGS" = "true" ] || [ "$UPLOAD_LOGS" = "" ]		
+    then
+        UPLOAD_LOGS="true"
+        if [ ! -f "/tmp/.uploadregularlogs" ]
+        then
+            echo_t "Log upload is enabled. Touching indicator in maintenance window"         
+            touch /tmp/.uploadregularlogs
+        fi
+    else
+        echo_t "Log upload is disabled. Removing indicator in maintenance window"         
+        rm -rf /tmp/.uploadregularlogs
+    fi
+
     if [ "$nvram2Backup" == "true" ]; then
        syncLogs_nvram2	
        backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
@@ -115,32 +137,14 @@ calcRandTimeandUpload()
        backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
     fi
 
-UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
-if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
-then
-	echo_t "processDCMResponse to get the logUploadSettings"
-	UPLOAD_LOGS=`processDCMResponse`
-	echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
-	if [ "$UPLOAD_LOGS" = "" ]
-	then
-		UPLOAD_LOGS="true"
-	fi
-fi
 
     if [ "$UPLOAD_LOGS" =  "true" ]
     then
 	    $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
     else
-		if [ "$nvram2Backup" == "true" ]; then	
-			cd $LOG_SYNC_BACK_UP_PATH
-		else
-			cd $LOG_BACK_UP_PATH
-		fi
-		
-		TAR_FILE=`ls | grep "tgz"`
-	         rm -rf $TAR_FILE
-		
+	    echo_t "Log upload is disabled in maintenance window"         
     fi
+
     upload_logfile=0
     
     echo_t "RDKB_MEM_HEALTH : Check device memory health"

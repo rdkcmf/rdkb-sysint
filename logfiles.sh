@@ -307,7 +307,12 @@ backupnvram2logs()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+
+        if [ -f "/tmp/.uploadregularlogs" ]
+        then
+	        tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+        fi
+
 	rm $PATTERN_FILE
 	 # Removing ATOM side logs
 
@@ -553,6 +558,7 @@ processDCMResponse()
 		echo "" >> $DCMRESPONSE_TMP         # Adding a new line to the file
 		# Start pre-processing the original file
 
+		UPLOAD_LOGS=""
 		while read line
 		do
 		    # Special processing for telemetry
@@ -560,15 +566,25 @@ processDCMResponse()
 		    Check_For_Log_Upload_Setting=`echo "$line" | grep  "LogUploadSettings:upload"`
 		    if [ "$Check_For_Log_Upload_Setting" != "" ];then
 				UPLOAD_LOGS=`echo "$line" | awk -F ":" '{print $NF}'`
+                                if [ "$UPLOAD_LOGS" = "" ]
+                                then
+                                     UPLOAD_LOGS="true"
+                                fi
 				sysevent set UPLOAD_LOGS_VAL_DCM $UPLOAD_LOGS
 				touch $DCM_SETTINGS_PARSED
 				echo "$UPLOAD_LOGS"
-				break			
+				break		
 		    fi
-		done < $DCMRESPONSE_TMP
+		done < $DCMRESPONSE_TMP	
 
-		UPLOAD_LOGS="true"
-		echo "$UPLOAD_LOGS"	
+		if [ "$UPLOAD_LOGS" = "" ]
+		then
+                    UPLOAD_LOGS="true"
+                    sysevent set UPLOAD_LOGS_VAL_DCM $UPLOAD_LOGS
+                    touch $DCM_SETTINGS_PARSED
+                    echo "$UPLOAD_LOGS"
+		fi
+
  
     fi
 }

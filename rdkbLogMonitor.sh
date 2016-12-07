@@ -513,8 +513,30 @@ do
 
 	    	if [ $totalSize -ge $MAXSIZE ]; then
 			get_logbackup_cfg
+
+			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+			then
+				echo_t "processDCMResponse to get the logUploadSettings"
+				UPLOAD_LOGS=`processDCMResponse`
+			fi  
+    
+			echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+			if [ "$UPLOAD_LOGS" = "true" ] || [ "$UPLOAD_LOGS" = "" ]
+			then
+				UPLOAD_LOGS="true"
+				# this file is touched to indicate log upload is enabled
+				# we check this file in logfiles.sh before creating tar ball.
+				# tar ball will be created only if this file exists.
+				echo_t "Log upload is enabled. Touching indicator in regular upload"         
+				touch /tmp/.uploadregularlogs
+			else
+				echo_t "Log upload is disabled. Removing indicator in regular upload"         
+				rm -rf /tmp/.uploadregularlogs                                
+			fi
+			
+
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
-                           createSysDescr
+				createSysDescr
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 			else
@@ -522,32 +544,11 @@ do
 				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 			fi
 	
-			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
-			then
-				 echo_t "processDCMResponse to get the logUploadSettings"
-				UPLOAD_LOGS=`processDCMResponse`
-				echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
-				if [ "$UPLOAD_LOGS" = ""]
-				then
-					UPLOAD_LOGS="true"
-				fi
-			fi
-
 		        if [ "$UPLOAD_LOGS" = "true" ] 
 			then	
 				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 			else
-
-				if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
-					cd $LOG_SYNC_BACK_UP_PATH
-				else
-					cd $LOG_BACK_UP_PATH
-				fi
-
-			        TAR_FILE=`ls | grep "tgz"`
-
-				 rm -rf $TAR_FILE
-				cd - > /dev/null
+				echo_t "Regular log upload is disabled"         
 			fi
 	    	fi
 	    fi
@@ -573,36 +574,36 @@ do
 		file_list=`ls 2>/dev/null $LOG_SYNC_PATH`
 		if [ "$file_list" != "" ]; then
 			echo_t "RDK_LOGGER: Disabling nvram2 logging"
-                     createSysDescr
+			createSysDescr
+                        
+			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+			then
+				echo_t "processDCMResponse to get the logUploadSettings"
+				UPLOAD_LOGS=`processDCMResponse`
+			fi  
+    
+			echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+			if [ "$UPLOAD_LOGS" = "true" ] || [ "$UPLOAD_LOGS" = "" ]		
+			then
+				UPLOAD_LOGS="true"
+				echo_t "Log upload is enabled. Touching indicator in maintenance window"         
+				touch /tmp/.uploadregularlogs
+			else
+				echo_t "Log upload is disabled. Removing indicator in maintenance window"         
+				rm /tmp/.uploadregularlogs
+			fi
+
 			syncLogs_nvram2
 			if [ $ATOM_SYNC == "" ]; then
 				syncLogs
 			fi
 			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 
-			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
-			then		
-
-				UPLOAD_LOGS=`processDCMResponse`
-				if [ "$UPLOAD_LOGS" = "" ]
-				then
-					UPLOAD_LOGS="true"
-				fi
-			fi
-
 		        if [ "$UPLOAD_LOGS" = "true" ]
 			then			
 				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "true"
 			else
-				if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
-					cd $LOG_SYNC_BACK_UP_PATH
-				else
-					cd $LOG_BACK_UP_PATH
-				fi
-			
-			        TAR_FILE=`ls | grep "tgz"`
-				 rm -rf $TAR_FILE
-			         cd - > /dev/null
+				echo_t "Regular log upload is disabled"         
 			fi
 
 		fi
