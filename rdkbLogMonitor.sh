@@ -323,6 +323,27 @@ bootup_upload()
 	       rm -rf $LOG_SYNC_PATH*core*
             fi
 
+
+            if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+               #Sync log files immediately after reboot
+               echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
+               syncLogs_nvram2
+            else
+               BACKUPENABLE=`syscfg get logbackup_enable`
+               if [ "$BACKUPENABLE" = "true" ]; then
+                  # First time call syncLogs after boot,
+                  #  remove existing log files (in $LOG_FILES_NAMES) in $LOG_BACK_UP_REBOOT
+                  curDir=`pwd`
+                  cd $LOG_BACK_UP_REBOOT
+                  for fileName in $LOG_FILES_NAMES
+                  do
+                     rm 2>/dev/null $fileName #avoid error message
+                  done
+                  cd $curDir
+                  syncLogs
+               fi
+            fi
+
 	   macOnly=`getMacAddressOnly`
 	   fileToUpload=`ls | grep tgz`
 	   # This check is to handle migration scenario from /nvram to /nvram2
@@ -462,30 +483,30 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
+
+                if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+                   #Sync log files immediately after reboot
+                   echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
+                   syncLogs_nvram2
+                else
+                   BACKUPENABLE=`syscfg get logbackup_enable`
+                   if [ "$BACKUPENABLE" = "true" ]; then
+                       # First time call syncLogs after boot,
+                       #  remove existing log files (in $LOG_FILES_NAMES) in $LOG_BACK_UP_REBOOT
+                       curDir=`pwd`
+                       cd $LOG_BACK_UP_REBOOT
+                       for fileName in $LOG_FILES_NAMES
+                       do
+                          rm 2>/dev/null $fileName #avoid error message
+                       done
+                       cd $curDir
+                       syncLogs
+                   fi
+                fi
 	fi
 fi
 
 bootup_upload &
-
-if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-  #Sync log files immediately after reboot
-  echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
-  syncLogs_nvram2
-else
-  BACKUPENABLE=`syscfg get logbackup_enable`
-  if [ "$BACKUPENABLE" = "true" ]; then
-  # First time call syncLogs after boot,
-  #  remove existing log files (in $LOG_FILES_NAMES) in $LOG_BACK_UP_REBOOT
-    curDir=`pwd`
-    cd $LOG_BACK_UP_REBOOT
-    for fileName in $LOG_FILES_NAMES
-    do
-      rm 2>/dev/null $fileName #avoid error message
-    done
-    cd $curDir
-    syncLogs
-  fi
-fi
 
 UPLOAD_LOGS=`processDCMResponse`
 
