@@ -131,9 +131,6 @@ echo "proxy.server      =    ( \"\" =>
 WIFIUNCONFIGURED=`syscfg get redirection_flag`
 SET_CONFIGURE_FLAG=`psmcli get eRT.com.cisco.spvtg.ccsp.Device.WiFi.NotifyWiFiChanges`
 
-#Read the http response value
-NETWORKRESPONSEVALUE=`cat /var/tmp/networkresponse.txt`
-
 iter=0
 max_iter=2
 while [ "$SET_CONFIGURE_FLAG" = "" ] && [ "$iter" -le $max_iter ]
@@ -144,41 +141,80 @@ do
 done
 echo_t "WEBGUI : NotifyWiFiChanges is $SET_CONFIGURE_FLAG"
 echo_t "WEBGUI : redirection_flag val is $WIFIUNCONFIGURED"
+
 if [ "$WIFIUNCONFIGURED" = "true" ]
 then
-	if [ "$NETWORKRESPONSEVALUE" = "204" ] && [ "$SET_CONFIGURE_FLAG" = "true" ]
-	then
-		while : ; do
-		echo_t "WEBGUI : Waiting for PandM to initalize completely to set ConfigureWiFi flag"
-		CHECK_PAM_INITIALIZED=`find /tmp/ -name "pam_initialized"`
-		echo_t "CHECK_PAM_INITIALIZED is $CHECK_PAM_INITIALIZED"
-  	        	if [ "$CHECK_PAM_INITIALIZED" != "" ]
-   			then
-			   echo_t "WEBGUI : WiFi is not configured, setting ConfigureWiFi to true"
-	         	   output=`dmcli eRT setvalues Device.DeviceInfo.X_RDKCENTRAL-COM_ConfigureWiFi bool TRUE`
-			   check_success=`echo $output | grep  "Execution succeed."`
-  	        		if [ "$check_success" != "" ]
-   				then
-     			 	   echo_t "WEBGUI : Setting ConfigureWiFi to true is success"
- 	       			fi
-      			   break
- 	       		fi
-		sleep 2
-		done
-	
+    if [ "$SET_CONFIGURE_FLAG" = "true" ]
+    then
+        while : ; do
+           echo_t "WEBGUI : Waiting for PandM to initalize completely to set ConfigureWiFi flag"
+           CHECK_PAM_INITIALIZED=`find /tmp/ -name "pam_initialized"`
+           # This check is to see if P&M is initialized 
+           if [ "$CHECK_PAM_INITIALIZED" != "" ]
+           then
+               echo_t "WEBGUI : CHECK_PAM_INITIALIZED is $CHECK_PAM_INITIALIZED"
+               break
+           fi
+           sleep 2
+        done
 
-	else
-		if [ ! -e "$REVERT_FLAG" ] && [ "$NETWORKRESPONSEVALUE" = "204" ]
-		then
-			# We reached here as redirection_flag is "true". But WiFi is configured already as per notification status.
-			# Set syscfg value to false now.
-			echo_t "WEBGUI : WiFi is already personalized... Setting redirection_flag to false"
-			syscfg set redirection_flag false
-			syscfg commit
-			echo_t "WEBGUI: WiFi is already personalized. Set reverted flag in nvram"	
-			touch $REVERT_FLAG
-		fi
-	fi
+        iter=0
+        max_iter=21
+        while : ; do
+           echo_t "WEBGUI : Waiting for network reponse to run at least once"
+           # This check is to see if network response ran at least once
+           if [ -f "/tmp/.gotnetworkresponse" ]
+           then
+               echo_t "WEBGUI : File /tmp/.gotnetworkresponse exists, break loop."
+               break
+           fi
+           
+           if [ $iter -eq $max_iter ]
+           then
+               echo_t "WEBGUI : Max iteration for /tmp/.gotnetworkresponse reached, break loop " 
+               break
+           else
+               iter=$((iter+1))
+           fi
+           sleep 5
+        done
+
+        # Read the http response value
+        NETWORKRESPONSEVALUE=`cat /var/tmp/networkresponse.txt`
+
+        # Check if the response received is 204 from google client.
+        # If the response received is 204, then we should configure local captive portal.
+        # This check is to make sure that we got response from network_response.sh and not from utopia_init.sh
+        # /tmp/.gotnetworkresponse is touched from network_response.sh
+        if [ "$NETWORKRESPONSEVALUE" = "204" ] && [ -f "/tmp/.gotnetworkresponse" ]
+        then
+            if [ ! -f "/tmp/.configurewifidone" ]
+            then
+               echo_t "WEBGUI : WiFi is not configured, setting ConfigureWiFi to true"
+               output=`dmcli eRT setvalues Device.DeviceInfo.X_RDKCENTRAL-COM_ConfigureWiFi bool TRUE`
+               check_success=`echo $output | grep  "Execution succeed."`
+               if [ "$check_success" != "" ]
+               then
+                  echo_t "WEBGUI : Setting ConfigureWiFi to true is success"
+                  touch /tmp/.configurewifidone
+               fi
+            else
+                echo_t "WEBGUI : No need to set ConfigureWiFi to true"
+            fi
+        fi
+    else
+       if [ ! -e "$REVERT_FLAG" ]
+       then
+
+          # We reached here as redirection_flag is "true". But WiFi is configured already as per notification status.
+          # Set syscfg value to false now.
+          echo_t "WEBGUI : WiFi is already personalized... Setting redirection_flag to false"
+          syscfg set redirection_flag false
+          syscfg commit
+          echo_t "WEBGUI: WiFi is already personalized. Set reverted flag in nvram"	
+          touch $REVERT_FLAG
+       fi
+    fi
 fi		
 
 
