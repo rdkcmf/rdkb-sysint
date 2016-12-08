@@ -445,6 +445,29 @@ bootup_upload()
 get_logbackup_cfg
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
+
+	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
+	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
+	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
+	if [ "$model" == "TG3482" ];then
+		if [ -d "/nvram2" ];then
+			if [ -d "/nvram/logs" ];then
+				file_list=`ls /nvram/logs/`
+				if [ "$file_list" != "" ]; then
+					echo_t "nvram/logs contains older logs"
+					if [ ! -d "$LOG_SYNC_PATH" ];then
+						echo_t "Creating new sync path - nvram2/logs"
+						mkdir $LOG_SYNC_PATH
+					fi
+					echo_t "nvram2 detected first time. Copying nvram/logs to nvram2/logs for boottime logupload"
+					cp /nvram/logs/* "$LOG_SYNC_PATH"
+				fi
+				echo_t "logs copied to nvram2. Removing old log path - nvram/logs"
+				rm -rf "/nvram/logs"
+			fi
+		fi
+	fi
+
 	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
