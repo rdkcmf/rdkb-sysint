@@ -31,9 +31,6 @@ source $RDK_LOGGER_PATH/logfiles.sh
 #---------------------------------
 # Initialize Variables
 #---------------------------------
-# URL
-#URL="http://ccpxcb-dt-a001-d-1.dt.ccp.cable.comcast.com:8080/xconf/logUploadManagement/getSettings/?"
-#URL="http://ssr.ccp.xcal.tv/cgi-bin/S3.cgi"
 # As per ARRISXB3-3149
 
 
