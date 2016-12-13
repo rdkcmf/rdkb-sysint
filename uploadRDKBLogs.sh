@@ -59,7 +59,9 @@ else
        nvram2Backup="false"
     fi
 fi
- 
+
+UploadPath=$6
+
 getTFTPServer()
 {
         if [ "$1" != "" ]
@@ -171,6 +173,13 @@ TFTPLogUpload()
 		fi
 	fi
 
+	if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
+		FILE_NAME=`ls $UploadPath | grep "tgz"`
+		if [ "$FILE_NAME" != "" ]; then
+			cd $UploadPath
+		fi
+	fi
+
 	FILE_NAME=`ls | grep "tgz"`
 
         # This check is to handle migration scenario from /nvram to /nvram2
@@ -192,6 +201,10 @@ else
 fi
 
 	sleep 3
+        
+        if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
+		rm -rf $UploadPath
+	fi
    
 }
 
@@ -210,6 +223,13 @@ HttpLogUpload()
 			cd $LOG_SYNC_BACK_UP_PATH
 		else
 			cd $LOG_BACK_UP_PATH
+		fi
+	fi
+
+	if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
+		FILE_NAME=`ls $UploadPath | grep "tgz"`
+		if [ "$FILE_NAME" != "" ]; then
+			cd $UploadPath
 		fi
 	fi
  
@@ -449,6 +469,11 @@ HttpLogUpload()
 	    fi    
 	    echo_t $result
     done
+    
+	if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
+		rm -rf $UploadPath
+	fi
+        
 }
 
 

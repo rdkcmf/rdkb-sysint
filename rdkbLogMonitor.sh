@@ -315,6 +315,7 @@ bootup_upload()
                    echo "Create sysdescriptor before creating tar ball after reboot.."
                    createSysDescr >> $ARM_LOGS_NVRAM2
                fi 
+		rm -rf *.tgz
                echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
                tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
                rm $PATTERN_FILE
@@ -382,7 +383,7 @@ bootup_upload()
 	   if [ "$fileToUpload" != "" ]
 	   then
               random_sleep
-	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true"
+	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $TMP_LOG_UPLOAD_PATH
 	   else 
 	      echo_t "No log file found in logbackupreboot folder"
 	   fi
@@ -408,7 +409,7 @@ bootup_upload()
 		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 		then
 			random_sleep		
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH
 		else
 			while [ $loop -eq 1 ]
 			do
@@ -429,7 +430,7 @@ bootup_upload()
 			done
 			sleep 120
 			random_sleep
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH
 			UPLOADED_AFTER_REBOOT="true"
 		fi
 	fi
@@ -578,6 +579,14 @@ do
 				rm -rf /tmp/.uploadregularlogs                                
 			fi
 			
+			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+			FILE_NAME=`ls | grep "tgz"`
+
+			if [ "$FILE_NAME" != "" ]; then
+				mkdir $TMP_LOG_UPLOAD_PATH
+				mv $FILE_NAME $TMP_LOG_UPLOAD_PATH
+			fi
+			cd -
 
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
 				createSysDescr
