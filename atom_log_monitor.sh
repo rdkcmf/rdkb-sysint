@@ -19,16 +19,16 @@
 ##########################################################################
 
 source /etc/device.properties
-
+source /etc/logFiles.properties
 loop=1
 LOG_PATH=/rdklogs/logs/
 
-if [ "$UI_IN_ATOM" = "true" ]
-then
-   FILES="AtomConsolelog.txt.0 CRlog.txt.0 lighttpderror.log WiFilog.txt.0 ap_init.txt.0 hostapd_error_log.txt XsmartLog.txt.0 TouchstoneLog.txt.0 bandsteering_periodic_status.txt bandsteering_log.txt wifihealth.txt"
-else
-   FILES="AtomConsolelog.txt.0 CRlog.txt.0 WiFilog.txt.0 XsmartLog.txt.0 TouchstoneLog.txt.0"
-fi
+TMP_FILE_LIST=$(echo $ATOM_FILE_LIST | tr "," " " | tr "{" " " | tr "}" " " | tr "*" "0")
+for file in $TMP_FILE_LIST; do
+  if [ ! -f $LOG_PATH$file ]; then
+   touch $LOG_PATH$file
+  fi
+done
 
 while [ "$loop" -eq 1 ]
 do
@@ -45,14 +45,14 @@ do
 	totalSize=0
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 
-		for f in $FILES
+		for f in $TMP_FILE_LIST
 		do
 			tempSize=`du -c $f | tail -1 | awk '{print $1}'`
 			totalSize=`expr $totalSize + $tempSize`
 		done
         else
 
-		for f in $FILES
+		for f in $TMP_FILE_LIST
 		do
 			tempSize=`wc -c $f | cut -f1 -d" "`
 			totalSize=`expr $totalSize + $tempSize`

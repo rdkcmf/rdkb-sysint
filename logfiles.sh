@@ -21,6 +21,7 @@
 source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
+source /etc/logFiles.properties
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 PATTERN_FILE="/tmp/pattern_file"
@@ -40,90 +41,10 @@ DCA_COMPLETED="/tmp/.dca_done"
 PING_PATH="/usr/sbin"
 ARM_LOGS_NVRAM2="/nvram2/logs/ArmConsolelog.txt.0"
 
-TR69Log="TR69log.txt.0"
-TR69LogsBackup="TR69log.txt.1"
-
-PAMLog="PAMlog.txt.0"
-PAMLogsBackup="PAMlog.txt.1"
-
-PSMLog="PSMlog.txt.0"
-PSMLogsBackup="PSMlog.txt.1"
-
-CRLog="CRlog.txt.0"
-CRLogsBackup="CRlog.txt.1"
-
-MTALog="MTAlog.txt.0"
-MTALogsBackup="MTAlog.txt.1"
-
-FULog="FUlog.txt.0"
-FULogsBackup="FUlog.txt.1"
-
-CMLog="CMlog.txt.0"
-CMLogsBackup="CMlog.txt.1"
-
-TDMLog="TDMlog.txt.0"
-TDMLogsBackup="TDMlog.txt.1"
-
-WiFiLog="WiFilog.txt.0"
-WiFiLogsBackup="WiFilog.txt.1"
-
-ConsoleLog="Consolelog.txt.0"
-ConsoleLogsBackup="Consolelog2.txt.0"
-
-ArmConsoleLog="ArmConsolelog.txt.0"
-ArmConsoleLogsBackup="ArmConsolelog.txt.0"
-
-XconfLog="xconf.txt.0"
-XconfLogsBackup="xconf.txt.0"
-
-LMLog="LM.txt.0"
-LMLogsBackup="LM.txt.1"
-
-SNMPLog="SNMP.txt.0"
-SNMPLogsBackup="SNMP.txt.1"
-
-LighttpdAccessLog="lighttpdaccess.log"
-LighttpdAccessLogsBackup="lighttpdaccess.log"
-
-LighttpdErrorLog="lighttpderror.log"
-LighttpdErrorLogsBackup="lighttpderror.log"
-
-HotspotLog="Hotspotlog.txt.0"
-HotspotLogsBackup="Hotspotlog.txt.1"
-
-DhcpSnoopLog="Dhcpsnooplog.txt.0"
-DhcpSnoopLogsBackup="Dhcpsnooplog.txt.1"
-
-XsmartLog="XsmartLog.txt.0"
-XsmartLogsBackup="XsmartLog.txt.1"
-
-TouchstoneLog="TouchstoneLog.txt.0"
-TouchstoneLogsBackup="TouchstoneLog.txt.1"
-
-wifihealth="wifihealth.txt"
-
-MiscLog="Misc.txt.0"
-Speedtestlog="speedtest.log"
-DcmLog="dcmProcessing.log"
-AtomConsoleLog="AtomConsolelog.txt.0"
-ApInitLog="ap_init.txt.0"
-HostapdErrorLog="hostapd_error_log.txt"
-BandSteeringLog="bandsteering_periodic_status.txt"
-BandSteeringLBDLog="bandsteering_log.txt"
-
-if [ "$UI_IN_ATOM" = "true" ]
-then 
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$ApInitLog,$HostapdErrorLog,$DcmLog,$Speedtestlog,$XsmartLog,$BandSteeringLog,$BandSteeringLBDLog,$TouchstoneLog}"
-else
-   ATOM_FILE_LIST="{$AtomConsoleLog,$CRLog,$LighttpdErrorLog,$WiFiLog,$wifihealth,$DcmLog,$Speedtestlog,$XsmartLog,$TouchstoneLog}"
-fi
-
 MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
 dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
-
-LOG_FILES_NAMES="$TR69Log $PAMLog $PSMLog $CRLog $MTALog $FULog $TDMLog $CMLog $WiFiLog $MiscLog $ConsoleLog $XconfLog $LMLog $SNMPLog $ArmConsoleLog $LighttpdAccessLog $LighttpdErrorLog $HotspotLog $DhcpSnoopLog $XsmartLog $TouchstoneLog"
 
 moveFile()
 {        
