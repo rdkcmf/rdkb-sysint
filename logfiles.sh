@@ -282,8 +282,8 @@ backupnvram2logs()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-
-        if [ -f "/tmp/.uploadregularlogs" ]
+	wan_event=`sysevent get wan_event_log_upload`
+        if [ -f "/tmp/.uploadregularlogs" ] || [ "$wan_event" == "yes" ]
         then
 	        tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
         fi

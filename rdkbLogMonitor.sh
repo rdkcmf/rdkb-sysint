@@ -374,6 +374,13 @@ bootup_upload()
 	   done
 	   sleep 120
 
+	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	   then
+	       echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
+	       fileToUpload=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+	   fi
+
+	   echo_t "File to be uploaded is $fileToUpload ...."
 	   #RDKB-7196: Randomize log upload within 30 minutes
 	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
 
@@ -400,6 +407,15 @@ bootup_upload()
         fi
 
 	UploadFile=`ls | grep "tgz"`
+
+	if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	then
+		echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
+		UploadFile=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+	fi
+
+	echo_t "File to be uploaded is $UploadFile ...."
+
 	if [ "$UploadFile" != "" ]
 	then
 	        echo_t "File to be uploaded from logbackup/ is $UploadFile "
@@ -578,8 +594,9 @@ do
 			
 			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
 			FILE_NAME=`ls | grep "tgz"`
-
-			if [ "$FILE_NAME" != "" ]; then
+#This event is set to "yes" whenever wan goes down. So, we should not move tar to /tmp in that case.
+			wan_event=`sysevent get wan_event_log_upload`
+			if [ "$FILE_NAME" != "" ] && [ "$wan_event" != "yes" ]; then
 				mkdir $TMP_LOG_UPLOAD_PATH
 				mv $FILE_NAME $TMP_LOG_UPLOAD_PATH
 			fi

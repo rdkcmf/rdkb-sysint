@@ -264,8 +264,9 @@ if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ] || [ "$2
 then
 	echo_t "Taking log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
-                createSysDescr
-
+# Setting event to protect tar backup to /tmp whenever wan goes down and file size reached more than threshold
+		sysevent set wan_event_log_upload yes
+		createSysDescr
 		syncLogs_nvram2	
 		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
 	else

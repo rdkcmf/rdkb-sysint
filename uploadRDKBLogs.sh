@@ -517,3 +517,5 @@ fi
 
 # Remove the log in progress flag
 rm $REGULAR_UPLOAD
+# removing event which is set in backupLogs.sh when wan goes down
+sysevent set wan_event_log_upload no
