@@ -1,0 +1,8 @@
+[Unit]
+Description=Iptable for Lighttpd container.
+
+[Service]
+Type=oneshot
+RemainAfterExit=Yes
+EnvironmentFile=-/tmp/ip_file.sh
+ExecStart=/lib/rdk/iptables_container.sh

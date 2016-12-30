@@ -1,0 +1,12 @@
+[Unit]
+Description=A container DHCP process
+
+
+[Service]
+Type=oneshot
+RemainAfterExit=Yes
+ExecStart=/sbin/udhcpc -i eth0
+ExecStartPost=/lib/rdk/getip_file.sh
+
+[Install]
+WantedBy=multi-user.target
