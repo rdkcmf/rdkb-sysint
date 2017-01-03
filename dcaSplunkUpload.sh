@@ -79,7 +79,8 @@ if [ -f "$DCMRESPONSE" ]; then
 fi
 
 if [ -z $DCA_UPLOAD_URL ]; then
-    DCA_UPLOAD_URL="https://stbrtl.xcal.tv"
+    echo "$timestamp: dca upload url read from dcm.properties is NULL"
+    exit 1
 fi
 
 pidCleanup()
