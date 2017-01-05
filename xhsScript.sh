@@ -12,8 +12,8 @@ fi
 
 if [ -n  "$param2" ] ; then
 
-	#Retrieve CM MAC
-	cmMAC=$(dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_CM_MAC  | grep "value:" | awk '{ print $5 }' | tr -d ' ' )
+	#Retrieve CM MAC-Use RPC instead of DMCLI because of Reset to Defaults and timing.
+	cmMAC=$(arris_rpc_client arm nvm_get cm_mac)
 	
 	#Calculate Return Value
 	if [ -n  "$cmMAC" ] ; then
