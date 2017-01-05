@@ -25,7 +25,9 @@ source /etc/utopia/service.d/log_capture_path.sh
 . $RDK_LOGGER_PATH/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
-
+if [ -f /etc/device.properties ]; then
+	codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
+fi
 
 if [ $# -ne 4 ]; then 
      #echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
@@ -62,6 +64,16 @@ fi
 
 UploadPath=$6
 
+if [ "$codebig_enabled" == "yes" ]; then
+	SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
+
+	getFWVersion()
+	{
+		verStr=`cat /version.txt | grep ^imagename: | cut -d ":" -f 2`
+		echo $verStr
+	}
+fi
+
 getTFTPServer()
 {
         if [ "$1" != "" ]
@@ -73,7 +85,13 @@ getTFTPServer()
 
 getBuildType()
 {
-   IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+   
+	if [ "$codebig_enabled" == "yes" ]; then
+		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
+	else
+		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+	fi
+
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then
@@ -246,6 +264,263 @@ HttpLogUpload()
        fi
    fi
    echo_t "files to be uploaded is : $UploadFile"
+
+if [ "$codebig_enabled" == "yes" ]; then
+###################### CODEBIG Enabled case start ######################
+   retries=0
+while [ "$retries" -lt 10 ]
+do
+    echo "Trial $retries..."
+
+    if [ $retries -ne 0 ]
+    then
+    	if [ -f /nvram/adjdate.txt ];
+        then
+        	echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
+            echo -e "$0 --> Sleeping 10 seconds and try again\n"
+        else
+            echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
+            dateString=`date +'%s'`
+            count=$(expr $dateString - $SECONDV)
+            echo "$0  --> date adjusted:"
+            date -d @$count
+            echo $count > /nvram/adjdate.txt
+            break
+        fi
+     fi
+
+     retries=`expr $retries + 1`
+     sleep 10
+done
+if [ ! -f /nvram/adjdate.txt ];then
+        echo "LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
+        rm -rf $UploadFile
+        exit
+fi
+
+ retries=0
+ while [ "$retries" -lt 3 ]
+ do
+
+   SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
+   eval $SIGN_CMD > /tmp/.signedRequest
+   echo "Log upload - configparamgen success"
+   CB_SIGNED=`cat /tmp/.signedRequest`
+   rm -f /tmp/.signedRequest
+   S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+   echo "serverUrl : $S3_URL"
+   authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
+   authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
+
+        ######################CURL COMMAND PARAMETERS##############################
+    #/fss/gw/curl       --> Path to curl.
+    #-w                 --> Write to console.
+    #%{http_code}       --> Header response code.
+    #-d                 --> HTTP POST data.
+    #$UploadFile        --> File to upload.
+    #-o                 --> Write output to.
+    #$OutputFile        --> Output File.
+    #--cacert           --> certificate to verify peer.
+    #/nvram/cacert.pem  --> Certificate.
+    #$S3_URL            --> Public key URL Link.
+    #--connect-timeout  --> Maximum time allowed for connection in seconds.
+    #-m                 --> Maximum time allowed for the transfer in seconds.
+    #-T                 --> Transfer FILE given to destination.
+    #--interface        --> Network interface to be used [eg:erouter1]
+    ##########################################################################
+    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+        CURL_CMD="curl --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+        else
+                CURL_CMD="$CURLPATH/curl --cacert $CA_CERT --connect-timeout 10 -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" --interface $WAN_INTERFACE '$S3_URL'"
+    fi
+
+
+	    echo_t "File to be uploaded: $UploadFile"
+    UPTIME=`uptime`
+	    echo_t "System Uptime is $UPTIME"
+	    echo_t "S3 URL is : $S3_URL"
+
+    # Performing 3 tries for successful curl command execution.
+    # $http_code --> Response code retrieved from HTTP_CODE file path.
+	
+	echo_t "Trial $retries..."
+        # nice value can be normal as the first trial failed
+        if [ $retries -ne 0 ]
+                        then
+                echo "Curl Command built: $CURL_CMD"
+                ret= eval $CURL_CMD > $HTTP_CODE
+
+                        if [ -f $HTTP_CODE ];
+                        then
+                                http_code=$(awk '{print $0}' $HTTP_CODE)
+
+                                if [ "$http_code" != "" ];then
+                                        echo_t "HttpCode received is : $http_code"
+                                if [ $http_code -eq 200 ];then
+                                                rm -f $HTTP_CODE
+                                        break
+                                fi
+                                if [ $http_code -eq 401 ];then
+                                                rm -f $HTTP_CODE
+                                        continue
+                                fi
+                                fi
+
+                        fi
+                fi
+
+        retries=`expr $retries + 1`
+        sleep 1
+    done
+    rm -f /nvram/adjdate.txt
+
+    # If 200, executing second curl command with the public key.
+    if [ $http_code -eq 200 ];then
+        #This means we have received the key to which we need to curl again in order to upload the file.
+        #So get the key from FILENAME
+      retries=0
+      while [ "$retries" -lt 3 ]
+      do
+        Key=$(awk -F\" '{print $0}' $OutputFile)
+
+        echo_t "Generated KeyIs : "
+        echo $Key
+
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+                CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+        else
+                CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
+        fi
+
+            echo_t "Trial $retries..."
+            # nice value can be normal as the first trial failed
+            if [ $retries -ne 0 ]
+            then
+                echo "Curl Command built: $CURL_CMD"
+                ret= eval $CURL_CMD > $HTTP_CODE
+                        if [ -f $HTTP_CODE ];
+                        then
+                                        http_code=$(awk '{print $0}' $HTTP_CODE)
+
+                                        if [ "$http_code" != "" ];then
+                                                echo_t "HttpCode received is : $http_code"
+                                        if [ $http_code -eq 200 ];then
+                                                        rm -f $HTTP_CODE
+                                                break
+                                        fi
+					if [ $http_code -eq 401 ];then
+                                                rm -f $HTTP_CODE
+						continue
+					fi
+                                        fi
+                        fi
+                        fi
+
+            retries=`expr $retries + 1`
+            sleep 1
+        done
+
+        # Response after executing curl with the public key is 200, then file uploaded successfully.
+        if [ $http_code -eq 200 ];then
+             echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+             rm -rf $UploadFile
+        fi
+
+    #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key.
+    elif [ $http_code -eq 302 ];then
+        NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
+
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+                CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+        else
+                CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+        fi
+
+        retries=0
+        while [ "$retries" -lt 3 ]
+        do
+            echo_t "Trial $retries..."
+            # nice value can be normal as the first trial failed
+            if [ $retries -ne 0 ]
+            then
+                echo "Curl Command built: $CURL_CMD"
+                ret= eval $CURL_CMD > $HTTP_CODE
+                        if [ -f $HTTP_CODE ];
+                        then
+                                        http_code=$(awk '{print $0}' $HTTP_CODE)
+
+                                        if [ "$http_code" != "" ];then
+                                                echo_t "HttpCode received is : $http_code"
+                                        if [ $http_code -eq 200 ];then
+                                                        rm -f $HTTP_CODE
+                                                break
+                                        fi
+                                        fi
+                        fi
+                        fi
+            retries=`expr $retries + 1`
+            sleep 1
+        done
+
+
+
+        #Executing curl with the response key when return code after the first curl execution is 200.
+        if [ $http_code -eq 200 ];then
+        Key=$(awk '{print $0}' $OutputFile)
+        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+            CURL_CMD="curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+        else
+            CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+        fi
+
+        retries=0
+        while [ "$retries" -lt 3 ]
+        do
+            echo_t "Trial $retries..."
+            # nice value can be normal as the first trial failed
+            if [ $retries -ne 0 ]
+            then
+                echo "Curl Command built: $CURL_CMD"
+                ret= eval $CURL_CMD > $HTTP_CODE
+                if [ -f $HTTP_CODE ];
+                        then
+                                        http_code=$(awk '{print $0}' $HTTP_CODE)
+
+                                        if [ "$http_code" != "" ];then
+
+                                        if [ $http_code -eq 200 ];then
+                                                        rm -f $HTTP_CODE
+                                                break
+                                        fi
+                                        fi
+                        fi
+                        fi
+            retries=`expr $retries + 1`
+            sleep 1
+        done
+        #Logs upload successful when the return code is 200 after the second curl execution.
+        if [ $http_code -eq 200 ];then
+
+                echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+                result=0
+                rm -rf $UploadFile
+        fi
+    fi
+    # Any other response code, log upload is unsuccessful.
+    else
+                echo_t "INVALID RETURN CODE: $http_code"
+                echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+                echo_t "Do TFTP log Upload"
+                TFTPLogUpload
+                rm -rf $UploadFile
+
+    fi
+    echo_t $result
+
+###################### CODEBIG Enabled case over ######################
+
+else
+###################### CODEBIG Disabled case start ######################
     S3_URL=$UploadHttpLink
     
     file_list=$UploadFile
@@ -469,7 +744,8 @@ HttpLogUpload()
 	    fi    
 	    echo_t $result
     done
-    
+###################### CODEBIG Disabled case over ######################
+fi    
 	if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
 		rm -rf $UploadPath
 	fi
