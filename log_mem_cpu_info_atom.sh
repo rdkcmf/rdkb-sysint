@@ -76,12 +76,14 @@ timestamp=`getDate`
 	echo "RDKB_SYS_MEM_INFO_ATOM : Used memory in system is $usedMemSys at timestamp $timestamp"
 	echo "RDKB_SYS_MEM_INFO_ATOM : Free memory in system is $freeMemSys at timestamp $timestamp"
 
-    echo "USED_MEM_ATOM : Used mem is $usedMemSys at timestamp $timestamp"
+    echo "RDKB_USED_MEM_ATOM : Used mem is $usedMemSys at timestamp $timestamp"
+    echo "USED_MEM_ATOM:$usedMemSys"
     echo "FREE_MEM_ATOM :Free mem is $freeMemSys at timestamp $timestamp"
 
     LOAD_AVG=`uptime | awk -F'[a-z]:' '{ print $2}' | sed 's/^ *//g' | sed 's/,//g' | sed 's/ /:/g'`
-	echo " RDKB_LOAD_AVERAGE_ATOM : Load Average is $LOAD_AVG at timestamp $timestamp"
-    echo_t "LOAD_AVERAGE_ATOM :$LOAD_AVG"
+    echo " RDKB_LOAD_AVERAGE_ATOM : Load Average is $LOAD_AVG at timestamp $timestamp"
+    LOAD_AVG_15=`echo $LOAD_AVG | cut -f3 -d:`
+    echo_t "LOAD_AVERAGE_ATOM:$LOAD_AVG_15"
     
     #Record the start statistics
 
@@ -105,7 +107,7 @@ timestamp=`getDate`
 	Curr_CPULoad=$(( $ACTIVE * 100 / $TOTAL ))
 	timestamp=`getDate`
   	echo "RDKB_CPU_USAGE_ATOM : CPU usage is $Curr_CPULoad at timestamp $timestamp"
-	echo_t "USED_CPU_ATOM :$Curr_CPULoad"
+	echo_t "USED_CPU_ATOM:$Curr_CPULoad"
 	count=$((count + 1))
 
         echo_t "Count = $count"
