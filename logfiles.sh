@@ -272,6 +272,24 @@ backupnvram2logs()
 		 echo_t "call dca for log processing and then flush ATOM logs"
 		 flush_atom_logs &
 
+        else
+			sh /lib/rdk/dca_utility.sh 2 &
+			loop=0
+			while :
+			do
+				sleep 10
+				loop=$((loop+1))
+				if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
+				then
+					# Remove the contents of ATOM side log files.
+					#echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
+					#dmcli eRT setv Device.Logging.FlushAllLogs bool true
+					rm -rf $DCA_COMPLETED
+					break
+				fi
+
+			done
+
         fi
 
 	cd $destn

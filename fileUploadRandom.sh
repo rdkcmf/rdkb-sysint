@@ -79,7 +79,8 @@ calcRandTimeandUpload()
         if [ "$CMD" != "" ]
         then
            echo_t "RDK Logger : Telemetry command received is #$CMD"
-           $CMD &
+           #"dca_utility.sh 2" is equalent to "execTelemetry" event
+           sh /lib/rdk/dca_utility.sh 2 &
 
            # We have slept enough, have a sleep of 1 more minute.
            # We do not know at what time telemetry script parses the script
