@@ -46,6 +46,8 @@ HOST_IP=`getIPAddress`
 dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 
+FLUSH_LOG_PATH="/rdklogger/flush_logs.sh"
+
 moveFile()
 {        
      if [[ -f "$1" ]]; then mv $1 $2; fi
@@ -107,7 +109,12 @@ flush_atom_logs()
 		then
 			# Remove the contents of ATOM side log files.
 			echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
-		        dmcli eRT setv Device.Logging.FlushAllLogs bool true
+		        dmcli eRT setv Device.Logging.FlushAllLogs bool true | grep "succeed"
+                        if [ 0 -ne $? ]
+                        then
+                            echo_t "Dmcli command failed to execute, calling rpclient to flush logs"
+                            rpcclient  $ATOM_ARPING_IP "$FLUSH_LOG_PATH" &
+                        fi
 			rm -rf $DCA_COMPLETED	
 			break
 		fi
