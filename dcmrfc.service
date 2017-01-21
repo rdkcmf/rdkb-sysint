@@ -29,7 +29,6 @@ else
       . /etc/dcm.properties
 fi
 
-
-sh /lib/rdk/DCMscript.sh $DCM_LOG_SERVER $DCM_LOG_SERVER_URL $LOG_SERVER 0 1 &
+sh /lib/rdk/DCM_RFCscript.sh &
 
 

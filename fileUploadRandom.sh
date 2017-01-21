@@ -165,6 +165,14 @@ calcRandTimeandUpload()
         echo_t "RDK Logger : No DCM service file"
     fi
 
+    # Enable DCM RFC feature RDKB-8798
+    if [ -f  $DCM_PATH/dcmrfc.service ]; then
+       echo_t "RDK Logger : Starting DCM RFC service from fileUploadRandom.sh"
+       sh $DCM_PATH/dcmrfc.service &
+    else
+       echo_t "RDK Logger : No DCM RFC service file" 
+    fi
+
     createSysDescr
 }
 
