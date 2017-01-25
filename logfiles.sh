@@ -258,7 +258,6 @@ backupnvram2logs()
 {
 	destn=$1
 	MAC=`getMacAddressOnly`
-	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 
 	#createSysDescr
@@ -310,6 +309,7 @@ backupnvram2logs()
 	wan_event=`sysevent get wan_event_log_upload`
         if [ -f "/tmp/.uploadregularlogs" ] || [ "$wan_event" == "yes" ]
         then
+		dt=`date "+%m-%d-%y-%I-%M%p"`
 	        tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
         fi
 
@@ -335,7 +335,6 @@ backupnvram2logs_on_reboot()
 {
 	destn=$1
 	MAC=`getMacAddressOnly`
-	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 
 	createSysDescr >> $ARM_LOGS_NVRAM2
@@ -358,6 +357,7 @@ backupnvram2logs_on_reboot()
         fi
 	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	dt=`date "+%m-%d-%y-%I-%M%p"`
 	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 	rm $PATTERN_FILE
 	rm -rf $LOG_SYNC_PATH*.txt*
@@ -374,7 +374,6 @@ backupAllLogs()
 	operation=$3
 	MAC=`getMacAddressOnly`
 
-	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 	
         # MAINTENANCE_WINDOW is flagged by maintenance window upload script so that 
@@ -430,6 +429,7 @@ backupAllLogs()
 
 	fi	
 	cd $destn
+	dt=`date "+%m-%d-%y-%I-%M%p"`
 	mkdir $dt
 
 	# Check all files in source folder rather just the main log files

@@ -314,7 +314,8 @@ bootup_upload()
                fi 
 		rm -rf *.tgz
                echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-               tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+               dt=`date "+%m-%d-%y-%I-%M%p"`
+	       tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
                rm $PATTERN_FILE
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log
