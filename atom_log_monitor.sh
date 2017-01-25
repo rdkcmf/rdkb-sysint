@@ -24,6 +24,7 @@ loop=1
 LOG_PATH=/rdklogs/logs/
 
 TMP_FILE_LIST=$(echo $ATOM_FILE_LIST | tr "," " " | tr "{" " " | tr "}" " " | tr "*" "0")
+TMP_FILE_LIST=${TMP_FILE_LIST/"txt0"/"txt"}
 for file in $TMP_FILE_LIST; do
   if [ ! -f $LOG_PATH$file ]; then
    touch $LOG_PATH$file
