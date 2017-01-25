@@ -54,38 +54,46 @@ getQueryDcm()
     fi
         
     CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
-    echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
-    result= eval $CURL_CMD > $HTTP_CODE
-    ret=$?
-    sleep 2
-    http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-    echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
     
-    if [ $http_code -eq 200 ]; then
-        echo "`date` Curl success" >> $DCM_RFC_LOG_FILE
-        if [ -e /usr/bin/dcmjsonparser ]; then
-            echo "`date` dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
-            /usr/bin/dcmjsonparser $DCMRFCRESPONSE 
+    retries=0
+    while [ "$retries" -lt 3 ]
+    do
+        echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
+        result= eval $CURL_CMD > $HTTP_CODE
+        ret=$?
+        sleep 2
+        http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+        echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
+        
+        if [ $http_code -eq 200 ]; then
+            echo "`date` Curl success" >> $DCM_RFC_LOG_FILE
+            if [ -e /usr/bin/dcmjsonparser ]; then
+                echo "`date` dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
+                /usr/bin/dcmjsonparser $DCMRFCRESPONSE 
 
-            if [ -f $DCM_PARSER_RESPONSE ]; then 
-                echo "`date` $DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
-                file=$DCM_PARSER_RESPONSE
-                while read line; do
-                    key=`echo $line|cut -d ":" -f1`
-                    value=`echo $line|cut -d ":" -f2`
-                    echo "`date` key=$key value=$value" >> $DCM_RFC_LOG_FILE
-                    parseConfigValue $key $value     
-                done < $file
+                if [ -f $DCM_PARSER_RESPONSE ]; then 
+                    echo "`date` $DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
+                    file=$DCM_PARSER_RESPONSE
+                    while read line; do
+                        key=`echo $line|cut -d ":" -f1`
+                        value=`echo $line|cut -d ":" -f2`
+                        echo "`date` key=$key value=$value" >> $DCM_RFC_LOG_FILE
+                        parseConfigValue $key $value     
+                    done < $file
+                else
+                    echo "`date` $DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
+                fi
             else
-                echo "`date` $DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
+                echo "`date` binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
             fi
+            break    
         else
-            echo "`date` binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
+            echo "`date` Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
         fi
-    else
-        echo "`date` Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
-    fi 
- }
+   retries=`expr $retries + 1`
+   sleep 10
+   done
+}
  
 ## Get Controller Id
 getControllerId()
