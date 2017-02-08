@@ -37,6 +37,10 @@ if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
 fi
 
+if [ -f /etc/device.properties ]; then
+	codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
+fi
+
 PING_PATH="/usr/sbin"
 CURLPATH="/fss/gw"
 MAC=`getMacAddressOnly`
@@ -45,6 +49,7 @@ timeToUpload=`date`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
+SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 
 
 ARGS=$1
@@ -60,7 +65,11 @@ getTFTPServer()
 
 getBuildType()
 {
-   IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+   if [ "$codebig_enabled" == "yes" ]; then
+		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
+   else
+		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+   fi
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then
@@ -121,7 +130,47 @@ HTTPLogUploadOnRequest()
     cd $LOG_UPLOAD_ON_REQUEST
 
     UploadFile=`ls | grep "tgz"`
+	if [ "$codebig_enabled" == "yes" ]; then
+		retries=0
+        while [ "$retries" -lt 10 ]
+        do
+        echo "Trial $retries..."
 
+        if [ $retries -ne 0 ]
+        then
+                if [ -f /nvram/adjdate.txt ];
+                then
+                echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
+                echo -e "$0 --> Sleeping 10 seconds and try again\n"
+            else
+                echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
+                dateString=`date +'%s'`
+                count=$(expr $dateString - $SECONDV)
+                echo "$0  --> date adjusted:"
+                date -d @$count
+                echo $count > /nvram/adjdate.txt
+		break
+                fi
+        fi
+        retries=`expr $retries + 1`
+        sleep 10
+        done
+        if [ ! -f /nvram/adjdate.txt ];then
+        echo "$0 --> LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
+        rm -rf $UploadFile
+        exit
+        fi
+        SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
+        eval $SIGN_CMD > /var/.signedRequest
+        echo "Log upload - configparamgen success"
+        CB_SIGNED=`cat /var/.signedRequest`
+        rm -f /var/.signedRequest
+        rm -f /nvram/adjdate.txt
+        S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+        echo "serverUrl : $S3_URL"
+        authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
+        authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
+	fi
     ######################CURL COMMAND PARAMETERS##############################
     #/fss/gw/curl 	--> Path to curl.
     #-w           	--> Write to console.
@@ -138,10 +187,18 @@ HTTPLogUploadOnRequest()
     #-T			--> Transfer FILE given to destination.
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
-    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-        CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+    if [ "$codebig_enabled" == "yes" ]; then
+	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
+	else
+		CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
+	fi
     else
-        CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+		CURL_CMD="curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+	else
+		CURL_CMD="/fss/gw/curl -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
+	fi
     fi
 
     echo_t "Curl Command built: $CURL_CMD"
@@ -320,9 +377,19 @@ uploadOnRequest()
 	else
             rm -rf $LOG_UPLOAD_ON_REQUEST/*
         fi
-
-	mkdir -p $LOG_UPLOAD_ON_REQUEST$timeRequested
-
+	if [ "$codebig_enabled" != "yes" ]; then
+		mkdir -p $LOG_UPLOAD_ON_REQUEST$timeRequested
+		cp /version.txt $LOG_UPLOAD_ON_REQUEST$timeRequested
+	fi
+        if [ ! -d "/tmp/loguploadonrequest" ] && [ "$codebig_enabled" == "yes" ]
+        then
+                mkdir "/tmp/loguploadonrequest"
+        fi
+	if [ "$codebig_enabled" == "yes" ]; then
+		mkdir "/tmp/loguploadonrequest/$timeRequested"
+		cp /version.txt /tmp/loguploadonrequest/$timeRequested
+		dest=/tmp/loguploadonrequest/$timeRequested/
+	fi
 	cd $LOG_PATH
 	FILES=`ls`
 
@@ -334,8 +401,11 @@ uploadOnRequest()
 	for fname in $FILES
 	do
 		# Copy all log files from the log directory to non-volatile memory
-
-		cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested 
+		if [ "$codebig_enabled" == "yes" ]; then
+			cp $fname $dest
+		else
+			cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested
+		fi
 
 	done
 
@@ -354,8 +424,12 @@ uploadOnRequest()
 			then
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
-					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					protected_rsync $LOG_UPLOAD_ON_REQUEST$timeRequested/
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"
+					if [ "$codebig_enabled" == "yes" ]; then
+						protected_rsync /tmp/loguploadonrequest/$timeRequested
+					else
+						protected_rsync $LOG_UPLOAD_ON_REQUEST$timeRequested/
+					fi
 #nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/ > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
@@ -366,10 +440,16 @@ uploadOnRequest()
 		fi
 
 	fi
- 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	timeRequested=`date "+%m-%d-%y-%I-%M%p"`
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
-	rm $PATTERN_FILE
+	if [ "$codebig_enabled" == "yes" ]; then
+		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+		tar -X $PATTERN_FILE -cvzf $MAC"_Lgs_$timeRequested.tgz" /tmp/loguploadonrequest/$timeRequested
+		rm $PATTERN_FILE
+		rm -rf /tmp/loguploadonrequest/$timeRequested
+	else
+		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+		tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
+		rm $PATTERN_FILE
+	fi
 	echo_t "Created backup of all logs..."
  	ls
 
