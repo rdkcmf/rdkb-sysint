@@ -282,6 +282,11 @@ else
 fi
 #sleep 3
 
+if [ "$4" = "upload" ]
+then
+	/rdklogger/uploadRDKBLogs.sh "" HTTP "" false
+fi
+
 if [ "$1" != "" ]
 then
      needReboot=$1
