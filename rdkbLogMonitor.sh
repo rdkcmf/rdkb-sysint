@@ -541,6 +541,12 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
                        syncLogs
                    fi
                 fi
+	elif [ "$file_list" == "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
+		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+			#Sync log files immediately after reboot
+			echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
+			syncLogs_nvram2
+		fi
 	fi
 fi
 
