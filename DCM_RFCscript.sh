@@ -42,6 +42,8 @@ fi
 GET="dmcli eRT getv"
 SET="dmcli eRT setv"
 timeout=30
+TLSFLAG="--tlsv1.2"
+RETRY_COUNT=3
 
 getQueryDcm()
 {
@@ -52,18 +54,32 @@ getQueryDcm()
     if [ "$last_char" != "?" ]; then
         DCM_RFC_SERVER_URL="$DCM_RFC_SERVER_URL?"
     fi
-        
-    CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
     
     retries=0
-    while [ "$retries" -lt 3 ]
+    while [ "$retries" -lt $RETRY_COUNT ]
     do
+        CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
         result= eval $CURL_CMD > $HTTP_CODE
         ret=$?
         sleep 2
         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
         echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
+        
+        # Retry for STBs hosted in open internet
+        if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
+            echo "`date` Retry attempt to Xconf dcm rfc end point using CODEBIG " >> $DCM_RFC_LOG_FILE
+
+            SIGN_CMD="configparamgen 8 \"$JSONSTR\""
+            eval $SIGN_CMD > /tmp/.signedRFCRequest
+            CB_SIGNED_REQUEST=`cat /tmp/.signedRFCRequest`
+            rm -f /tmp/.signedRFCRequest
+            SIGN_CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
+            result= eval $SIGN_CURL_CMD > $HTTP_CODE
+            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
+            ret=$?
+            echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
+        fi
         
         if [ $http_code -eq 200 ]; then
             echo "`date` Curl success" >> $DCM_RFC_LOG_FILE
@@ -89,6 +105,18 @@ getQueryDcm()
             break    
         else
             echo "`date` Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
+        fi
+        if [ "$http_code" = "000" ] ; then
+            if [ "$TLSFLAG" = "--tlsv1.2" ]; then				
+                TLSFLAG="--tlsv1.1"
+		echo "`date` Attempting retry using TLSv1.1" >> $DCM_RFC_LOG_FILE
+            elif [ "$TLSFLAG" = "--tlsv1.1" ] ; then
+                TLSFLAG="--tlsv1.0"
+		echo "`date` Attempting retry using TLSv1.0" >> $DCM_RFC_LOG_FILE
+            else
+                TLSFLAG="--tlsv1.2"
+		echo "`date` Resetting TLSFLAG to TLSv1.2" >> $DCM_RFC_LOG_FILE
+            fi	
         fi
    retries=`expr $retries + 1`
    sleep 10
