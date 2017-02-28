@@ -26,7 +26,7 @@ if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
 
-
+EROUTER_IF=erouter0
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
 
@@ -147,6 +147,46 @@ isNum()
         echo 0
     else
         echo 1
+    fi
+}
+
+# Function to get partner_id
+getPartnerId()
+{
+    if [ -f "/etc/device.properties" ]
+    then
+        partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
+        if [ "$partner_id" == "" ];then
+            #Assigning default partner_id as Comcast.
+            #If any device want to report differently, then PARTNER_ID flag has to be updated in /etc/device.properties accordingly
+            echo "comcast"
+        else
+            echo "$partner_id"
+        fi
+    else
+       echo "null"
+    fi
+}
+
+# Function to get erouter0 ipv4 address
+getErouterIpv4()
+{
+    erouter_ipv4=`ip -4 addr show dev $EROUTER_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+    if [ "$erouter_ipv4" != "" ];then
+        echo $erouter_ipv4
+    else
+        echo "null"
+    fi
+}
+
+# Function to get erouter0 ipv6 address
+getErouterIpv6()
+{
+    erouter_ipv6=`ip -6 addr show dev $EROUTER_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+    if [ "$erouter_ipv6" != "" ];then
+        echo $erouter_ipv6
+    else
+        echo "null"
     fi
 }
 
@@ -615,16 +655,20 @@ if [ -f $OUTPUT_FILE ]; then
      fi
 
        ## This interface is not accessible from ATOM, replace value from ARM
-       estbMac="ErouterMacAddress"
+       estbMac=$(getErouterMacAddress)
        firmwareVersion=$(getFWVersion)
        firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
+       partnerId=$(getPartnerId)
+       erouterIpv4=$(getErouterIpv4)
+       erouterIpv6=$(getErouterIpv6)
+
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
      
        if $singleEntry ; then
-            outputJson="$outputJson{\"mac\":\"$estbMac\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
             singleEntry=false
        else
-            outputJson="$outputJson,{\"mac\":\"$estbMac\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson,{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
        fi
        echo "$outputJson" > $TELEMETRY_JSON_RESPONSE
        sleep 2
