@@ -483,6 +483,19 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		fi
 	fi
 
+	PCIE_REBOOT_INDICATOR="/nvram/pcie_error_reboot_occurred"
+	PCIE_REBOOT_LOG="/rdklogs/logs/pcie_reboot.txt"
+
+	if [ -f $PCIE_REBOOT_INDICATOR ]
+	then
+		echo "Previous Reboot reason:PCIE ENUM failed" > $PCIE_REBOOT_LOG
+		cat "$PCIE_REBOOT_INDICATOR" >> $PCIE_REBOOT_LOG
+		rm $PCIE_REBOOT_INDICATOR
+		if [ -f /nvram/pcie_error_reboot_needed ];then
+			rm /nvram/pcie_error_reboot_needed
+		fi
+	fi
+
 	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
