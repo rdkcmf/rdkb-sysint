@@ -170,7 +170,7 @@ getPartnerId()
 # Function to get erouter0 ipv4 address
 getErouterIpv4()
 {
-    erouter_ipv4=`ip -4 addr show dev $EROUTER_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+    erouter_ipv4=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep value | awk '{print $5}'`
     if [ "$erouter_ipv4" != "" ];then
         echo $erouter_ipv4
     else
@@ -181,7 +181,7 @@ getErouterIpv4()
 # Function to get erouter0 ipv6 address
 getErouterIpv6()
 {
-    erouter_ipv6=`ip -6 addr show dev $EROUTER_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+    erouter_ipv6=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IPv6 | grep value | awk '{print $5}'`
     if [ "$erouter_ipv6" != "" ];then
         echo $erouter_ipv6
     else
