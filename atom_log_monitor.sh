@@ -23,6 +23,9 @@ source /etc/logFiles.properties
 loop=1
 LOG_PATH=/rdklogs/logs/
 
+#wait for components to create log
+sleep 10
+
 TMP_FILE_LIST=$(echo $ATOM_FILE_LIST | tr "," " " | tr "{" " " | tr "}" " " | tr "*" "0")
 TMP_FILE_LIST=${TMP_FILE_LIST/"txt0"/"txt"}
 for file in $TMP_FILE_LIST; do
