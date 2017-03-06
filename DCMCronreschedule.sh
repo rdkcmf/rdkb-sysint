@@ -33,7 +33,7 @@ fi
 if [ -f /lib/rdk/utils.sh ]; then 
    . /lib/rdk/utils.sh
 fi
-
+source /etc/log_timestamp.sh
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/lib
 
@@ -49,7 +49,7 @@ DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 
-echo "`date` Starting execution of DCMCronreshedule.sh" >> $DCM_LOG_FILE
+echo_t "Starting execution of DCMCronreshedule.sh" >> $DCM_LOG_FILE
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
     echo "Signal atom to pick the update_cronschedule data for schedule telemetry !!! " >> $DCM_LOG_FILE

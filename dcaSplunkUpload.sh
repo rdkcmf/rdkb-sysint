@@ -30,7 +30,7 @@
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
-
+source /etc/log_timestamp.sh
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_RESEND_FILE="$PERSISTENT_PATH/.resend.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
@@ -79,7 +79,7 @@ if [ -f "$DCMRESPONSE" ]; then
 fi
 
 if [ -z $DCA_UPLOAD_URL ]; then
-    echo "$timestamp: dca upload url read from dcm.properties is NULL"
+    echo_t "dca upload url read from dcm.properties is NULL"
     exit 1
 fi
 
@@ -103,7 +103,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    if [ $? -ne 0 ]; then
        scp root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE > /dev/null 2>&1
    fi
-   echo "$timestamp: Copied $TELEMETRY_JSON_RESPONSE " >> $RTL_LOG_FILE 
+   echo_t "Copied $TELEMETRY_JSON_RESPONSE " >> $RTL_LOG_FILE 
    sleep 2
 fi
 
@@ -145,13 +145,13 @@ if [ -f $TELEMETRY_RESEND_FILE ]; then
     rm -f $TELEMETRY_TEMP_RESEND_FILE
     while read resend
     do
-        echo "$timestamp: dca resend : $resend" >> $RTL_LOG_FILE 
+        echo_t "dca resend : $resend" >> $RTL_LOG_FILE 
 	CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30 --insecure"
         ret= eval $CURL_CMD > $HTTP_CODE
-        echo "$timestamp: dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
+        echo_t "dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
 	sleep 5
 	http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-        echo "$timestamp: dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
+        echo_t "dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
         if [ "$http_code" != "200" ]; then
             # Store this line from resend file to a temp resend file
             # This is to address the use case when device is offline
@@ -161,7 +161,7 @@ if [ -f $TELEMETRY_RESEND_FILE ]; then
         sleep 30 
         retry=$((retry + 1))
         if [ $retry -gt $MAX_LIMIT_RESEND ]; then
-            echo "$timestamp: dca Max limit for resend attempts reached. Ignoring messages in resend list" >> $RTL_LOG_FILE 
+            echo_t "dca Max limit for resend attempts reached. Ignoring messages in resend list" >> $RTL_LOG_FILE 
             break
         fi
    done < $TELEMETRY_RESEND_FILE
@@ -177,7 +177,7 @@ fi
 
 ##  3] Attempt to post current message. Check for status if failed add it to resend que
 if [ ! -f $TELEMETRY_JSON_RESPONSE ]; then
-    echo "$timestamp: dca: Unable to find Json message ." >> $RTL_LOG_FILE
+    echo_t "dca: Unable to find Json message ." >> $RTL_LOG_FILE
     if [ ! -f /etc/os-release ];then pidCleanup; fi
     exit 0
 fi
@@ -188,19 +188,19 @@ CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: a
 
 # Save data to resend list so that data will be uploaded in next boot-up cycle if device reboots in maintenance 
 echo "$outputJson" >> $TELEMETRY_RESEND_FILE
-echo "$timestamp: dca: CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
+echo_t "dca: CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
 # sleep for random time before upload to avoid bulk requests on splunk server
-echo "$timestamp: dca: Sleeping for $sleep_time before upload." >> $RTL_LOG_FILE
+echo_t "dca: Sleeping for $sleep_time before upload." >> $RTL_LOG_FILE
 sleep $sleep_time
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
 ret= eval $CURL_CMD > $HTTP_CODE
 http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-echo "$timestamp: dca: HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
+echo_t "dca: HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
 if [ $http_code -eq 200 ];then
-    echo "$timestamp: dca: Json message successfully submitted." >> $RTL_LOG_FILE
+    echo_t "dca: Json message successfully submitted." >> $RTL_LOG_FILE
     rm -f $TELEMETRY_RESEND_FILE
 else
-    echo "$timestamp: dca: Json message submit failed. Adding message to resend que" >> $RTL_LOG_FILE
+    echo_t "dca: Json message submit failed. Adding message to resend que" >> $RTL_LOG_FILE
 fi
 
 rm -f $TELEMETRY_JSON_RESPONSE

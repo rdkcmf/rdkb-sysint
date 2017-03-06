@@ -25,7 +25,7 @@
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
-
+source /etc/log_timestamp.sh
 EROUTER_IF=erouter0
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
@@ -88,8 +88,7 @@ mkdir -p $LOG_PATH
 touch $RTL_LOG_FILE
 
 if [ ! -f /tmp/.dca_bootup ]; then
-   timestamp=`date +%Y-%b-%d_%H-%M-%S`
-   echo "$timestamp First dca execution after bootup. Clearing all markers." >> $RTL_LOG_FILE
+   echo_t "First dca execution after bootup. Clearing all markers." >> $RTL_LOG_FILE
    touch /tmp/.dca_bootup
    rm -rf $TELEMETRY_PATH
    rm -f $RTL_LOG_FILE
@@ -138,7 +137,7 @@ fi
 triggerType=$1
 
 cd $LOG_PATH
-timestamp=`date +%Y-%b-%d_%H-%M-%S`
+
 
 isNum()
 {
@@ -274,7 +273,6 @@ getRFStatus(){
 updateCount()
 {
     final_count=0
-    timestamp=`date +%Y-%b-%d_%H-%M-%S`
     # Need not create the dela file is the previous file in MAP is the same 
     if [ "$filename" != "$PrevFileName" ]; then    
        PrevFileName=$filename
@@ -285,12 +283,11 @@ updateCount()
        fi
        rm -f $RTL_DELTA_LOG_FILE
        nice $TEMPFILE_CREATER_BINARY $filename
-       timestamp=`date +%Y-%b-%d_%H-%M-%S`
        seekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
        if [ $seekVal -lt $lastSeekVal ]; then
            # This should never happen in RDKB as we don't have log rotation
            # Instead upload & flush logs are present which is already taken care
-           echo "$timestamp dca seek value for $filename is Previous : $lastSeekVal Current : $seekVal" >> $RTL_LOG_FILE   
+           echo_t "dca seek value for $filename is Previous : $lastSeekVal Current : $seekVal" >> $RTL_LOG_FILE   
            echo "Restoring markers" >> $RTL_LOG_FILE   
            # Can be due to rsync/scp errors. Restore previous well known markers
            echo "$lastSeekVal" > $TELEMETRY_PATH_TEMP/rtl_$filename
@@ -361,14 +358,14 @@ scheduleCron()
 		if [ "$LogUploadFrequency" != "" ]; then
 			cron=''
 			cron="*/$LogUploadFrequency * * * *"
-			echo "$timestamp dca: the default Cron schedule from XCONF is ignored and instead SNMP overriden value is used" >> $RTL_LOG_FILE
+			echo_t "dca: the default Cron schedule from XCONF is ignored and instead SNMP overriden value is used" >> $RTL_LOG_FILE
 		fi
 	fi	
 
 	#Check whether cron having empty value if it is empty then need to assign 
 	#15mins by default
 	if [ -z "$cron" ]; then
-		echo "$timestamp: dca: Empty cron value so set default as 15mins" >> $RTL_LOG_FILE
+		echo_t "dca: Empty cron value so set default as 15mins" >> $RTL_LOG_FILE
 		cron="*/15 * * * *"
 	fi	
 
@@ -417,29 +414,28 @@ dropbearRecovery()
    
 clearTelemetryConfig()
 {
-    timestamp=`date +%Y-%b-%d_%H-%M-%S`
     if [ -f $RTL_DELTA_LOG_FILE ]; then
-        echo "$timestamp: dca: Deleting : $RTL_DELTA_LOG_FILE" >> $RTL_LOG_FILE
+        echo_t "dca: Deleting : $RTL_DELTA_LOG_FILE" >> $RTL_LOG_FILE
         rm -f $RTL_DELTA_LOG_FILE
     fi
 
     if [ -f $PATTERN_CONF_FILE ]; then
-        echo "$timestamp: dca: PATTERN_CONF_FILE : $PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        echo_t "dca: PATTERN_CONF_FILE : $PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $PATTERN_CONF_FILE
     fi
 
     if [ -f $MAP_PATTERN_CONF_FILE ]; then
-        echo "$timestamp: dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        echo_t "dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $MAP_PATTERN_CONF_FILE
     fi
 
     if [ -f $TEMP_PATTERN_CONF_FILE ]; then
-        echo "$timestamp: dca: TEMP_PATTERN_CONF_FILE : $TEMP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        echo_t "dca: TEMP_PATTERN_CONF_FILE : $TEMP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $TEMP_PATTERN_CONF_FILE
     fi
 
     if [ -f $SORTED_PATTERN_CONF_FILE ]; then
-        echo "$timestamp: dca: SORTED_PATTERN_CONF_FILE : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
+        echo_t "dca: SORTED_PATTERN_CONF_FILE : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $SORTED_PATTERN_CONF_FILE
     fi
 
@@ -500,7 +496,7 @@ generateTelemetryConfig()
 
 # Reschedule the cron based on diagnositic mode
 if [ $triggerType -eq 3 ] ; then
-	echo "$timestamp: dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
+	echo_t "dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
     scheduleCron
     ## Telemetry must be invoked only for reschedule cron job
     exit 0
@@ -565,7 +561,7 @@ rm -f $TELEMETRY_JSON_RESPONSE
 if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
     echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
 else
-    echo "$timestamp Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
+    echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
     while read line
     do
         pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
@@ -678,7 +674,7 @@ if [ -f $OUTPUT_FILE ]; then
            # Trigger inotify event on ARM to upload message to splunk
            if [ $triggerType -eq 2 ]; then
                ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
-               echo "$timestamp notify ARM for dca execution completion" >> $RTL_LOG_FILE
+               echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
                ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
            fi
@@ -699,8 +695,7 @@ if [ -f $TEMP_PATTERN_CONF_FILE ]; then
 fi
 
 if [ $triggerType -eq 2 ]; then
-   timestamp=`date +%Y-%b-%d_%H-%M-%S`
-   echo "$timestamp forced DCA execution before log upload/reboot. Clearing all markers !!!" >> $RTL_LOG_FILE
+   echo_t "forced DCA execution before log upload/reboot. Clearing all markers !!!" >> $RTL_LOG_FILE
    # Forced execution before flusing of logs, so clear the markers
    if [ -d $TELEMETRY_PATH_TEMP ]; then
        rm -rf $TELEMETRY_PATH_TEMP

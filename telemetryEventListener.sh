@@ -21,7 +21,7 @@
 
 . /etc/include.properties
 . /etc/device.properties
-
+source /etc/log_timestamp.sh
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
@@ -32,11 +32,11 @@ eventType=""
 if [ -f $TELEMETRY_INOTIFY_EVENT ]; then
    eventType=`cat $TELEMETRY_INOTIFY_EVENT`
 else
-   echo "Unkown Telemetry Event !!! Exiting" >> $RTL_LOG_FILE
+   echo_t "Unkown Telemetry Event !!! Exiting" >> $RTL_LOG_FILE
    exit 0
 fi
 
-echo "`date` Telemetry Event is $eventType ..." >> $RTL_LOG_FILE
+echo_t "Telemetry Event is $eventType ..." >> $RTL_LOG_FILE
 
 case "$eventType" in
   *splunkUpload* )

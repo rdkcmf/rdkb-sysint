@@ -22,7 +22,7 @@
 . /etc/include.properties
 . /etc/device.properties
 
-
+source /etc/log_timestamp.sh
 # Enable override only for non prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
       . $PERSISTENT_PATH/dcm.properties
@@ -60,10 +60,10 @@ RETRY_DELAY=60
 ## RETRY COUNT
 RETRY_COUNT=3
 
-echo "`date` Starting execution of DCMscript.sh" >> $DCM_LOG_FILE
+echo_t "Starting execution of DCMscript.sh" >> $DCM_LOG_FILE
 
 if [ $# -ne 5 ]; then
-    echo "`date` Argument does not match" >> $DCM_LOG_FILE
+    echo_t "Argument does not match" >> $DCM_LOG_FILE
     echo 0 > $DCMFLAG
     exit 1
 fi
@@ -75,10 +75,10 @@ tftp_server=$3
 reboot_flag=$4
 checkon_reboot=$5
 
-echo "`date` URL: $URL" >> $DCM_LOG_FILE
-echo "`date` DCM_TFTP_SERVER: $tftp_server" >> $DCM_LOG_FILE
-echo "`date` BOOT_FLAG: $reboot_flag" >> $DCM_LOG_FILE
-echo "`date` CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
+echo_t "URL: $URL" >> $DCM_LOG_FILE
+echo_t "DCM_TFTP_SERVER: $tftp_server" >> $DCM_LOG_FILE
+echo_t "BOOT_FLAG: $reboot_flag" >> $DCM_LOG_FILE
+echo_t "CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
 
 rm -f $TELEMETRY_TEMP_RESEND_FILE
 
@@ -155,7 +155,7 @@ sendHttpRequestToServer()
     tls="--tlsv1.2"
 
     CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
-    echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+    echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
     result= eval $CURL_CMD > $HTTP_CODE
     ret=$?
 
@@ -167,7 +167,7 @@ sendHttpRequestToServer()
          nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
          tls="--tlsv1.1"
          CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
-         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
          result= eval $CURL_CMD > $HTTP_CODE
          ret=$?
          ;;
@@ -180,7 +180,7 @@ sendHttpRequestToServer()
          # log server info for failed connection using nslookup
          nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
          CURL_CMD="curl -w '%{http_code}\n' $tls --insecure --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
-         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
          result= eval $CURL_CMD > $HTTP_CODE
          ret=$?
          ;;
@@ -195,7 +195,7 @@ sendHttpRequestToServer()
          # make sure protocol is HTTP
          URL=`echo $URL | sed "s/[Hh][Tt][Tt][Pp][Ss]:/http:/"`
          CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$URL$JSONSTR'"
-         echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+         echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
          result= eval $CURL_CMD > $HTTP_CODE
          ret=$?
          ;;
@@ -203,11 +203,11 @@ sendHttpRequestToServer()
 
     sleep 2
     http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-    echo "`date` ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
+    echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
 	
     # Retry for STBs hosted in open internet
     if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
-        echo "`date` Retry attempt to get logupload setting for STB in wild " >> $DCM_LOG_FILE
+        echo_t "Retry attempt to get logupload setting for STB in wild " >> $DCM_LOG_FILE
 
         SIGN_CMD="configparamgen 3 \"$JSONSTR\""
         eval $SIGN_CMD > /tmp/.signedRequest
@@ -223,13 +223,13 @@ sendHttpRequestToServer()
          echo "`Timestamp` Received HTTP 404 Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
 	 resp=1
     elif [ $ret -ne 0 -o $http_code -ne 200 ] ; then
-        echo "`date` HTTP request failed" >> $DCM_LOG_FILE
+        echo_t "HTTP request failed" >> $DCM_LOG_FILE
         rm -rf $DCMRESPONSE
         resp=1
     else
-        echo "`date` HTTP request success. Processing response.." >> $DCM_LOG_FILE
+        echo_t "HTTP request success. Processing response.." >> $DCM_LOG_FILE
     fi
-    echo "`date` resp = $resp" >> $DCM_LOG_FILE
+    echo_t "resp = $resp" >> $DCM_LOG_FILE
     return $resp
 }
 
@@ -250,7 +250,7 @@ while [ $loop -eq 1 ]
 do
     estbIp=`getCMIPAddress`   # This needs to be changed to wait for erouter IP address
     if [ "X$estbIp" == "X" ]; then
-         echo "`date` waiting for IP" >> $DCM_LOG_FILE
+         echo_t "waiting for IP" >> $DCM_LOG_FILE
          sleep 2
          let counter++
     else
@@ -271,24 +271,24 @@ do
     if [ $checkon_reboot -eq 1 ]; then
 	sendHttpRequestToServer $DCMRESPONSE $URL
 	ret=$?
-	echo "`date` sendHttpRequestToServer returned $ret" >> $DCM_LOG_FILE
+	echo_t "sendHttpRequestToServer returned $ret" >> $DCM_LOG_FILE
     else
 	ret=0
-	echo "`date` sendHttpRequestToServer has not executed since the value of 'checkon_reboot' is $checkon_reboot" >> $DCM_LOG_FILE
+	echo_t "sendHttpRequestToServer has not executed since the value of 'checkon_reboot' is $checkon_reboot" >> $DCM_LOG_FILE
     fi                
 
     sleep 5
 
     if [ $ret -ne 0 ]; then
-        echo "`date` Processing response failed." >> $DCM_LOG_FILE
+        echo_t "Processing response failed." >> $DCM_LOG_FILE
         rm -rf $FILENAME $HTTP_CODE
         count=$((count + 1))
         if [ $count -ge $RETRY_COUNT ]; then
-            echo " `date` $RETRY_COUNT tries failed. Giving up..." >> $DCM_LOG_FILE
+            echo_t " $RETRY_COUNT tries failed. Giving up..." >> $DCM_LOG_FILE
             echo 0 > $DCMFLAG
             exit 1
         fi
-        echo "`date` count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
+        echo_t "count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
         sleep $RETRY_DELAY
     else
         loop=0

@@ -20,6 +20,7 @@
 
 source /etc/device.properties
 source /etc/logFiles.properties
+source /etc/log_timestamp.sh
 loop=1
 LOG_PATH=/rdklogs/logs/
 
@@ -64,7 +65,7 @@ do
 	fi
 
 	if [ $totalSize -ge $MAXSIZE ]; then
-		echo "MAXSIZE reached , upload the logs"
+		echo_t "MAXSIZE reached , upload the logs"
 		dmcli eRT setv Device.LogBackup.X_RDKCENTRAL-COM_SyncandUploadLogs bool true
 	fi
 

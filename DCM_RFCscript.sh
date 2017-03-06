@@ -21,17 +21,17 @@
 
 . /etc/include.properties
 . /etc/device.properties
-
+source /etc/log_timestamp.sh
 DCM_RFC_LOG_FILE="$LOG_PATH/dcmrfc.log"
 DCMRFCRESPONSE="/tmp/rfcresponse.json"
 DCM_PARSER_RESPONSE="/tmp/rfc_configdata.txt"
 
 # Enable override only for non prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
-      echo "`date` Reading from /nvram/dcm.properties file" >> $DCM_RFC_LOG_FILE
+      echo_t "Reading from /nvram/dcm.properties file" >> $DCM_RFC_LOG_FILE
       . $PERSISTENT_PATH/dcm.properties
 else
-      echo "`date` Reading from /etc/dcm.properties file" >> $DCM_RFC_LOG_FILE
+      echo_t "Reading from /etc/dcm.properties file" >> $DCM_RFC_LOG_FILE
       . /etc/dcm.properties
 fi
 
@@ -47,7 +47,7 @@ RETRY_COUNT=3
 
 getQueryDcm()
 {
-    echo "`date` server url is  $DCM_RFC_SERVER_URL" >> $DCM_RFC_LOG_FILE
+    echo_t "server url is  $DCM_RFC_SERVER_URL" >> $DCM_RFC_LOG_FILE
       JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
 
     last_char=`echo $DCM_RFC_SERVER_URL | awk '$0=$NF' FS=`
@@ -59,16 +59,16 @@ getQueryDcm()
     while [ "$retries" -lt $RETRY_COUNT ]
     do
         CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
-        echo "`date` CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
+        echo_t "CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
         result= eval $CURL_CMD > $HTTP_CODE
         ret=$?
         sleep 2
         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-        echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
+        echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
         
         # Retry for STBs hosted in open internet
         if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
-            echo "`date` Retry attempt to Xconf dcm rfc end point using CODEBIG " >> $DCM_RFC_LOG_FILE
+            echo_t "Retry attempt to Xconf dcm rfc end point using CODEBIG " >> $DCM_RFC_LOG_FILE
 
             SIGN_CMD="configparamgen 8 \"$JSONSTR\""
             eval $SIGN_CMD > /tmp/.signedRFCRequest
@@ -78,44 +78,44 @@ getQueryDcm()
             result= eval $SIGN_CURL_CMD > $HTTP_CODE
             http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
             ret=$?
-            echo "`date` ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
+            echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
         fi
         
         if [ $http_code -eq 200 ]; then
-            echo "`date` Curl success" >> $DCM_RFC_LOG_FILE
+            echo_t "Curl success" >> $DCM_RFC_LOG_FILE
             if [ -e /usr/bin/dcmjsonparser ]; then
-                echo "`date` dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
+                echo_t "dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
                 /usr/bin/dcmjsonparser $DCMRFCRESPONSE 
 
                 if [ -f $DCM_PARSER_RESPONSE ]; then 
-                    echo "`date` $DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
+                    echo_t "$DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
                     file=$DCM_PARSER_RESPONSE
                     while read line; do
                         key=`echo $line|cut -d ":" -f1`
                         value=`echo $line|cut -d ":" -f2`
-                        echo "`date` key=$key value=$value" >> $DCM_RFC_LOG_FILE
+                        echo_t "key=$key value=$value" >> $DCM_RFC_LOG_FILE
                         parseConfigValue $key $value     
                     done < $file
                 else
-                    echo "`date` $DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
+                    echo_t "$DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
                 fi
             else
-                echo "`date` binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
+                echo_t "binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
             fi
             break    
         else
-            echo "`date` Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
+            echo_t "Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
         fi
         if [ "$http_code" = "000" ] ; then
             if [ "$TLSFLAG" = "--tlsv1.2" ]; then				
                 TLSFLAG="--tlsv1.1"
-		echo "`date` Attempting retry using TLSv1.1" >> $DCM_RFC_LOG_FILE
+		echo_t "Attempting retry using TLSv1.1" >> $DCM_RFC_LOG_FILE
             elif [ "$TLSFLAG" = "--tlsv1.1" ] ; then
                 TLSFLAG="--tlsv1.0"
-		echo "`date` Attempting retry using TLSv1.0" >> $DCM_RFC_LOG_FILE
+		echo_t "Attempting retry using TLSv1.0" >> $DCM_RFC_LOG_FILE
             else
                 TLSFLAG="--tlsv1.2"
-		echo "`date` Resetting TLSFLAG to TLSv1.2" >> $DCM_RFC_LOG_FILE
+		echo_t "Resetting TLSFLAG to TLSv1.2" >> $DCM_RFC_LOG_FILE
             fi	
         fi
    retries=`expr $retries + 1`
@@ -151,21 +151,21 @@ parseConfigValue()
     
     #Do dmcli for paramName preceded with tr181 
     if [ -n "$paramName" ]; then
-        echo "`date` Parameter name $paramName" >> $DCM_RFC_LOG_FILE 
-        echo "`date` Parameter value  $configValue" >> $DCM_RFC_LOG_FILE
+        echo_t "Parameter name $paramName" >> $DCM_RFC_LOG_FILE 
+        echo_t "Parameter value  $configValue" >> $DCM_RFC_LOG_FILE
         #dmcli GET 
         paramType=`$GET $paramName | grep type| tr -s ' ' |cut -f3 -d" " | tr , " "`
         if [ -n "$paramType" ]; then
-            echo "`date` paramType is $paramType" >> $DCM_RFC_LOG_FILE
+            echo_t "paramType is $paramType" >> $DCM_RFC_LOG_FILE
             #dmcli SET
             paramSet=`$SET $paramName $paramType $configValue | grep succeed| tr -s ' ' `
             if [ -n "$paramSet" ]; then
-                echo "`date` dmcli SET success for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
+                echo_t "dmcli SET success for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
             else
-                echo "`date` dmcli SET failed for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
+                echo_t "dmcli SET failed for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
             fi
         else
-            echo "`date` dmcli GET failed for $paramName " >> $DCM_RFC_LOG_FILE
+            echo_t "dmcli GET failed for $paramName " >> $DCM_RFC_LOG_FILE
         fi
     fi
 
