@@ -494,6 +494,9 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		if [ -f /nvram/pcie_error_reboot_needed ];then
 			rm /nvram/pcie_error_reboot_needed
 		fi
+        if [ -f /nvram/pcie_error_reboot_counter ];then
+            rm /nvram/pcie_error_reboot_counter
+        fi
 	fi
 
 	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
