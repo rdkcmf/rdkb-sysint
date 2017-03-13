@@ -19,9 +19,9 @@
 ##########################################################################
 
 uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
-echo_t "before running log_mem_cpu_info_atom.sh.sh printing top output" 
+echo "before running log_mem_cpu_info_atom.sh.sh printing top output" 
 top -n1 >> /rdklogs/logs/AtomConsolelog.txt
-if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof hostapd)" != "" ]  && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof stahealth.sh)"  == "" ] && [ "$(pidof radiohealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof radiohealth_log.sh)" == "" ] && [ "$(pidof stahealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof bandsteering_log.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ]  && [ "$(pidof log_mem_cpu_info_atom.sh)" == "" ] ; then
+if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof hostapd)" != "" ]  && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof stahealth.sh)"  == "" ] && [ "$(pidof radiohealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ] ; then
 	if [ -e /rdklogger/log_capture_path_atom.sh ]
 	then
 		source /rdklogger/log_capture_path_atom.sh 
@@ -146,7 +146,7 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof hostap
 		touch $COUNTINFO
 		echo $count > $COUNTINFO
 	fi
-        echo_t "after running log_mem_cpu_info_atom..sh printing top output" 
+        echo "after running log_mem_cpu_info_atom..sh printing top output" 
 	top -n1 >> /rdklogs/logs/AtomConsolelog.txt.0
 else
         echo "skipping log_mem_cpu_info_atom.sh run" >> /rdklogs/logs/AtomConsolelog.txt.0
