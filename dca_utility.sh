@@ -33,6 +33,7 @@ DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
 TELEMETRY_PROFILE_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
+LOG_SYNC_PATH="/nvram2/logs/"
 
 RTL_LOG_FILE="$LOG_PATH/dcmProcessing.log"
 RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
@@ -536,6 +537,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     TMP_SCP_PATH="/tmp/scp_logs"
     mkdir -p $TMP_SCP_PATH
     scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
+    scp -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
     ATOM_FILE_LIST=`echo ${ATOM_FILE_LIST} | sed -e "s/{//g" -e "s/}//g" -e "s/,/ /g"`
     for file in $ATOM_FILE_LIST
     do
