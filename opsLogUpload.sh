@@ -230,7 +230,7 @@ HTTPLogUploadOnRequest()
 	fi
 
         retries=`expr $retries + 1`
-        sleep 1
+        sleep 30
     done
 
     # If 200, executing second curl command with the public key.
@@ -269,7 +269,7 @@ HTTPLogUploadOnRequest()
 		fi
 	fi
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
 
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
@@ -311,7 +311,7 @@ HTTPLogUploadOnRequest()
 		fi
 	 fi
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
 
        
@@ -345,7 +345,7 @@ HTTPLogUploadOnRequest()
 		fi
 	fi
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
         #Logs upload successful when the return code is 200 after the second curl execution.
         if [ $http_code -eq 200 ];then

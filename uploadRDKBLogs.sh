@@ -355,22 +355,23 @@ fi
                                 http_code=$(awk '{print $0}' $HTTP_CODE)
 
                                 if [ "$http_code" != "" ];then
-                                        echo_t "HttpCode received is : $http_code"
-                                if [ $http_code -eq 200 ];then
+                                    echo_t "HttpCode received is : $http_code"
+                              		  if [ $http_code -eq 200 ];then
                                                 rm -f $HTTP_CODE
-                                        break
-                                fi
-                                if [ $http_code -eq 401 ];then
-                                                rm -f $HTTP_CODE
-                                        continue
-                                fi
+                                        	break
+                                	 fi
+		                        if [ $http_code -eq 401 ];then
+		                                rm -f $HTTP_CODE
+						# Even in case of 401 responce also we need to retry for max 3 times, we should not loop until we get a success response.
+						# continue
+		                        fi
                                 fi
 
                         fi
                 fi
 
         retries=`expr $retries + 1`
-        sleep 1
+        sleep 30
     done
     rm -f /nvram/adjdate.txt
 
@@ -403,21 +404,22 @@ fi
                                         http_code=$(awk '{print $0}' $HTTP_CODE)
 
                                         if [ "$http_code" != "" ];then
-                                                echo_t "HttpCode received is : $http_code"
+                                       echo_t "HttpCode received is : $http_code"
                                         if [ $http_code -eq 200 ];then
                                                         rm -f $HTTP_CODE
                                                 break
                                         fi
 					if [ $http_code -eq 401 ];then
                                                 rm -f $HTTP_CODE
-						continue
+						# Even in case of 401 responce also we need to retry for max 3 times, we should not loop until we get a success response.
+						# continue
 					fi
                                         fi
                         fi
                         fi
 
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
 
         # Response after executing curl with the public key is 200, then file uploaded successfully.
@@ -459,7 +461,7 @@ fi
                         fi
                         fi
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
 
 
@@ -496,7 +498,7 @@ fi
                         fi
                         fi
             retries=`expr $retries + 1`
-            sleep 1
+            sleep 30
         done
         #Logs upload successful when the return code is 200 after the second curl execution.
         if [ $http_code -eq 200 ];then
@@ -588,7 +590,7 @@ else
 		fi
 		
 		retries=`expr $retries + 1`
-		sleep 1
+		sleep 30
 	    done
 
 	    # If 200, executing second curl command with the public key.
@@ -634,7 +636,7 @@ else
 			fi
 		    fi
 		    retries=`expr $retries + 1`
-		    sleep 1
+		    sleep 30
 		done
 
 		# Response after executing curl with the public key is 200, then file uploaded successfully.
@@ -681,7 +683,7 @@ else
 			fi
 		    fi
 		    retries=`expr $retries + 1`
-		    sleep 1
+		    sleep 30
 		done
 
 	   
@@ -723,7 +725,7 @@ else
 			fi
 		    fi
 		    retries=`expr $retries + 1`
-		    sleep 1
+		    sleep 30
 		done
 		#Logs upload successful when the return code is 200 after the second curl execution.
 		if [ $http_code -eq 200 ];then
