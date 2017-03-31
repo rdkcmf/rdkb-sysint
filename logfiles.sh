@@ -100,7 +100,7 @@ createSysDescr()
 flush_atom_logs()
 {
  	ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
- 	loop=0
+ 	local loop=0
 	while :
 	do
 		sleep 10
@@ -280,7 +280,7 @@ backupnvram2logs()
 
         else
 			sh /lib/rdk/dca_utility.sh 2 &
-			loop=0
+			local loop=0
 			while :
 			do
 				sleep 10
