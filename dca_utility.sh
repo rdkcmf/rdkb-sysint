@@ -653,7 +653,7 @@ if [ -f $OUTPUT_FILE ]; then
      fi
 
        ## This interface is not accessible from ATOM, replace value from ARM
-       estbMac=$(getErouterMacAddress)
+       estbMac="ErouterMacAddress"
        firmwareVersion=$(getFWVersion)
        firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
        partnerId=$(getPartnerId)
