@@ -1,0 +1,9 @@
+[Unit]
+Description=Container Path Based initialization
+
+[Path]
+PathModified=/tmp/wifi_initialized
+Unit=lxc.service
+
+[Install]
+WantedBy=multi-user.target
