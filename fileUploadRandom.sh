@@ -66,30 +66,30 @@ calcRandTimeandUpload()
     touch $MAINTENANCEWINDOW
 
     # Telemetry data should be sent before log upload 
-    echo_t "RDK Logger : Process Telemetry logs before log upload.."
+#    echo_t "RDK Logger : Process Telemetry logs before log upload.."
 
-    if [ "$DCA_MULTI_CORE_SUPPORTED" = "yes" ]
-    then
-        ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+#    if [ "$DCA_MULTI_CORE_SUPPORTED" = "yes" ]
+ #   then
+ #       ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
         # This delay is to make sure that scp of all files from ARM to ATOM is done
-        sleep 30
-    else
-        CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
+ #       sleep 30
+ #  else
+ #      CMD=`cat $CRON_TAB | grep dca_utility | sed -e "s|.* sh|sh|g"`
 
-        if [ "$CMD" != "" ]
-        then
-           echo_t "RDK Logger : Telemetry command received is #$CMD"
+ #      if [ "$CMD" != "" ]
+ #     then
+ #        echo_t "RDK Logger : Telemetry command received is #$CMD"
            #"dca_utility.sh 2" is equalent to "execTelemetry" event
-           sh /lib/rdk/dca_utility.sh 2 &
+ #         sh /lib/rdk/dca_utility.sh 2 &
 
            # We have slept enough, have a sleep of 1 more minute.
            # We do not know at what time telemetry script parses the script
            # let's put this 60 sec sleep
-           sleep 60
-        else
-           echo_t "RDK Logger : DCA cron job is not configured"
-        fi
-    fi
+ #         sleep 60
+ #     else
+ #          echo_t "RDK Logger : DCA cron job is not configured"
+ #    fi
+ #  fi
     # Check if nvram2 log back up is enabled
     nvram2Backup="false"
     backupenabled=`syscfg get logbackup_enable`
