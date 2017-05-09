@@ -52,6 +52,8 @@ TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
+TLS_LOG_FILE_NAME="TlsVerify.txt"
+TLS_LOG_FILE="$LOG_PATH/$TLS_LOG_FILE_NAME"
 
 # http header
 HTTP_HEADERS='Content-Type: application/json'
@@ -153,7 +155,8 @@ sendHttpRequestToServer()
     #Replace the current protocol with https
     HTTPS_URL=`echo $URL | sed "s/$PROTO/https/g"`
     tls="--tlsv1.2"
-
+    echo_t "Attempting TLS1.2 connection to $HTTPS_URL" >> $DCM_LOG_FILE
+    echo_t "Attempting TLS1.2 connection to $HTTPS_URL" >> $TLS_LOG_FILE
     CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
     echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
     result= eval $CURL_CMD > $HTTP_CODE
@@ -163,8 +166,11 @@ sendHttpRequestToServer()
     case $ret in
       35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
          echo "Switching to TLS1.1 as TLS1.2 failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
+         echo "Switching to TLS1.1 as TLS1.2 failed to connect to $HTTPS_URL with curl error code $ret" >> $TLS_LOG_FILE
          # log server info for failed connection using nslookup
-         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         NSLOOKUP=$(nslookup $(echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"))
+         echo $NSLOOKUP >> $DCM_LOG_FILE
+         echo $NSLOOKUP >> $TLS_LOG_FILE
          tls="--tlsv1.1"
          CURL_CMD="curl -w '%{http_code}\n' $tls --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
          echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
@@ -177,8 +183,7 @@ sendHttpRequestToServer()
     case $ret in
       35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
          echo "Switching to HTTPS insecure as HTTPS failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
-         # log server info for failed connection using nslookup
-         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         echo "Switching to HTTPS insecure as HTTPS failed to connect to $HTTPS_URL with curl error code $ret" >> $TLS_LOG_FILE
          CURL_CMD="curl -w '%{http_code}\n' $tls --insecure --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
          echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
          result= eval $CURL_CMD > $HTTP_CODE
@@ -190,8 +195,7 @@ sendHttpRequestToServer()
     case $ret in
       35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
          echo "Switching to HTTP as HTTPS insecure failed to connect to $HTTPS_URL with curl error code $ret" >> $DCM_LOG_FILE
-         # log server info for failed connection using nslookup
-         nslookup `echo $HTTPS_URL | sed "s/^[^/\]*:[/\][/\]\([^/\]*\).*$/\1/"` >> $DCM_LOG_FILE
+         echo "Switching to HTTP as HTTPS insecure failed to connect to $HTTPS_URL with curl error code $ret" >> $TLS_LOG_FILE
          # make sure protocol is HTTP
          URL=`echo $URL | sed "s/[Hh][Tt][Tt][Pp][Ss]:/http:/"`
          CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o \"$FILENAME\" '$URL$JSONSTR'"
