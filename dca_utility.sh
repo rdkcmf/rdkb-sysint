@@ -59,6 +59,7 @@ IPVIDEO_BINARY="/usr/bin/ipvideo"
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
+SCP_COMPLETE="/tmp/.scp_done"
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
@@ -70,14 +71,16 @@ fi
 snmpCheck=false
 
 # exit if an instance is already running
-if [ ! -f /tmp/.dca-utility.pid ];then
-    # store the PID
-    echo $$ > /tmp/.dca-utility.pid
-else
-    pid=`cat /tmp/.dca-utility.pid`
-    if [ -d /proc/$pid ];then
-         exit 0
-    fi
+if [ ! -f /etc/os-release ];then
+	if [ ! -f /tmp/.dca-utility.pid ];then
+	    # store the PID
+	    echo $$ > /tmp/.dca-utility.pid
+	else
+	    pid=`cat /tmp/.dca-utility.pid`
+	    if [ -d /proc/$pid ];then
+		 exit 0
+	    fi
+	fi
 fi
 
 if [ "$LIGHTSLEEP_ENABLE" == "true" ] && [ -f /tmp/.standby ]; then
@@ -136,6 +139,7 @@ fi
 # 3 if modify the cron schedule 
 
 triggerType=$1
+echo_t "dca: Trigger type is $triggerType" >> $RTL_LOG_FILE
 
 cd $LOG_PATH
 
@@ -500,6 +504,7 @@ if [ $triggerType -eq 3 ] ; then
 	echo_t "dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
     scheduleCron
     ## Telemetry must be invoked only for reschedule cron job
+    if [ ! -f /etc/os-release ];then pidCleanup; fi
     exit 0
 fi
 
@@ -527,6 +532,7 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
     scheduleCron
     if [ $triggerType -eq 1 ]; then
         ## Telemetry must be invoked only via cron and not during boot-up
+	if [ ! -f /etc/os-release ];then pidCleanup; fi
         exit 0
     fi
 fi
@@ -538,6 +544,19 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     mkdir -p $TMP_SCP_PATH
     scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
     scp -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
+
+    RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
+    RPC_OK=`echo $RPC_RES | grep "RPC CONNECTED"`
+    if [ "$RPC_OK" == "" ]; then
+	 echo_t "RPC touch failed : attemp 1"
+
+	 RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
+     RPC_OK=`echo $RPC_RES | grep "RPC CONNECTED"`
+	 if [ "$RPC_OK" == "" ]; then
+		echo_t "RPC touch failed : attemp 2"
+	 fi
+    fi
+
     ATOM_FILE_LIST=`echo ${ATOM_FILE_LIST} | sed -e "s/{//g" -e "s/}//g" -e "s/,/ /g"`
     for file in $ATOM_FILE_LIST
     do

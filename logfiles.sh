@@ -29,6 +29,8 @@ PATTERN_FILE="/tmp/pattern_file"
 RSYNC_RUNNING="/tmp/rsync_running"
 RSYNC_WAITING="/tmp/rsync_waiting"
 
+SCP_COMPLETE="/tmp/.scp_done"
+
 if [ -f /etc/device.properties ]
 then
     source /etc/device.properties
@@ -278,6 +280,24 @@ backupnvram2logs()
 		 echo_t "call dca for log processing and then flush ATOM logs"
 		 flush_atom_logs &
 
+		 if [ -f "$SCP_COMPLETE" ]; then
+		   rm -rf $SCP_COMPLETE
+		 fi
+
+		 local loop=0
+		 while :
+		 do
+			if [ -f "$SCP_COMPLETE" ] || [ "$loop" -ge 3 ]
+			then
+				echo_t "scp completed or wait for 30 sec is over"
+				if [ -f "$SCP_COMPLETE" ]; then
+				  rm -rf $SCP_COMPLETE
+				fi
+				break
+			fi
+			loop=$((loop+1))
+			sleep 10
+		 done
         else
 			sh /lib/rdk/dca_utility.sh 2 &
 			local loop=0
