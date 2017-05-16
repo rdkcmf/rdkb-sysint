@@ -95,7 +95,7 @@ getQueryDcm()
             echo_t "Curl success" >> $DCM_RFC_LOG_FILE
             if [ -e /usr/bin/dcmjsonparser ]; then
                 echo_t "dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
-                /usr/bin/dcmjsonparser $DCMRFCRESPONSE 
+                /usr/bin/dcmjsonparser $DCMRFCRESPONSE  >> $DCM_RFC_LOG_FILE
 
                 if [ -f $DCM_PARSER_RESPONSE ]; then 
                     echo_t "$DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE

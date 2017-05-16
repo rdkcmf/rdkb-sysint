@@ -2,7 +2,7 @@
 Description=Container Path Based initialization
 
 [Path]
-PathModified=/tmp/wifi_initialized
+PathModified=/tmp/.lxcenabled
 Unit=lxc.service
 
 [Install]
