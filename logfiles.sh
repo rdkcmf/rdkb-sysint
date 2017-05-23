@@ -90,9 +90,9 @@ createSysDescr()
 	vendor=`dmcli eRT getv Device.DeviceInfo.Manufacturer | grep value | cut -f3 -d :`
 	bootloader=`dmcli eRT getv Device.DeviceInfo.X_CISCO_COM_BootloaderVersion | grep value | cut -f3 -d : | tr -d ' '`
 
+	adswVersion=`dmcli eRT getv Device.DeviceInfo.AdditionalSoftwareVersion | grep value | cut -f3 -d : | tr -d ' '`
 	swVersion=`dmcli eRT getv Device.DeviceInfo.SoftwareVersion | grep value | cut -f3 -d : | tr -d ' '` 
-	fwVersion=`dmcli eRT getv Device.DeviceInfo.X_CISCO_COM_FirmwareName | grep value | cut -f3 -d : | tr -d ' '`
-	sw_fw_version="$swVersion"_"$fwVersion"
+	sw_fw_version="$adswVersion"_"$swVersion"
 
 	modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | cut -f3 -d : | tr -d ' '`
 	echo_t "RDKB_SYSDESCR : $description HW_REV: $hwRevision; VENDOR: $vendor; BOOTR: $bootloader; SW_REV: $sw_fw_version; MODEL: $modelName "
