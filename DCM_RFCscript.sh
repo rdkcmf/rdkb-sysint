@@ -76,8 +76,8 @@ getQueryDcm()
             rm -f /tmp/.signedRFCRequest
             SIGN_CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
             result= eval $SIGN_CURL_CMD > $HTTP_CODE
-            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
             ret=$?
+            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
             echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
         fi
         
