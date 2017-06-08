@@ -50,7 +50,7 @@ LOG_FILE=$MAC"_Logs_$dt.tgz"
 PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
-
+UPLOAD_LOG_STATUS="/tmp/upload_log_status"
 
 ARGS=$1
 
@@ -370,6 +370,10 @@ HTTPLogUploadOnRequest()
 
 uploadOnRequest()
 {
+	if [ ! -e $UPLOAD_LOG_STATUS ]; then
+		touch $UPLOAD_LOG_STATUS
+	fi
+	echo "Triggered `date`" > $UPLOAD_LOG_STATUS
 	curDir=`pwd`
 	if [ ! -d "$LOG_UPLOAD_ON_REQUEST" ]
 	then
@@ -455,73 +459,41 @@ uploadOnRequest()
 
 	#if [ ! -e $UPLOAD_ON_REQUEST ] && [ ! -e $REGULAR_UPLOAD ]
 	#then
-	if [ -e $UPLOAD_ON_REQUEST_SUCCESS ]
-	then
-		rm -rf $UPLOAD_ON_REQUEST_SUCCESS
-	fi
+
 	touch $UPLOAD_ON_REQUEST
 	#TFTPLogUploadOnRequest
 	echo_t "Calling function to uploadLogs"
+	echo "In Progress `date`" > $UPLOAD_LOG_STATUS
 	HTTPLogUploadOnRequest
 	#fi
 	cd $curDir
 	echo_t "Log file Upload completed..."
-	# Indicate upload on request is success
-	touch $UPLOAD_ON_REQUEST_SUCCESS
-	echo $timeToUpload > $UPLOAD_ON_REQUEST_SUCCESS
 
 	# Remove the in progress flag 
 	rm -rf $UPLOAD_ON_REQUEST
 	#rm -rf $LOG_UPLOAD_ON_REQUEST
-   
+
+	# When curl fails we can rely on "failed string"
+	FAILED=`cat $UPLOADRESULT | grep "failed"`
+
+	# curl always throw error code with curl string in it
+	isCurlPresent=`cat $UPLOADRESULT | grep "curl"`
+
+	# If curl never tries to upload result file will be blank
+	DIDTRY=`cat $UPLOADRESULT`
+
+	if [ "$FAILED" != "" ] || [ "$DIDTRY" = "" ] || [ "$isCurlPresent" != "" ]
+	then
+		# We have hit error condition. Exit with error code
+		echo "Failed `date`" > $UPLOAD_LOG_STATUS
+	else
+		# Last Log upload success
+		echo "Complete `date`" > $UPLOAD_LOG_STATUS
+	fi
 }
 
 
-if [ "$ARGS" = "status" ]
-then
-	if [ ! -d $LOG_UPLOAD_ON_REQUEST ] 
-	then
-		if [ -e $UPLOAD_ON_REQUEST_SUCCESS ] 
-		then
-			if [ -e $UPLOADRESULT ]
-			then
-				# When curl fails we can rely on "failed string"
-				FAILED=`cat $UPLOADRESULT | grep "failed"`
-
-				# curl always throw error code with curl string in it
-				isCurlPresent=`cat $UPLOADRESULT | grep "curl"`
-				
-				# If curl never tries to upload result file will be blank
-				DIDTRY=`cat $UPLOADRESULT`
-
-				if [ "$FAILED" != "" ] || [ "$DIDTRY" = "" ] || [ "$isCurlPresent" != "" ]
-				then
-					# We have hit error condition. Exit with error code
-					exit 3
-				else
-					# Last Log upload success
-					exit 4
-				fi
-			fi
-			
-		else
-			# Log upload not triggered
-			exit 0
-		fi
-	elif [ -d $LOG_UPLOAD_ON_REQUEST ] 
-	then
-		if [ ! -e $UPLOAD_ON_REQUEST ]
-		then
-			# Log upload is triggered
-			exit 1
-		fi
-		if [ -e $UPLOAD_ON_REQUEST ]
-		then
-			# Log upload in progress
-			exit 2
-		fi
-	fi
-elif [ "$ARGS" = "upload" ]
+if [ "$ARGS" = "upload" ]
 then
 	# Call function to upload log files on reboot
 	uploadOnRequest
@@ -542,6 +514,7 @@ then
 	then
 		rm -rf $LOG_UPLOAD_ON_REQUEST
 	fi
+	rm $UPLOAD_LOG_STATUS
 	
 fi
 
