@@ -71,20 +71,20 @@ fi
 snmpCheck=false
 
 # exit if an instance is already running
-if [ ! -f /etc/os-release ];then
-	if [ ! -f /tmp/.dca-utility.pid ];then
-	    # store the PID
-	    echo $$ > /tmp/.dca-utility.pid
-	else
-	    pid=`cat /tmp/.dca-utility.pid`
-	    if [ -d /proc/$pid ];then
-		 exit 0
-	    fi
-	fi
+if [ ! -f /tmp/.dca-utility.pid ];then
+    # store the PID
+    echo $$ > /tmp/.dca-utility.pid
+else
+    pid=`cat /tmp/.dca-utility.pid`
+    if [ -d /proc/$pid ];then
+	  exit 0
+    else
+	  echo $$ > /tmp/.dca-utility.pid
+    fi
 fi
 
 if [ "$LIGHTSLEEP_ENABLE" == "true" ] && [ -f /tmp/.standby ]; then
-    if [ ! -f /etc/os-release ];then pidCleanup; fi    
+    pidCleanup
     exit 0
 fi
 
@@ -129,7 +129,7 @@ pidCleanup()
 
 if [ $# -ne 1 ]; then
    echo "Usage : `basename $0` <0/1/2> 0 - Telemtry From Cron 1 - Reinitialize Map 2 - Forced Telemetry search " >> $RTL_LOG_FILE
-   if [ ! -f /etc/os-release ];then pidCleanup; fi
+   pidCleanup
    exit 0
 fi
 
@@ -504,7 +504,7 @@ if [ $triggerType -eq 3 ] ; then
 	echo_t "dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
     scheduleCron
     ## Telemetry must be invoked only for reschedule cron job
-    if [ ! -f /etc/os-release ];then pidCleanup; fi
+    pidCleanup
     exit 0
 fi
 
@@ -532,7 +532,7 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
     scheduleCron
     if [ $triggerType -eq 1 ]; then
         ## Telemetry must be invoked only via cron and not during boot-up
-	if [ ! -f /etc/os-release ];then pidCleanup; fi
+		pidCleanup
         exit 0
     fi
 fi
@@ -724,4 +724,4 @@ if [ $triggerType -eq 2 ]; then
 fi
 
 # PID file cleanup
-if [ ! -f /etc/os-release ];then pidCleanup; fi
+pidCleanup
