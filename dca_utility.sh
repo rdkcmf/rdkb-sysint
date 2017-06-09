@@ -682,10 +682,10 @@ if [ -f $OUTPUT_FILE ]; then
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
      
        if $singleEntry ; then
-            outputJson="$outputJson{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
             singleEntry=false
        else
-            outputJson="$outputJson,{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
        fi
        echo "$outputJson" > $TELEMETRY_JSON_RESPONSE
        sleep 2
