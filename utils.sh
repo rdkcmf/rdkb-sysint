@@ -68,9 +68,14 @@ getIPAddress()
 
 getCMIPAddress()
 {
-    address=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
-    if [ ! "$address" ]; then
-       address=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+    if [ $BOX_TYPE = "XF3" ]; then
+       # in PON you cant get the CM IP address, so use eRouter IP address
+       address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "` 
+    else                           
+       address=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+       if [ ! "$address" ]; then
+          address=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+       fi
     fi
     echo $address
 
@@ -90,7 +95,9 @@ getMacAddress()
 {
     if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ]; then
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
-    else
+    elif [ $BOX_TYPE = "XF3" ]; then                           
+        mac=`dmcli eRT getv Device.DPoE.Mac_address | grep value | awk '{print $5}'`
+    else                                                           
         mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
     fi
     echo $mac
