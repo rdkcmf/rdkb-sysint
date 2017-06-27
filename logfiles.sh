@@ -31,6 +31,10 @@ RSYNC_WAITING="/tmp/rsync_waiting"
 
 SCP_COMPLETE="/tmp/.scp_done"
 
+PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
+CONFIGPARAMGEN="/usr/bin/configparamgen"
+
 if [ -f /etc/device.properties ]
 then
     source /etc/device.properties
@@ -101,7 +105,9 @@ createSysDescr()
 
 flush_atom_logs()
 {
- 	ssh root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+        
+        $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+ 	ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
  	local loop=0
 	while :
 	do
@@ -122,6 +128,7 @@ flush_atom_logs()
 		fi
 
 	done
+        rm -f $PEER_COMM_ID
 	
 }
 
@@ -154,7 +161,7 @@ protected_rsync()
 		if [ -f $RSYNC_RUNNING ]; then
 			rm $RSYNC_RUNNING
 		fi
-		nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
 		if [ "$sync_res" -eq 0 ]
 		then
@@ -169,7 +176,7 @@ protected_rsync()
 
 	elif [ "$RSYNC_PID" == "" ]; then
 		touch $RSYNC_RUNNING
-		nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
 		if [ "$sync_res" -eq 0 ]
 		then
@@ -179,6 +186,7 @@ protected_rsync()
 		fi
 		rm $RSYNC_RUNNING
 	fi
+        rm -f $PEER_COMM_ID
 
 }
 

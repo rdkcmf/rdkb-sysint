@@ -60,13 +60,19 @@ TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 SCP_COMPLETE="/tmp/.scp_done"
+PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
+CONFIGPARAMGEN="/usr/bin/configparamgen"
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
     if [ -f /etc/logFiles.properties ]; then
         . /etc/logFiles.properties
     fi
+    
 fi
+
+
 # Retain source for future enabling. Defaulting to disable for now
 snmpCheck=false
 
@@ -412,7 +418,7 @@ dropbearRecovery()
 {
    dropbearPid=`ps | grep -i dropbear | grep "$ATOM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
-       dropbear -E -B -p $ATOM_INTERFACE_IP:22 &
+       dropbear -E -s -p $ATOM_INTERFACE_IP:22 &
        sleep 2
    fi
 }
@@ -521,8 +527,10 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
     if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
         while [ ! -f $DCMRESPONSE ]
         do
-             echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
-            scp -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE > /dev/null 2>&1
+            echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
+            $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID 
+            scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE > /dev/null 2>&1
+            rm -f $PEER_COMM_ID
             sleep 10
         done
     fi
@@ -542,8 +550,10 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     mkdir -p $LOG_PATH
     TMP_SCP_PATH="/tmp/scp_logs"
     mkdir -p $TMP_SCP_PATH
-    scp -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
-    scp -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
+    $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+    scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
+    scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
+    rm -f $PEER_COMM_ID
 
     RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
     RPC_OK=`echo $RPC_RES | grep "RPC CONNECTED"`
@@ -693,12 +703,14 @@ if [ -f $OUTPUT_FILE ]; then
        if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
+           $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
            if [ $triggerType -eq 2 ]; then
-               ssh root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+               ssh -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
                echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
-               ssh root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               ssh -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
            fi
+           rm -f $PEER_COMM_ID
        else
            if [ $triggerType -eq 2 ]; then
                touch $TELEMETRY_EXEC_COMPLETE

@@ -55,6 +55,10 @@ TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 TLS_LOG_FILE_NAME="TlsVerify.txt"
 TLS_LOG_FILE="$LOG_PATH/$TLS_LOG_FILE_NAME"
 
+PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
+CONFIGPARAMGEN="/usr/bin/configparamgen"
+
 # http header
 HTTP_HEADERS='Content-Type: application/json'
 ## RETRY DELAY in secs
@@ -242,7 +246,7 @@ dropbearRecovery()
    dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
        echo "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
-       dropbear -E -B -p $ARM_INTERFACE_IP:22 &
+       dropbear -E -s -p $ARM_INTERFACE_IP:22 &
        sleep 2
    fi
 }
@@ -299,13 +303,16 @@ do
 
         if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
-            scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
+            
+            $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+            scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             if [ $? -ne 0 ]; then
-                scp $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
+                scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             fi
             echo "Signal atom to pick the XCONF config data $DCMRESPONSE and schedule telemetry !!! " >> $DCM_LOG_FILE
             ## Trigger an inotify event on ATOM 
-            ssh root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+            ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+            rm -f $PEER_COMM_ID
         else
             sh /lib/rdk/dca_utility.sh 1 &
         fi
