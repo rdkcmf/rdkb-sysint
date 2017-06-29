@@ -23,6 +23,8 @@ if [ -f /fss/gw/etc/utopia/service.d/log_env_var.sh ];then
 	source /fss/gw/etc/utopia/service.d/log_env_var.sh
 fi
 
+source /etc/device.properties
+
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
 
@@ -86,7 +88,11 @@ processCheck()
 
 getMacAddress()
 {
-    mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
+    if [ "$BOX_TYPE" = "XB6" ] && [ "$MANUFACTURE" = "Technicolor" ]; then
+        mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
+    else
+        mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
+    fi
     echo $mac
 } 
 
