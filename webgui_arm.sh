@@ -63,8 +63,8 @@ if [ "$LIGHTTPD_PID" != "" ]; then
 fi
 
 HTTP_ADMIN_PORT=`syscfg get http_admin_port`
-HTTP_PORT=`syscfg get mgmt_wan_httpport`
-HTTP_PORT_ERT=`syscfg get mgmt_wan_httpport_ert`
+#HTTP_PORT=`syscfg get mgmt_wan_httpport`
+#HTTP_PORT_ERT=`syscfg get mgmt_wan_httpport_ert`
 HTTPS_PORT=`syscfg get mgmt_wan_httpsport`
 BRIDGE_MODE=`syscfg get bridge_mode`
 
@@ -82,28 +82,28 @@ cp $LIGHTTPD_DEF_CONF $LIGHTTPD_CONF
 echo "server.port = $HTTP_ADMIN_PORT" >> $LIGHTTPD_CONF
 echo "server.bind = \"$INTERFACE\"" >> $LIGHTTPD_CONF
 
-echo "\$SERVER[\"socket\"] == \"brlan0:80\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
-echo "\$SERVER[\"socket\"] == \"wan0:80\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
+echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n     server.use-ipv6 = \"enable\"\n     url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }" >> $LIGHTTPD_CONF
+echo -e "\$SERVER[\"socket\"] == \"wan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"(.*)\" {\n    url.redirect = ( \"^/(.*)\" => \"https://%1:443/\$1\" )\n  }\n}" >> $LIGHTTPD_CONF
 
-if [ "x$HTTP_PORT_ERT" != "x" ];then
-    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTP_PORT_ERT\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
-else
-    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTP_PORT\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
-fi
+#if [ "x$HTTP_PORT_ERT" != "x" ];then
+#    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTP_PORT_ERT\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
+#else
+#    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTP_PORT\" { server.use-ipv6 = \"enable\" }" >> $LIGHTTPD_CONF
+#fi
 
-echo "\$SERVER[\"socket\"] == \"brlan0:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
+echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] !~ \"webui-xb3-cpe-srvr.xcal.tv\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
 
-echo "\$SERVER[\"socket\"] == \"$INTERFACE:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
-echo "\$SERVER[\"socket\"] == \"wan0:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
+echo "\$SERVER[\"socket\"] == \"$INTERFACE:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
+echo -e "\$SERVER[\"socket\"] == \"wan0:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"}" >> $LIGHTTPD_CONF
 if [ $HTTPS_PORT -ne 0 ]
 then
-    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTPS_PORT\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
+    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTPS_PORT\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
 else
     # When the httpsport is set to NULL. Always put default value into database.
     syscfg set mgmt_wan_httpsport 8081
     syscfg commit
     HTTPS_PORT=`syscfg get mgmt_wan_httpsport`
-    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTPS_PORT\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/etc/server.pem\" }" >> $LIGHTTPD_CONF
+    echo "\$SERVER[\"socket\"] == \"erouter0:$HTTPS_PORT\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
 fi
 
 echo "\$SERVER[\"socket\"] == \":51515\" { 
@@ -230,7 +230,28 @@ then
 	sed -i "s|${LOG_PATH_OLD}|${LOG_PATH}|g" $LIGHTTPD_CONF
 fi
 
+CONFIGPARAMGEN=/usr/bin/cpgc
+if [ -d /etc/webui/certs ]; then
+       mkdir -p /tmp/.webui/
+       cp /etc/webui/certs/webui-ca.cert.cer /tmp/.webui/
+       cp /etc/webui/certs/webui-ca.interm.cer /tmp/.webui/
+
+       if [ -f $CONFIGPARAMGEN ]; then
+               $CONFIGPARAMGEN jx /etc/webui/certs/nwcwtynbb.ehm /tmp/.webui/rdkb-webui.pem
+               if [ -f /tmp/.webui/rdkb-webui.pem ]; then
+                       chmod 600 /tmp/.webui/rdkb-webui.pem
+               fi
+       else
+               echo "$CONFIGPARAMGEN not found !!!"
+               exit 0
+       fi
+fi
+
 LD_LIBRARY_PATH=/fss/gw/usr/ccsp:$LD_LIBRARY_PATH lighttpd -f $LIGHTTPD_CONF
+
+if [ -f /tmp/.webui/rdkb-webui.pem ]; then
+       rm -rf /tmp/.webui/rdkb-webui.pem
+fi
 
 echo_t "WEBGUI : Set event"
 sysevent set webserver started
