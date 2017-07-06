@@ -137,6 +137,7 @@ protected_rsync()
 
 	destination=$1
 	RSYNC_PID=`pidof rsync`
+        $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
 	if [ "$RSYNC_PID" != "" ] && [ -f $RSYNC_RUNNING ] && [ ! -f $RSYNC_WAITING ]; then
 		i=0;
 		timeout=1;
