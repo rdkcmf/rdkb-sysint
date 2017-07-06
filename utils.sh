@@ -88,7 +88,7 @@ processCheck()
 
 getMacAddress()
 {
-    if [ "$BOX_TYPE" = "XB6" ] && [ "$MANUFACTURE" = "Technicolor" ]; then
+    if [ "$BOX_TYPE" = "XB6" ]; then
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
     else
         mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
