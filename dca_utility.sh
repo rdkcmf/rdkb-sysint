@@ -226,14 +226,14 @@ getSNMPUpdates() {
 getPerformanceValue() {
      process_name=$1
      performance_value=''
-     performance_value=`$PERFORMANCE_BINARY $process_name`
+     performance_value=`nice -n 19 $PERFORMANCE_BINARY $process_name`
      echo $performance_value
 }
 
 # Function to get performance values 
 getLoadAverage() {
      load_average=''
-     load_average=`$LOAD_AVG_BINARY`
+     load_average=`nice -n 19 $LOAD_AVG_BINARY`
      echo $load_average
 }
 
@@ -293,7 +293,7 @@ updateCount()
            lastSeekVal=0
        fi
        rm -f $RTL_DELTA_LOG_FILE
-       nice $TEMPFILE_CREATER_BINARY $filename
+       nice -n 19 $TEMPFILE_CREATER_BINARY $filename
        seekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
        if [ $seekVal -lt $lastSeekVal ]; then
            # This should never happen in RDKB as we don't have log rotation
@@ -308,9 +308,9 @@ updateCount()
     header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
     case "$header" in
         *split*)  
-	 final_count=`$IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
+	 final_count=`nice -n 19 $IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
 	*) 
-	 final_count=`$TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
+	 final_count=`nice -n 19 $TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
     esac
     # Update count and patterns in a single file 
     if [ "$final_count" != "0" ]; then
@@ -390,20 +390,20 @@ scheduleCron()
 	if [ -n "$existing_cron_check" ]; then
 		rtl_cron_check=`grep -c 'dca_utility.sh' $current_cron_file`
 		if [ $rtl_cron_check -eq 0 ]; then
-			echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+			echo "$cron nice -n 19 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
 		fi
 		while read line
 		do
 			retval=`echo "$line" | grep 'dca_utility.sh'`
 			if [ -n "$retval" ]; then
-				echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+				echo "$cron nice -n 19 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
 			else
 				echo "$line" >> $tempfile
 			fi
 		done < $current_cron_file
 	else
 		# If no cron job exists, create one, with the value from DCMSettings.conf file
-		echo "$cron nice -n 20 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
+		echo "$cron nice -n 19 sh $RDK_PATH/dca_utility.sh 0" >> $tempfile
 	fi
 	# Set new cron job from the file
 	crontab $tempfile -c $CRON_SPOOL
