@@ -260,7 +260,7 @@ then
     #rm -f $HAVECRASH
 fi
 
-if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ] || [ "$2" == "DS_MANAGER_HIGH_CPU" ]
+if [ "$3" == "wan-stopped" ] || [ "$3" == "Atom_Max_Log_Size_Reached" ] || [ "$2" == "DS_MANAGER_HIGH_CPU" ] || [ "$2" == "ATOM_RO" ]
 then
 	echo_t "Taking log back up"
 	if [ "$nvram2Backup" == "true" ]; then	
