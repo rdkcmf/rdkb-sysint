@@ -130,7 +130,8 @@ getModel()
 
 getFWVersion()
 {
-    grep imagename /version.txt | cut -d '=' -f2
+    # Handle imagename separator being colon or equals
+    grep imagename /version.txt | sed 's/.*[:=]//'
 }
 
 getBuildType()
