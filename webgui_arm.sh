@@ -85,7 +85,7 @@ echo "server.bind = \"$INTERFACE\"" >> $LIGHTTPD_CONF
 if [ "$BRIDGE_MODE" != "0" ]; then
 	echo -e "\$SERVER[\"socket\"] == \"$INTERFACE:80\" {\n     server.use-ipv6 = \"enable\"\n     url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }" >> $LIGHTTPD_CONF
 else
-	echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n     server.use-ipv6 = \"enable\"\n     url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }" >> $LIGHTTPD_CONF
+        echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n        url.redirect = ( \".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\" )\n    }\n    else \$HTTP[\"host\"] =~ \"(.*)\" {\n        url.redirect = ( \".*\" => \"https://%0:443\$0\" )\n    }\n}" >> $LIGHTTPD_CONF
 fi
 echo -e "\$SERVER[\"socket\"] == \"wan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"(.*)\" {\n    url.redirect = ( \"^/(.*)\" => \"https://%1:443/\$1\" )\n  }\n}" >> $LIGHTTPD_CONF
 
@@ -96,10 +96,10 @@ echo -e "\$SERVER[\"socket\"] == \"wan0:80\" {\n    server.use-ipv6 = \"enable\"
 #fi
 
 if [ "$BRIDGE_MODE" != "0" ]; then
-	echo "\$SERVER[\"socket\"] == \"$INTERFACE:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
+		echo -e "\$SERVER[\"socket\"] == \"$INTERFACE:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] !~ \"webui-xb3-cpe-srvr.xcal.tv\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
 else
 
-	echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] !~ \"webui-xb3-cpe-srvr.xcal.tv\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
+	echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
 
 	echo "\$SERVER[\"socket\"] == \"$INTERFACE:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
 fi
@@ -240,7 +240,7 @@ then
 	sed -i "s|${LOG_PATH_OLD}|${LOG_PATH}|g" $LIGHTTPD_CONF
 fi
 
-CONFIGPARAMGEN=/usr/bin/cpgc
+CONFIGPARAMGEN=/usr/bin/configparamgen
 if [ -d /etc/webui/certs ]; then
        mkdir -p /tmp/.webui/
        cp /etc/webui/certs/webui-ca.cert.cer /tmp/.webui/
