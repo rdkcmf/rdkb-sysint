@@ -313,7 +313,7 @@ updateCount()
 	 final_count=`nice -n 19 $TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
     esac
     # Update count and patterns in a single file 
-    if [ "$final_count" != "0" ]; then
+    if [ ! -z "$final_count" ] && [ "$final_count" != "0" ]; then
        echo "$pattern<#=#>$filename<#=#>$final_count" >> $OUTPUT_FILE
     fi
 }     
