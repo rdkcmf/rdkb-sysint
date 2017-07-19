@@ -57,7 +57,46 @@ LIGHTTPD_DEF_CONF="/etc/lighttpd.conf"
 
 ATOM_PROXY_SERVER="192.168.251.254"
 
+configStatus=`sysevent get lighttpdconf`
+if [ "$configStatus" != "inprogress" ]
+then
+   echo_t "WEBGUI :  Set event for configuration in-progress"
+   sysevent set lighttpdconf inprogress
+else
+   itr=0
+   while : ; do
+      configStatus=`sysevent get lighttpdconf`
+      if [ "$configStatus" = "completed" ]
+      then
+          echo_t "WEBGUI : Configuration completed, breaking from loop"
+          break;
+      else
+         itr=$((itr+1))
+         if [ $itr -le 10 ]
+         then
+           echo_t "WEBGUI : Waiting to complete configuration"
+           sleep 3;
+         else
+           echo_t "WEBGUI : Max wait completed, breaking from loop"
+           break;
+         fi
+      fi
+   done
+fi
+
 LIGHTTPD_PID=`pidof lighttpd`
+
+# This condition is to handle case where lighttpd will come late
+# after wan. If webgui.sh is called from service_wan during wan-start
+# event and lighttpd hasn't started by that time, then exit
+
+if [ "$1" = "wan-started" ] && [ "$LIGHTTPD_PID" = "" ]
+then
+    echo_t "WEBGUI : wan started event came, no lighttpd running: exit"
+    sysevent set lighttpdconf completed
+    exit
+fi
+
 if [ "$LIGHTTPD_PID" != "" ]; then
 	/bin/kill $LIGHTTPD_PID
 fi
@@ -85,7 +124,14 @@ echo "server.bind = \"$INTERFACE\"" >> $LIGHTTPD_CONF
 if [ "$BRIDGE_MODE" != "0" ]; then
 	echo -e "\$SERVER[\"socket\"] == \"$INTERFACE:80\" {\n     server.use-ipv6 = \"enable\"\n     url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }" >> $LIGHTTPD_CONF
 else
-        echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n        url.redirect = ( \".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\" )\n    }\n    else \$HTTP[\"host\"] =~ \"(.*)\" {\n        url.redirect = ( \".*\" => \"https://%0:443\$0\" )\n    }\n}" >> $LIGHTTPD_CONF
+        if [ "$1" = "wan-stopped" ]
+        then
+           echo_t "WEBGUI : wan stopped event came, no https redirection"
+           echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n    server.use-ipv6 = \"enable\"\n     }" >> $LIGHTTPD_CONF
+        else
+            echo -e "\$SERVER[\"socket\"] == \"brlan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n        url.redirect = ( \".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\" )\n    }\n    else \$HTTP[\"host\"] =~ \"(.*)\" {\n        url.redirect = ( \".*\" => \"https://%0:443\$0\" )\n    }\n}" >> $LIGHTTPD_CONF
+        fi
+             
 fi
 echo -e "\$SERVER[\"socket\"] == \"wan0:80\" {\n    server.use-ipv6 = \"enable\"\n    \$HTTP[\"host\"] =~ \"(.*)\" {\n    url.redirect = ( \"^/(.*)\" => \"https://%1:443/\$1\" )\n  }\n}" >> $LIGHTTPD_CONF
 
@@ -98,8 +144,12 @@ echo -e "\$SERVER[\"socket\"] == \"wan0:80\" {\n    server.use-ipv6 = \"enable\"
 if [ "$BRIDGE_MODE" != "0" ]; then
 		echo -e "\$SERVER[\"socket\"] == \"$INTERFACE:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] !~ \"webui-xb3-cpe-srvr.xcal.tv\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
 else
-
-	echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
+        if [ "$1" = "wan-stopped" ]
+        then
+           echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n      }" >> $LIGHTTPD_CONF
+        else   
+	   echo -e "\$SERVER[\"socket\"] == \"brlan0:443\" {\n    server.use-ipv6 = \"enable\"\n    ssl.engine = \"enable\"\n    ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\"\n    ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\"\n    \$HTTP[\"host\"] =~ \"10.0.0.1\" {\n    url.redirect = (\".*\" => \"https://webui-xb3-cpe-srvr.xcal.tv/\$1\")\n }\n}" >> $LIGHTTPD_CONF
+        fi
 
 	echo "\$SERVER[\"socket\"] == \"$INTERFACE:443\" { server.use-ipv6 = \"enable\" ssl.engine = \"enable\" ssl.pemfile = \"/tmp/.webui/rdkb-webui.pem\" ssl.ca-file = \"/tmp/.webui/webui-ca.interm.cer\" }" >> $LIGHTTPD_CONF
 fi
@@ -263,5 +313,7 @@ if [ -f /tmp/.webui/rdkb-webui.pem ]; then
        rm -rf /tmp/.webui/rdkb-webui.pem
 fi
 
-echo_t "WEBGUI : Set event"
+echo_t "WEBGUI : Set events"
+sysevent set lighttpdconf completed
 sysevent set webserver started
+
