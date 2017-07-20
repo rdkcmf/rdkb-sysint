@@ -118,6 +118,12 @@ cp $LIGHTTPD_DEF_CONF $LIGHTTPD_CONF
 #sed -i "s/^server.port.*/server.port = $HTTP_PORT/" /var/lighttpd.conf
 #sed -i "s#^\$SERVER\[.*\].*#\$SERVER[\"socket\"] == \":$HTTPS_PORT\" {#" /var/lighttpd.conf
 
+HTTP_SECURITY_HEADER_ENABLE=`syscfg get HTTPSecurityHeaderEnable`
+
+if [ "$HTTP_SECURITY_HEADER_ENABLE" = "true" ]; then
+	echo "setenv.add-response-header = (\"X-Frame-Options\" => \"deny\",\"X-XSS-Protection\" => \"1; mode=block\",\"X-Content-Type-Options\" => \"nosniff\",\"Content-Security-Policy\" => \"img-src 'self'; font-src 'self'; form-action 'self';\")"  >> $LIGHTTPD_CONF
+fi
+
 echo "server.port = $HTTP_ADMIN_PORT" >> $LIGHTTPD_CONF
 echo "server.bind = \"$INTERFACE\"" >> $LIGHTTPD_CONF
 
