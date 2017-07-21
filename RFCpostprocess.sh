@@ -50,3 +50,7 @@ if [ ! -f /tmp/.rfcLock ] ; then
 else
    echo "/tmp/.rfcLock file present" >> $LOG_PATH/dcmrfc.log
 fi
+
+echo "=================`date -u`=================" >> $LOG_PATH/samhain.log
+[ -x /lib/rdk/samhain_starter.sh ] && /lib/rdk/samhain_starter.sh >> $LOG_PATH/samhain.log
+
