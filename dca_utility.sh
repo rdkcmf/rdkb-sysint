@@ -37,7 +37,6 @@ LOG_SYNC_PATH="/nvram2/logs/"
 
 RTL_LOG_FILE="$LOG_PATH/dcmProcessing.log"
 RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
-PATTERN_CONF_FILE="$TELEMETRY_PATH/dca.conf"
 MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
 TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
 
@@ -47,14 +46,8 @@ SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_sorted_file.conf"
 
 current_cron_file="$PERSISTENT_PATH/cron_file.txt"
 
-OUTPUT_FILE="$LOG_PATH/dca_output.txt"
-
 #Performance oriented binaries
-TEMPFILE_CREATER_BINARY="/usr/bin/dcaseek"
-TEMPFILE_PARSE_BINARY="/usr/bin/dcafind"
-PERFORMANCE_BINARY="/usr/bin/dcaprocess"
-LOAD_AVG_BINARY="/usr/bin/dcaloadave"
-IPVIDEO_BINARY="/usr/bin/ipvideo"
+DCA_BINARY="/usr/bin/dca"
 
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
@@ -222,21 +215,6 @@ getSNMPUpdates() {
      echo $TotalCount
 }
 
-# Function to get performance values 
-getPerformanceValue() {
-     process_name=$1
-     performance_value=''
-     performance_value=`nice -n 19 $PERFORMANCE_BINARY $process_name`
-     echo $performance_value
-}
-
-# Function to get performance values 
-getLoadAverage() {
-     load_average=''
-     load_average=`nice -n 19 $LOAD_AVG_BINARY`
-     echo $load_average
-}
-
 ## Reatining for future support when net-snmp tools will be enabled in XB3s
 getControllerId(){    
     ChannelMapId=''
@@ -275,48 +253,6 @@ getRFStatus(){
     
     echo "{\"Dwn_RX_pwr\":\"$Dwn_RX_pwr\"},{\"Ux_TX_pwr\":\"$Ux_TX_pwr\"},{\"Dx_SNR\":\"$Dx_SNR\"}"
 }
-
-###
-##  Dumps deltas from previous execution to file /tmp/.rtl_temp.log
-##  Get the number of occurence of pattern from the deltas to avoid duplicate error report
-##  Append the results to OUTPUT_FILE ie LOG_PATHdca_output.txt
-###    
-updateCount()
-{
-    final_count=0
-    # Need not create the dela file is the previous file in MAP is the same 
-    if [ "$filename" != "$PrevFileName" ]; then    
-       PrevFileName=$filename
-       if [ -f "$TELEMETRY_PATH_TEMP/rtl_$filename" ]; then
-           lastSeekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
-       else
-           lastSeekVal=0
-       fi
-       rm -f $RTL_DELTA_LOG_FILE
-       nice -n 19 $TEMPFILE_CREATER_BINARY $filename
-       seekVal=`cat $TELEMETRY_PATH_TEMP/rtl_$filename`
-       if [ $seekVal -lt $lastSeekVal ]; then
-           # This should never happen in RDKB as we don't have log rotation
-           # Instead upload & flush logs are present which is already taken care
-           echo_t "dca seek value for $filename is Previous : $lastSeekVal Current : $seekVal" >> $RTL_LOG_FILE   
-           echo "Restoring markers" >> $RTL_LOG_FILE   
-           # Can be due to rsync/scp errors. Restore previous well known markers
-           echo "$lastSeekVal" > $TELEMETRY_PATH_TEMP/rtl_$filename
-       fi
-    fi
-
-    header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-    case "$header" in
-        *split*)  
-	 final_count=`nice -n 19 $IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
-	*) 
-	 final_count=`nice -n 19 $TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
-    esac
-    # Update count and patterns in a single file 
-    if [ ! -z "$final_count" ] && [ "$final_count" != "0" ]; then
-       echo "$pattern<#=#>$filename<#=#>$final_count" >> $OUTPUT_FILE
-    fi
-}     
 
 processJsonResponse()
 {
@@ -430,11 +366,6 @@ clearTelemetryConfig()
         rm -f $RTL_DELTA_LOG_FILE
     fi
 
-    if [ -f $PATTERN_CONF_FILE ]; then
-        echo_t "dca: PATTERN_CONF_FILE : $PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-        rm -f $PATTERN_CONF_FILE
-    fi
-
     if [ -f $MAP_PATTERN_CONF_FILE ]; then
         echo_t "dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $MAP_PATTERN_CONF_FILE
@@ -487,20 +418,12 @@ generateTelemetryConfig()
         fi
     done < $TEMP_PATTERN_CONF_FILE
 
-    #Create conf file from map file
-    while read line
-    do
-        content=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-        type=`echo "$line" | awk -F '<#=#>' '{print $3}'`
-        echo "$content<#=#>$type" >> $PATTERN_CONF_FILE
-    done < $MAP_PATTERN_CONF_FILE
-
     # Sort the config file based on file names to minimise the duplicate delta file generation
-    if [ -f $PATTERN_CONF_FILE ]; then
+    if [ -f $MAP_PATTERN_CONF_FILE ]; then
         if [ -f $output_file ]; then
             rm -f $output_file
         fi
-        awk -F '<#=#>' '{print $NF,$0}' $PATTERN_CONF_FILE | sort -n | cut -d ' ' -f 2- > $output_file 
+        awk -F '<#=#>' '{print $NF,$0}' $MAP_PATTERN_CONF_FILE | sort -n | cut -d ' ' -f 2- > $output_file 
     fi
 
 }
@@ -584,7 +507,6 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
 fi
 
 #Clear the final result file
-rm -f $OUTPUT_FILE
 rm -f $TELEMETRY_JSON_RESPONSE
 
 
@@ -593,47 +515,15 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
     echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
 else
     echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
-    while read line
-    do
-        pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
-        filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-        
-        if [ ! -z "$pattern" ] && [ ! -z "$filename" ]; then
-            ## updateCount "$pattern" "$filename"
-            if [ -f $LOG_PATH/$filename ]; then
-                updateCount
-            fi
-        fi
-    done < $SORTED_PATTERN_CONF_FILE
-fi
-
-## Form the message in JSON format
-if [ -f $OUTPUT_FILE ]; then    
-    outputJson="{\"searchResult\":["
+    defaultOutputJSON="{\"searchResult\":[{\"<remaining_keys>\":\"<remaining_values>\"}]}"
+    dcaOutputJson=`nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE 2>> $RTL_LOG_FILE`
+    echo $dcaOutputJson >> $RTL_LOG_FILE
+    if [ -z "$dcaOutputJson" ];
+    then
+      dcaOutputJson=$defaultOutputJSON
+    fi
     singleEntry=true
-    while read line
-    do
-         searchPattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
-         filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-         header=`grep -F "$searchPattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-         start_string=`echo "$line" | cut -c 1-4`
-         #If the pattern starts with RDK- set header with pattern
-         if [ "$start_string" == "RDK-" ]; then
-            header=$searchPattern
-         fi
-         searchCount=`echo "$line" | awk -F '<#=#>' '{print $NF}'`
-         tempString=""
-         if [ ! -z "$searchCount" ]; then
-             if $singleEntry ; then
-                 tempString="{\"$header\":\"$searchCount\"}"
-                 singleEntry=false
-             else
-                 tempString=",{\"$header\":\"$searchCount\"}"
-             fi
-             outputJson="$outputJson$tempString"
-         fi
-    done < $OUTPUT_FILE
-       
+
     # Get the snmp and performance values when enabled 
     # Need to check only when SNMP is enabled in future
     if [ "$snmpCheck" == "true" ] ; then
@@ -653,31 +543,6 @@ if [ -f $OUTPUT_FILE ]; then
                outputJson="$outputJson$tuneData" 
             fi                
         fi
-            
-        if [ $filename == "top_log.txt" ]; then            
-            header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-            if [ "$header" == "Load_Average" ]; then                    
-                load_average=`getLoadAverage`
-                if $singleEntry ; then
-                    outputJson="$outputJson$load_average"
-                    singleEntry=false
-                else
-                    outputJson="$outputJson,$load_average"
-                fi              
-            else
-                retvalue=$(getPerformanceValue $pattern)
-                if [ -n "$retvalue" ]; then
-                    if $singleEntry ; then
-                        tuneData="$retvalue"
-                        outputJson="$outputJson$tuneData"
-                        singleEntry=false
-                    else
-                        tuneData=",$retvalue"
-                        outputJson="$outputJson$tuneData" 
-                    fi
-                fi
-           fi
-       fi
        done < $SORTED_PATTERN_CONF_FILE
      fi
 
@@ -692,11 +557,18 @@ if [ -f $OUTPUT_FILE ]; then
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
      
        if $singleEntry ; then
-            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
             singleEntry=false
        else
-            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}]}"
+            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
        fi
+
+        if [ ! -z "$dcaOutputJson" ];
+        then
+            remain=",{\"<remaining_keys>\":\"<remaining_values>\"}"
+            outputJson=`echo "$dcaOutputJson" | sed "s/$remain/$outputJson/"`
+        fi
+       echo $outputJson >> $RTL_LOG_FILE
        echo "$outputJson" > $TELEMETRY_JSON_RESPONSE
        sleep 2
 
