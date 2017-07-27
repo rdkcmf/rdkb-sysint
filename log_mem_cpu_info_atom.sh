@@ -147,9 +147,13 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
 		echo $count > $COUNTINFO
 	fi
 
+        nvram_fsck="/rdklogger/nvram_rw_restore.sh"
 	nvram_ro_fs=`mount | grep "nvram " | grep dev | grep "[ (]ro[ ,]"`
 	if [ "$nvram_ro_fs" != "" ]; then
 		echo "[RDKB_SELFHEAL] : NVRAM ON ATOM IS READ-ONLY"
+                if [ -f $nvram_fsck ] && [ ! -e /tmp/atom_ro ]; then
+                    source $nvram_fsck
+                fi
 	fi
 
         echo "after running log_mem_cpu_info_atom..sh printing top output" 
