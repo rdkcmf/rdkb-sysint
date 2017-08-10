@@ -35,6 +35,17 @@ else
       . /etc/dcm.properties
 fi
 
+# creeate RAM based folder
+
+if [ -z $RFC_RAM_PATH ]; then
+    RFC_RAM_PATH="/tmp/RFC"
+fi
+
+if [ ! -d $RFC_RAM_PATH ]; then
+    mkdir -p $RFC_RAM_PATH
+    echo "RFC: creating $RFC_RAM_PATH" >> $DCM_RFC_LOG_FILE
+fi
+
 if [ -f /lib/rdk/utils.sh ]; then 
    . /lib/rdk/utils.sh
 fi
@@ -98,6 +109,15 @@ getQueryDcm()
                 else
                     echo_t "$DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
                 fi
+
+                if [ -f "$RFC_POSTPROCESS" ]
+                then
+                    echo_t "Calling RFCpostprocessing" >> $DCM_RFC_LOG_FILE
+                    $RFC_POSTPROCESS &
+                else
+                    echo_t "ERROR: No $RFC_POSTPROCESS script" >> $DCM_RFC_LOG_FILE
+                fi
+
             else
                 echo_t "binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
             fi
