@@ -58,7 +58,7 @@ getQueryDcm()
     retries=0
     while [ "$retries" -lt $RETRY_COUNT ]
     do
-        CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
+        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
         echo_t "CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
         result= eval $CURL_CMD > $HTTP_CODE
         ret=$?
@@ -74,7 +74,7 @@ getQueryDcm()
             eval $SIGN_CMD > /tmp/.signedRFCRequest
             CB_SIGNED_REQUEST=`cat /tmp/.signedRFCRequest`
             rm -f /tmp/.signedRFCRequest
-            SIGN_CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
+            SIGN_CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
             result= eval $SIGN_CURL_CMD > $HTTP_CODE
             ret=$?
             http_code=$(awk -F\" '{print $1}' $HTTP_CODE)

@@ -155,7 +155,7 @@ if [ -f $TELEMETRY_RESEND_FILE ]; then
     while read resend
     do
         echo_t "dca resend : $resend" >> $RTL_LOG_FILE 
-	CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30 --insecure"
+	CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30"
         ret= eval $CURL_CMD > $HTTP_CODE
         echo_t "dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
 	sleep 5
@@ -193,7 +193,7 @@ fi
 
 outputJson=`cat $TELEMETRY_JSON_RESPONSE`
 timestamp=`date +%Y-%b-%d_%H-%M-%S` 
-CURL_CMD="curl -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30 --insecure"
+CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30"
 
 # Save data to resend list so that data will be uploaded in next boot-up cycle if device reboots in maintenance 
 echo "$outputJson" >> $TELEMETRY_RESEND_FILE
