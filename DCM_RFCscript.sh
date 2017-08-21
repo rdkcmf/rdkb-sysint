@@ -42,7 +42,6 @@ fi
 GET="dmcli eRT getv"
 SET="dmcli eRT setv"
 timeout=30
-TLSFLAG="--tlsv1.2"
 RETRY_COUNT=3
 
 getQueryDcm()
@@ -58,7 +57,7 @@ getQueryDcm()
     retries=0
     while [ "$retries" -lt $RETRY_COUNT ]
     do
-        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
+        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
         echo_t "CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
         result= eval $CURL_CMD > $HTTP_CODE
         ret=$?
@@ -74,7 +73,7 @@ getQueryDcm()
             eval $SIGN_CMD > /tmp/.signedRFCRequest
             CB_SIGNED_REQUEST=`cat /tmp/.signedRFCRequest`
             rm -f /tmp/.signedRFCRequest
-            SIGN_CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout "$TLSFLAG" -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
+            SIGN_CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
             result= eval $SIGN_CURL_CMD > $HTTP_CODE
             ret=$?
             http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
@@ -105,18 +104,6 @@ getQueryDcm()
             break    
         else
             echo_t "Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
-        fi
-        if [ "$http_code" = "000" ] ; then
-            if [ "$TLSFLAG" = "--tlsv1.2" ]; then				
-                TLSFLAG="--tlsv1.1"
-		echo_t "Attempting retry using TLSv1.1" >> $DCM_RFC_LOG_FILE
-            elif [ "$TLSFLAG" = "--tlsv1.1" ] ; then
-                TLSFLAG="--tlsv1.0"
-		echo_t "Attempting retry using TLSv1.0" >> $DCM_RFC_LOG_FILE
-            else
-                TLSFLAG="--tlsv1.2"
-		echo_t "Resetting TLSFLAG to TLSv1.2" >> $DCM_RFC_LOG_FILE
-            fi	
         fi
    retries=`expr $retries + 1`
    sleep 10
