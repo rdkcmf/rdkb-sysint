@@ -464,7 +464,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
 	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
 	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-	if [ "$model" == "TG3482" ];then
+	if [ "$model" == "TG3482G" ];then
 		if [ -d "/nvram2" ];then
 			if [ -d "/nvram/logs" ];then
 				file_list=`ls /nvram/logs/`
