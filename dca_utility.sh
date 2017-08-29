@@ -552,7 +552,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     mkdir -p $TMP_SCP_PATH
     $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
-    scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
+    scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile  $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$PcdLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
     rm -f $PEER_COMM_ID
 
     RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
