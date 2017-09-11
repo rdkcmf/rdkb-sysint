@@ -285,6 +285,25 @@ upload_nvram2_logs()
 
 bootup_upload()
 {
+	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		#Check whether $LOG_BACK_UP_REBOOT directory present or not
+		if [ -d "$LOG_BACK_UP_REBOOT" ]; then
+			cd $LOG_BACK_UP_REBOOT
+			filesPresent=`ls $LOG_BACK_UP_REBOOT | grep -v tgz`
+			
+			#To remove not deleted old nvram/logbackupreboot/ files  
+			if [ "$filesPresent" != "" ]
+			then
+				echo "Removing old files from $LOG_BACK_UP_REBOOT path during reboot..."
+				rm -rf $LOG_BACK_UP_REBOOT*.log
+				rm -rf $LOG_BACK_UP_REBOOT*.txt*
+				rm -rf $LOG_BACK_UP_REBOOT*core*
+		    fi 
+		    
+			cd -
+		fi
+	fi
+
 	if [ -e "$UPLOAD_ON_REBOOT" ]
 	then
 	        curDir=`pwd`
