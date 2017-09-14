@@ -283,7 +283,7 @@ upload_nvram2_logs()
 	echo_t "uploading over from nvram2 "
 }
 
-bootup_upload()
+bootup_remove_old_backupfiles()
 {
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		#Check whether $LOG_BACK_UP_REBOOT directory present or not
@@ -298,11 +298,17 @@ bootup_upload()
 				rm -rf $LOG_BACK_UP_REBOOT*.log
 				rm -rf $LOG_BACK_UP_REBOOT*.txt*
 				rm -rf $LOG_BACK_UP_REBOOT*core*
-		    fi 
-		    
+			fi 
+			
 			cd -
 		fi
 	fi
+}
+
+bootup_upload()
+{
+	#Remove old backup log files	
+	bootup_remove_old_backupfiles
 
 	if [ -e "$UPLOAD_ON_REBOOT" ]
 	then
@@ -475,8 +481,17 @@ bootup_upload()
 #---------------------------------
 #        Main App
 #---------------------------------
+# "remove_old_logbackup" if to remove old logbackup from logbackupreboot directory
+triggerType=$1
+echo_t "rdkbLogMonitor: Trigger type is $triggerType"
 
 get_logbackup_cfg
+
+if [ "$triggerType" == "remove_old_logbackup" ]; then	
+	echo "Remove old log backup files"
+	bootup_remove_old_backupfiles
+	exit
+fi
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
 
