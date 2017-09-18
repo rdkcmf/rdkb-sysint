@@ -257,6 +257,12 @@ do
 
         if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
+
+            isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+            if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
+               echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time"
+               sh /etc/firmwareSched.sh &
+            fi
             
             $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
             scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
@@ -268,6 +274,13 @@ do
             ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
             rm -f $PEER_COMM_ID
         else
+            
+			isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+  		    if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
+			   echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time"
+			   sh /etc/firmwareSched.sh &
+			fi
+             
             sh /lib/rdk/dca_utility.sh 1 &
         fi
     fi
