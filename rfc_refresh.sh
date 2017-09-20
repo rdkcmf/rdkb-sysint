@@ -57,6 +57,9 @@ REFRESH=$1
 #APPLICATION START
 ##########################################################################
 
+#Create lock file to prevent multiple instances of this script
+touch /tmp/.rfcLock
+
 if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
    if [ "x$IP_MODE" == "xipv6" ]; then
       rfclog "Box is in IPv6 mode. Refreshing Ipv6 rules"
@@ -103,8 +106,8 @@ if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
       $IPV4_BIN -F SSH_FILTER
 
       #Whitelist ARM & ATOM IP's
-      $IPV4_BIN -A SSH_FILTER -S $ATOM_INTERFACE_IP -j ACCEPT
-      $IPV4_BIN -A SSH_FILTER -S $ARM_INTERFACE_IP -j ACCEPT
+      $IPV4_BIN -A SSH_FILTER -s $ATOM_INTERFACE_IP -j ACCEPT
+      $IPV4_BIN -A SSH_FILTER -s $ARM_INTERFACE_IP -j ACCEPT
 
       #Whitelist RFC SSH IP's
       SSH_WHITELIST_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
@@ -128,10 +131,6 @@ if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
                 ipv4_enable=1
                 continue
              fi
-             echo $line | grep -i ipv6 > /dev/null
-             if [ $? -eq 0 ]; then
-                break
-             fi
              if [ $ipv4_enable -eq 1 ]; then
                 $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
              fi
@@ -143,3 +142,5 @@ if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
    fi
    rfclog "SSH Whitelisting done" 
 fi
+
+rm /tmp/.rfcLock

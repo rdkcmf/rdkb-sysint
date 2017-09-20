@@ -34,14 +34,19 @@ if [ -z $RDK_PATH ]; then
 fi
 echo "RFC POSTPROCESSING IS RUN NOW !!!" >> $LOG_PATH/dcmrfc.log
 
-ls /tmp/RFC/.RFC_* | grep -i sshwhitelist > /dev/null
-sshFileCheck=$?
-if [ $sshFileCheck -eq 0 ] ; then
-    RFC_SSH_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
-    if [ -s $RFC_SSH_FILE ] ; then
-        echo "RFC File for SSH present. Refreshing Firewall" >> $LOG_PATH/dcmrfc.log
-        sh $RDK_PATH/rfc_refresh.sh SSH_REFRESH &
-    else
-        echo "RFC File for SSH is not present or empty" >> $LOG_PATH/dcmrfc.log
-    fi
+#Check for lock file to prevent multiple instances of rfc_refresh.sh
+if [ ! -f /tmp/.rfcLock ] ; then
+   ls /tmp/RFC/.RFC_* | grep -i sshwhitelist > /dev/null
+   sshFileCheck=$?
+   if [ $sshFileCheck -eq 0 ] ; then
+      RFC_SSH_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
+      if [ -s $RFC_SSH_FILE ] ; then
+         echo "RFC File for SSH present. Refreshing Firewall" >> $LOG_PATH/dcmrfc.log
+         sh $RDK_PATH/rfc_refresh.sh SSH_REFRESH &
+      else
+         echo "RFC File for SSH is not present or empty" >> $LOG_PATH/dcmrfc.log
+      fi
+   fi
+else
+   echo "/tmp/.rfcLock file present" >> $LOG_PATH/dcmrfc.log
 fi
