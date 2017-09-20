@@ -209,8 +209,9 @@ loop=1
 counter=0
 while [ $loop -eq 1 ]
 do
-    estbIp=`getCMIPAddress`   # This needs to be changed to wait for erouter IP address
-    if [ "X$estbIp" == "X" ]; then
+
+    estbIp=`getErouterIPAddress`
+    if [ "X$estbIp" == "X" ] || [ $estbIp == "0.0.0.0" ]; then
          echo_t "waiting for IP" >> $DCM_LOG_FILE
          sleep 2
          let counter++

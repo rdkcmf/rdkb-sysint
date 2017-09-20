@@ -81,6 +81,20 @@ getCMIPAddress()
 
 }
 
+getErouterIPAddress()
+{
+    if [ $BOX_TYPE = "XF3" ]; then
+       # in PON you cant get the CM IP address, so use eRouter IP address
+       address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+    else
+       address=`ifconfig -a $WANINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+       if [ ! "$address" ]; then
+          address=`ifconfig -a $WANINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+       fi
+    fi
+    echo "Erouter IP : " $address
+}
+
 processCheck()
 {
    ps -ef | grep $1 | grep -v grep > /dev/null 2>/dev/null 
