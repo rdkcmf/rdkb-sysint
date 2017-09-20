@@ -62,6 +62,7 @@ LOGBACKUP_INTERVAL=30
 loop=1
 
 minute_count=0
+model_num=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
 #tmp disable the flag now 
 #UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 
@@ -500,6 +501,19 @@ bootup_upload()
 
 	cd $curDir
 }	
+#ARRISXB6-5184 : Remove hidden files coming up in /rdklogs/logs and /nvram/logs
+remove_hidden_files()
+{
+    if [ -d "$1" ] ; then
+        cd $1
+        HIDDEN_FILES=`ls -A | grep "^\." | xargs echo -n`
+        if [ "$HIDDEN_FILES" != "" ] ; then
+            echo "Removing following hidden files in `pwd` : $HIDDEN_FILES"
+            rm -f $HIDDEN_FILES
+        fi
+        cd - >/dev/null
+    fi
+}
 
 
 #---------------------------------
@@ -689,6 +703,7 @@ UPLOAD_LOGS=`processDCMResponse`
 
 while [ "$loop" = "1" ]
 do
+
 	    if [ "$DeviceUP" = "0" ]; then
 	        #for rdkb-4260
 	        if [ -f "$SW_UPGRADE_REBOOT" ]; then
@@ -807,6 +822,12 @@ do
 			syncLogs_nvram2
 			if [ "$ATOM_SYNC" == "" ]; then
 			   syncLogs
+			fi
+			#ARRISXB6-5184
+			if [ "$model_num" == "TG3482G" ] ; then
+			    remove_hidden_files "/rdklogs/logs"
+			    remove_hidden_files "/nvram/logs"
+			    remove_hidden_files "/nvram2/logs"
 			fi
 		fi
 	else
