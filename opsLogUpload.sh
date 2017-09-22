@@ -193,17 +193,20 @@ HTTPLogUploadOnRequest()
     #--interface	--> Network interface to be used [eg:erouter1]
     ##########################################################################
     if [ "$codebig_enabled" == "yes" ]; then
+        echo_t "Trying Codebig Communication"
 	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 		CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
 	else
 		CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
 	fi
     else
+        echo_t "Trying Direct Communication"
 	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 		CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
 	else
 		CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
 	fi
+        echo_t "CURL_CMD:$CURL_CMD"
     fi
 
     echo_t "Curl Command built: $CURL_CMD"
@@ -223,7 +226,12 @@ HTTPLogUploadOnRequest()
 		http_code=$(awk '{print $0}' $HTTP_CODE)
 
 		if [ "$http_code" != "" ];then
-			echo_t "HttpCode received is : $http_code"
+                        echo_t "HttpCode received is : $http_code"
+                        if [ "$codebig_enabled" == "yes" ]; then
+                            echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
+                        else
+                            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+                        fi
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
 					rm -f $HTTP_CODE

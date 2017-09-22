@@ -306,6 +306,7 @@ HttpLogUpload()
             # Direct Communication
             # Performing 3 tries for successful curl command execution.
             # $http_code --> Response code retrieved from HTTP_CODE file path.
+            echo_t "Trying Direct Communication"
             retries=0
             while [ "$retries" -lt 3 ]
             do
@@ -320,11 +321,12 @@ HttpLogUpload()
                     fi
                 fi
                 echo_t "Curl Command built: $CURL_CMD"
+                echo_t "CURL_CMD:$CURL_CMD"
                 ret= eval $CURL_CMD > $HTTP_CODE
 
                 if [ -f $HTTP_CODE ]; then
                     http_code=$(awk '{print $0}' $HTTP_CODE)
-
+                    echo_t "Direct Communication - ret:$ret, http_code:$http_code"
                     if [ "$http_code" != "" ];then
                     echo_t "HttpCode received is : $http_code"
                         if [ $http_code -eq 200 ];then
@@ -333,7 +335,7 @@ HttpLogUpload()
                         fi
                     fi
                 fi
-
+               
                 retries=`expr $retries + 1`
                 sleep 30
             done
@@ -366,7 +368,7 @@ HttpLogUpload()
                 rm -rf $UploadFile
                 exit
             fi
-
+            echo_t "Trying Codebig Communication"
             retries=0
             while [ "$retries" -lt 3 ]
             do
@@ -421,6 +423,7 @@ HttpLogUpload()
                     if [ -f $HTTP_CODE ];
                     then
                         http_code=$(awk '{print $0}' $HTTP_CODE)
+                        echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
 
                         if [ "$http_code" != "" ];then
                             echo_t "HttpCode received is : $http_code"
