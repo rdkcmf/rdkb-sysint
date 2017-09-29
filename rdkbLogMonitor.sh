@@ -285,7 +285,7 @@ upload_nvram2_logs()
 
 bootup_remove_old_backupfiles()
 {
-	if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+	if [ "$LOGBACKUP_ENABLE" != "false" ]; then
 		#Check whether $LOG_BACK_UP_REBOOT directory present or not
 		if [ -d "$LOG_BACK_UP_REBOOT" ]; then
 			cd $LOG_BACK_UP_REBOOT
@@ -299,6 +299,18 @@ bootup_remove_old_backupfiles()
 				rm -rf $LOG_BACK_UP_REBOOT*.txt*
 				rm -rf $LOG_BACK_UP_REBOOT*core*
 			fi 
+
+			if [ ! -e "$UPLOAD_ON_REBOOT" ]
+			then
+				tarfilesPresent=`ls $LOG_BACK_UP_REBOOT | grep tgz`				
+				
+				#To remove not deleted old nvram/logbackupreboot/ tar files  
+				if [ "$tarfilesPresent" != "" ]
+				then
+					echo "Removing old tar files from $LOG_BACK_UP_REBOOT path during reboot..."
+					rm -rf $LOG_BACK_UP_REBOOT*.tgz
+				fi
+			fi
 			
 			cd -
 		fi
@@ -314,7 +326,7 @@ bootup_upload()
 	then
 	        curDir=`pwd`
 
-		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		if [ "$LOGBACKUP_ENABLE" != "false" ]; then
 		    if [ ! -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]
 		    then
 		        mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
@@ -348,7 +360,7 @@ bootup_upload()
             fi
 
 
-            if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+            if [ "$LOGBACKUP_ENABLE" != "false" ]; then
                #Sync log files immediately after reboot
                echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
                syncLogs_nvram2
@@ -371,7 +383,7 @@ bootup_upload()
 	   macOnly=`getMacAddressOnly`
 	   fileToUpload=`ls | grep tgz`
 	   # This check is to handle migration scenario from /nvram to /nvram2
-	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" != "false" ]
 	   then
 	       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
 	       fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
@@ -400,7 +412,7 @@ bootup_upload()
 	   done
 	   sleep 120
 
-	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" != "false" ]
 	   then
 	       echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
 	       fileToUpload=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
@@ -426,7 +438,7 @@ bootup_upload()
 	echo_t "Check if any tar file available in /logbackup/ "
 	curDir=`pwd`
 
-        if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+        if [ "$LOGBACKUP_ENABLE" != "false" ]; then
             cd $LOG_SYNC_BACK_UP_PATH
         else
             cd $LOG_BACK_UP_PATH
@@ -434,7 +446,7 @@ bootup_upload()
 
 	UploadFile=`ls | grep "tgz"`
 
-	if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" != "false" ]
 	then
 		echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
 		UploadFile=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
@@ -493,7 +505,7 @@ if [ "$triggerType" == "remove_old_logbackup" ]; then
 	exit
 fi
 
-if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
+if [ "$LOGBACKUP_ENABLE" != "false" ]; then		
 
 	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
 	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
@@ -572,7 +584,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
 
-                if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+                if [ "$LOGBACKUP_ENABLE" != "false" ]; then
                    #Sync log files immediately after reboot
                    echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
                    syncLogs_nvram2
@@ -592,7 +604,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
                    fi
                 fi
 	elif [ "$file_list" == "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
-		if [ "$LOGBACKUP_ENABLE" == "true" ]; then
+		if [ "$LOGBACKUP_ENABLE" != "false" ]; then
 			#Sync log files immediately after reboot
 			echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
 			syncLogs_nvram2
@@ -659,7 +671,7 @@ do
 			fi
 			cd -
 
-			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
+			if [ "$LOGBACKUP_ENABLE" != "false" ]; then	
 				createSysDescr
 				syncLogs_nvram2	
 				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
@@ -679,7 +691,7 @@ do
 
 	# Syncing logs after perticular interval
 	get_logbackup_cfg
-	if [ "$LOGBACKUP_ENABLE" == "true" ]; then # nvram2 supported and backup is true
+	if [ "$LOGBACKUP_ENABLE" != "false" ]; then # nvram2 supported and backup is true
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
 		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
