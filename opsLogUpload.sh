@@ -38,9 +38,10 @@ if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
 fi
 
 if [ -f /etc/device.properties ]; then
-	codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
+    codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
 fi
-if [ -f /tmp/RFC/.codebigenabled ]; then
+codebig=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport | grep value | cut -d ":" -f 3 | tr -d ' ' `
+if [ "$codebig" == "true" ]; then
     codebig_enabled=yes
     echo "Codebig support is enabled through RFC"
 fi

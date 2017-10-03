@@ -100,6 +100,8 @@ getQueryDcm()
                 if [ -f $DCM_PARSER_RESPONSE ]; then 
                     echo_t "$DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
                     file=$DCM_PARSER_RESPONSE
+                    $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport bool false
+                    $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Container bool false
                     while read line; do
                         key=`echo $line|cut -d ":" -f1`
                         value=`echo $line|cut -d ":" -f2`
