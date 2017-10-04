@@ -453,6 +453,17 @@ HttpLogUpload()
             #This means we have received the key to which we need to curl again in order to upload the file.
             #So get the key from FILENAME
             Key=$(awk -F\" '{print $0}' $OutputFile)
+
+            # if url uses http, then log and force https (RDKB-13142)
+            echo "$Key" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
+            if [ $? -eq 0 ]; then
+                echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
+                Key=$(echo "$Key" | sed -e 's#http://#https://#g')
+                forced_https="true"
+            else
+                forced_https="false"
+            fi
+
             #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
             RemSignature=`echo $Key | sed "s/Signature=.*&//"`
 
@@ -481,7 +492,17 @@ HttpLogUpload()
                 #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
                 LogCurlCmd=`echo $CURL_CMD | sed "s/Signature=.*&//"`
                 echo_t "Curl Command built: $LogCurlCmd"
-                ret= eval $CURL_CMD > $HTTP_CODE
+                eval $CURL_CMD > $HTTP_CODE
+                ret=$?
+
+                #Check for forced https security failure
+                if [ "$forced_https" = "true" ]; then
+                    case $ret in
+                        35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+                            echo_t "LOG UPLOAD TO S3 forced https failed"
+                    esac
+                fi
+
                 if [ -f $HTTP_CODE ]; then
                     http_code=$(awk '{print $0}' $HTTP_CODE)
 
@@ -511,7 +532,17 @@ HttpLogUpload()
 
         #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key.
         elif [ $http_code -eq 302 ];then
-            NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
+            NewUrl=$(grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile)
+
+            # if url uses http, then log and force https (RDKB-13142)
+            echo "$NewUrl" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
+            if [ $? -eq 0 ]; then
+                echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
+                NewUrl=$(echo "$NewUrl" | sed -e 's#http://#https://#g')
+                forced_https="true"
+            else
+                forced_https="false"
+            fi
 
             if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
                 CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
@@ -532,7 +563,17 @@ HttpLogUpload()
                     fi
                 fi
                 echo_t "Curl Command built: $CURL_CMD"
-                ret= eval $CURL_CMD > $HTTP_CODE
+                eval $CURL_CMD > $HTTP_CODE
+                ret=$?
+
+                #Check for forced https security failure
+                if [ "$forced_https" = "true" ]; then
+                    case $ret in
+                        35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+                            echo_t "LOG UPLOAD TO S3 forced https failed"
+                    esac
+                fi
+
                 if [ -f $HTTP_CODE ]; then
                     http_code=$(awk '{print $0}' $HTTP_CODE)
 
