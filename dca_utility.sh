@@ -181,7 +181,7 @@ getPartnerId()
 # Function to get erouter0 ipv4 address
 getErouterIpv4()
 {
-    erouter_ipv4=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep value | awk '{print $5}'`
+    erouter_ipv4=`ifconfig erouter0 | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
     if [ "$erouter_ipv4" != "" ];then
         echo $erouter_ipv4
     else
@@ -192,7 +192,7 @@ getErouterIpv4()
 # Function to get erouter0 ipv6 address
 getErouterIpv6()
 {
-    erouter_ipv6=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IPv6 | grep value | awk '{print $5}'`
+    erouter_ipv6=`ifconfig erouter0 | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
     if [ "$erouter_ipv6" != "" ];then
         echo $erouter_ipv6
     else
