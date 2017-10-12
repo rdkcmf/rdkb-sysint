@@ -453,9 +453,11 @@ HttpLogUpload()
             #This means we have received the key to which we need to curl again in order to upload the file.
             #So get the key from FILENAME
             Key=$(awk -F\" '{print $0}' $OutputFile)
+            #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
+            RemSignature=`echo $Key | sed "s/Signature=.*&//"`
 
             echo_t "Generated KeyIs : "
-            echo $Key
+            echo $RemSignature
 
             if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
                 CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
@@ -476,7 +478,9 @@ HttpLogUpload()
                     fi
                 fi
 
-                echo_t "Curl Command built: $CURL_CMD"
+                #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
+                LogCurlCmd=`echo $CURL_CMD | sed "s/Signature=.*&//"`
+                echo_t "Curl Command built: $LogCurlCmd"
                 ret= eval $CURL_CMD > $HTTP_CODE
                 if [ -f $HTTP_CODE ]; then
                     http_code=$(awk '{print $0}' $HTTP_CODE)
