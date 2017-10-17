@@ -40,6 +40,7 @@ RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
 PATTERN_CONF_FILE="$TELEMETRY_PATH/dca.conf"
 MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
 TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
+EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 
 # Persist this files for telemetry operation
 # Regenerate this only when there is a change identified from XCONF update
@@ -306,12 +307,31 @@ updateCount()
     fi
 
     header=`grep -F "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-    case "$header" in
-        *split*)  
-	 final_count=`nice -n 19 $IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
-	*) 
-	 final_count=`nice -n 19 $TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
-    esac
+    isSkip="true"
+    if [ $skipInterval -eq 0 ] || [ $dcaNexecCounter -eq 0 ]; then
+        isSkip="false"
+    else
+        skipInterval=`expr $skipInterval + 1`
+        execModulusVal=0
+        if [ $dcaNexecCounter -lt $skipInterval ]; then
+            isSkip="true"
+        else
+            execModulusVal=$(($dcaNexecCounter % $skipInterval))
+            if [ $execModulusVal -eq 0 ]; then
+                isSkip="false"
+            fi
+        fi
+    fi
+    final_count=""
+
+    if [ "$isSkip" == "false" ]; then
+        case "$header" in
+            *split*)  
+	     final_count=`nice -n 19 $IPVIDEO_BINARY $RTL_DELTA_LOG_FILE "$pattern"` ;;
+	    *) 
+	     final_count=`nice -n 19 $TEMPFILE_PARSE_BINARY $RTL_DELTA_LOG_FILE "$pattern" | awk -F '=' '{print $NF}'` ;;
+        esac
+    fi
     # Update count and patterns in a single file 
     if [ ! -z "$final_count" ] && [ "$final_count" != "0" ]; then
        echo "$pattern<#=#>$filename<#=#>$final_count" >> $OUTPUT_FILE
@@ -471,19 +491,19 @@ generateTelemetryConfig()
            if [ $polling -ne 0 ];then
               header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
               content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-              type=`echo "$line" | awk -F '"type" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-              pollingFrequency=`echo "$line" | awk -F '"pollingFrequency" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`        
-              if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
-                  echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
-              fi
+              logFileName=`echo "$line" | awk -F '"type" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
+              skipInterval=`echo "$line" | sed -e "s/.*pollingFrequency\":\"//g" | sed 's/"}//'`
            else
               header=`echo "$line" | awk -F '"header" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
               content=`echo "$line" | awk -F '"content" :' '{print $NF}' | awk -F '",' '{print $1}' | sed -e 's/^[ ]//' | sed 's/^"//'`
-              type=`echo "$line" | awk -F '"type" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`
-              if [ -n "$header" ] && [ -n "$content" ] && [ -n "$type" ]; then
-                  echo "$header<#=#>$content<#=#>$type" >> $MAP_PATTERN_CONF_FILE
-              fi
-           fi 
+              logFileName=`echo "$line" | awk -F '"type" :' '{print $NF}' | sed -e 's/^[ ]//' | sed 's/^"//' | sed 's/"}//'`
+              #default value to 0
+              skipInterval=0
+           fi
+ 
+           if [ -n "$header" ] && [ -n "$content" ] && [ -n "$logFileName" ] && [ -n "$skipInterval" ]; then
+              echo "$header<#=#>$content<#=#>$logFileName<#=#>$skipInterval" >> $MAP_PATTERN_CONF_FILE
+           fi
         fi
     done < $TEMP_PATTERN_CONF_FILE
 
@@ -491,8 +511,9 @@ generateTelemetryConfig()
     while read line
     do
         content=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-        type=`echo "$line" | awk -F '<#=#>' '{print $3}'`
-        echo "$content<#=#>$type" >> $PATTERN_CONF_FILE
+        logFileName=`echo "$line" | awk -F '<#=#>' '{print $3}'`
+        skipInterval=`echo "$line" | awk -F '<#=#>' '{print $4}'`
+        echo "$content<#=#>$logFileName<#=#>$skipInterval" >> $PATTERN_CONF_FILE
     done < $MAP_PATTERN_CONF_FILE
 
     # Sort the config file based on file names to minimise the duplicate delta file generation
@@ -588,6 +609,13 @@ rm -f $OUTPUT_FILE
 rm -f $TELEMETRY_JSON_RESPONSE
 
 
+if [ -f $EXEC_COUNTER_FILE ]; then
+    dcaNexecCounter=`cat $EXEC_COUNTER_FILE`
+    dcaNexecCounter=`expr $dcaNexecCounter + 1`
+else
+    dcaNexecCounter=0;
+fi
+
 ## Generate output file with pattern to match count values
 if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
     echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
@@ -597,6 +625,7 @@ else
     do
         pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
         filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
+        skipInterval=`echo "$line" | awk -F '<#=#>' '{print $3}'`
         
         if [ ! -z "$pattern" ] && [ ! -z "$filename" ]; then
             ## updateCount "$pattern" "$filename"
@@ -680,6 +709,8 @@ if [ -f $OUTPUT_FILE ]; then
        fi
        done < $SORTED_PATTERN_CONF_FILE
      fi
+
+     echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
 
        ## This interface is not accessible from ATOM, replace value from ARM
        estbMac="ErouterMacAddress"
