@@ -458,7 +458,7 @@ HttpLogUpload()
             echo "$Key" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
             if [ $? -eq 0 ]; then
                 echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
-                Key=$(echo "$Key" | sed -e 's#http://#https://#g')
+                Key=$(echo "$Key" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
                 forced_https="true"
             else
                 forced_https="false"
@@ -538,7 +538,7 @@ HttpLogUpload()
             echo "$NewUrl" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
             if [ $? -eq 0 ]; then
                 echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
-                NewUrl=$(echo "$NewUrl" | sed -e 's#http://#https://#g')
+                NewUrl=$(echo "$NewUrl" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
                 forced_https="true"
             else
                 forced_https="false"
