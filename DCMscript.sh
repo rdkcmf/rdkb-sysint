@@ -52,6 +52,8 @@ TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
+TLS_LOG_FILE_NAME="TlsVerify.txt.0"
+TLS_LOG_FILE="$LOG_PATH/$TLS_LOG_FILE_NAME"
 
 PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
 PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
@@ -165,7 +167,14 @@ sendHttpRequestToServer()
     sleep 2
     http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
     echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
-	
+
+    # log security failure
+    case $ret in
+      35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+         echo_t "DCM Connection Failure - ret:$ret http_code:$http_code" >> $TLS_LOG_FILE
+         ;;
+    esac
+
     # Retry for STBs hosted in open internet
     if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
         echo_t "Retry attempt to get logupload setting for STB in wild " >> $DCM_LOG_FILE
@@ -176,8 +185,15 @@ sendHttpRequestToServer()
         rm -f /tmp/.signedRequest
         CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
         result= eval $CURL_CMD > $HTTP_CODE
+        curlret=$?
         http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
         ret=$?
+        # log security failure
+        case $curlret in
+          35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+             echo_t "DCM Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $TLS_LOG_FILE
+             ;;
+        esac
     fi
 
     if [ $ret = 0 ] && [ "$http_code" = "404" ] ; then
