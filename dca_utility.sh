@@ -182,7 +182,13 @@ getPartnerId()
 # Function to get erouter0 ipv4 address
 getErouterIpv4()
 {
-    erouter_ipv4=`ifconfig erouter0 | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+    if [ -e  /usr/sbin/deviceinfo.sh ]; then
+        #On ATOM get IP from deviceInfo
+        erouter_ipv4=`/usr/sbin/deviceinfo.sh  -eip`
+    else
+        erouter_ipv4=`ifconfig erouter0 | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+    fi
+
     if [ "$erouter_ipv4" != "" ];then
         echo $erouter_ipv4
     else
@@ -193,7 +199,12 @@ getErouterIpv4()
 # Function to get erouter0 ipv6 address
 getErouterIpv6()
 {
-    erouter_ipv6=`ifconfig erouter0 | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+    if [ -e  /usr/sbin/deviceinfo.sh ]; then
+        erouter_ipv6=`/usr/sbin/deviceinfo.sh  -eipv6`
+    else
+        erouter_ipv6=`ifconfig erouter0 | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+    fi
+
     if [ "$erouter_ipv6" != "" ];then
         echo $erouter_ipv6
     else
