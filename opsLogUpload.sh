@@ -252,7 +252,17 @@ HTTPLogUploadOnRequest()
         #This means we have received the key to which we need to curl again in order to upload the file.
         #So get the key from FILENAME
         Key=$(awk '{print $0}' $OutputFile)
-	
+
+        # if url uses http, then log and force https (RDKB-13142)
+        echo "$Key" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
+        if [ $? -eq 0 ]; then
+            echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
+            Key=$(echo "$Key" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
+            forced_https="true"
+        else
+            forced_https="false"
+        fi
+
 		echo_t "Generated KeyIs : "
 		echo $Key
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
@@ -266,7 +276,16 @@ HTTPLogUploadOnRequest()
         while [ "$retries" -lt 3 ]
         do 
 	    echo_t "Trial $retries..."                  
-            ret= eval $CURL_CMD > $HTTP_CODE
+            eval $CURL_CMD > $HTTP_CODE
+            ret=$?
+            #Check for forced https security failure
+            if [ "$forced_https" = "true" ]; then
+                case $ret in
+                    35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+                        echo_t "LOG UPLOAD TO S3 forced https failed"
+                esac
+            fi
+
             if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
@@ -297,6 +316,17 @@ HTTPLogUploadOnRequest()
     elif [ $http_code -eq 302 ];then
 		echo_t "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
+
+        # if url uses http, then log and force https (RDKB-13142)
+        echo "$NewUrl" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
+        if [ $? -eq 0 ]; then
+            echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
+            NewUrl=$(echo "$NewUrl" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
+            forced_https="true"
+        else
+            forced_https="false"
+        fi
+
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
            CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
         else
@@ -308,7 +338,16 @@ HTTPLogUploadOnRequest()
         while [ "$retries" -lt 3 ]
         do       
 	    echo_t "Trial $retries..."            
-            ret= eval $CURL_CMD > $HTTP_CODE
+            eval $CURL_CMD > $HTTP_CODE
+            ret=$?
+            #Check for forced https security failure
+            if [ "$forced_https" = "true" ]; then
+                case $ret in
+                    35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+                        echo_t "LOG UPLOAD TO S3 forced https failed"
+                esac
+            fi
+
             if [ -f $HTTP_CODE ];
 	    then
 		http_code=$(awk '{print $0}' $HTTP_CODE)
