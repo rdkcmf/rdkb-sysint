@@ -36,6 +36,10 @@ if [ $# -lt 1 ]; then
    exit 1
 fi
 
+ip_to_hex() {
+  printf '%02x' ${1//./ }
+}
+
 oper=$1
 shift
 
@@ -45,8 +49,23 @@ case $oper in
              exit 1
              ;;
            start)
+             if [ $BOX_TYPE = "XF3" ]; then
+                # PACE XF3 and PACE CFG3
+                CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+             elif [ "$BOX_TYPE" = "TCCBR" ] || [ "$MODEL_NUM" = "CGM4140COM" ]; then
+                # TCH XB6 and TCH CBR
+                # getting the IPV4 address for CM
+                CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+                IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
+                Check=$(ip_to_hex $IpCheckVal)
+                # getting the IPV6 address for CM
+                CM_IP=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+                CM_IP="$CM_IP%privbr"
+             else
+                # OTHER PLATFORMS
+                CM_IP=`getCMIPAddress`
+             fi
              # Replace CM_IP with value
-             CM_IP=`getCMIPAddress`
              args=`echo $* | sed "s/CM_IP/$CM_IP/g"`
              /usr/bin/configparamgen jx /etc/saf/nvgeajacl.ipe /tmp/nvgeajacl.ipe
              /usr/bin/ssh -i /tmp/nvgeajacl.ipe $args
