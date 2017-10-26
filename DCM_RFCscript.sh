@@ -55,10 +55,32 @@ SET="dmcli eRT setv"
 timeout=30
 RETRY_COUNT=3
 
+#RDKB-14463 Add Partner ID to all Xconf Query
+# Function to get partner_id
+# Below implementation is subjected to change when XB3 has a unified build for all syndication partners.
+getPartnerId()
+{
+    if [ -f "/etc/device.properties" ]
+    then
+        partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
+        if [ "$partner_id" == "" ];then
+            #Assigning default partner_id as Comcast.
+            #If any device want to report differently, then PARTNER_ID flag has to be updated in /etc/device.properties accordingly
+            echo "comcast"
+        else
+            echo "$partner_id"
+        fi
+    else
+       echo "null"
+    fi
+}
+
+
 getQueryDcm()
 {
     echo_t "server url is  $DCM_RFC_SERVER_URL" >> $DCM_RFC_LOG_FILE
-      JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
+      partnerId=$(getPartnerId)
+      JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&partnerId='${partnerId}'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
 
     last_char=`echo $DCM_RFC_SERVER_URL | awk '$0=$NF' FS=`
     if [ "$last_char" != "?" ]; then
