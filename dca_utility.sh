@@ -721,8 +721,6 @@ if [ -f $OUTPUT_FILE ]; then
        done < $SORTED_PATTERN_CONF_FILE
      fi
 
-     echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
-
        ## This interface is not accessible from ATOM, replace value from ARM
        estbMac="ErouterMacAddress"
        firmwareVersion=$(getFWVersion)
@@ -777,5 +775,6 @@ if [ $triggerType -eq 2 ]; then
    fi
 fi
 
+echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
 # PID file cleanup
 pidCleanup
