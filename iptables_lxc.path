@@ -3,7 +3,7 @@ Description=Container iptables ip update path
 
 [Path]
 PathModified=/tmp/ip_file.sh
-Unit=iptables_arm.service
+Unit=iptables_lxc.service
 
 [Install]
 WantedBy=multi-user.target
