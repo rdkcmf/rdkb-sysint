@@ -92,7 +92,7 @@ getErouterIPAddress()
           address=`ifconfig -a $WANINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
        fi
     fi
-    echo "Erouter IP : " $address
+    echo $address
 }
 
 processCheck()
