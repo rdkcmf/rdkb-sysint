@@ -22,6 +22,7 @@
 . /etc/include.properties
 . /etc/device.properties
 source /etc/log_timestamp.sh
+source /lib/rdk/getpartnerid.sh
 DCM_RFC_LOG_FILE="$LOG_PATH/dcmrfc.log"
 DCMRFCRESPONSE="/tmp/rfcresponse.json"
 DCM_PARSER_RESPONSE="/tmp/rfc_configdata.txt"
@@ -54,27 +55,6 @@ GET="dmcli eRT getv"
 SET="dmcli eRT setv"
 timeout=30
 RETRY_COUNT=3
-
-#RDKB-14463 Add Partner ID to all Xconf Query
-# Function to get partner_id
-# Below implementation is subjected to change when XB3 has a unified build for all syndication partners.
-getPartnerId()
-{
-    if [ -f "/etc/device.properties" ]
-    then
-        partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
-        if [ "$partner_id" == "" ];then
-            #Assigning default partner_id as Comcast.
-            #If any device want to report differently, then PARTNER_ID flag has to be updated in /etc/device.properties accordingly
-            echo "comcast"
-        else
-            echo "$partner_id"
-        fi
-    else
-       echo "null"
-    fi
-}
-
 
 getQueryDcm()
 {
