@@ -524,7 +524,6 @@ else
     echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
     defaultOutputJSON="{\"searchResult\":[{\"<remaining_keys>\":\"<remaining_values>\"}]}"
     dcaOutputJson=`nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE 2>> $RTL_LOG_FILE`
-    echo $dcaOutputJson >> $RTL_LOG_FILE
     if [ -z "$dcaOutputJson" ];
     then
       dcaOutputJson=$defaultOutputJSON
