@@ -376,6 +376,18 @@ clearTelemetryConfig()
         rm -f $SORTED_PATTERN_CONF_FILE
     fi
 
+    # Clear markers with XCONF update as logs will be flushed in case of maintenance window case as well. 
+    # During boot-up no need of maintaining old markers.
+    if [ -d $TELEMETRY_PATH ]; then
+        rm -rf $TELEMETRY_PATH
+        mkdir -p $TELEMETRY_PATH
+    fi
+
+    if [ -d $TELEMETRY_PATH_TEMP ]; then
+        rm -rf $TELEMETRY_PATH_TEMP
+        mkdir -p $TELEMETRY_PATH_TEMP
+    fi
+
 }
 
 ## Pass The I/P O/P Files As Arguments
@@ -610,6 +622,8 @@ if [ $triggerType -eq 2 ]; then
    if [ -d $TELEMETRY_PATH_TEMP ]; then
        rm -rf $TELEMETRY_PATH_TEMP
    fi
+   rm -rf $TELEMETRY_PATH
+
 fi
 
 if [ -f $EXEC_COUNTER_FILE ]; then
