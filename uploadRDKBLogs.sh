@@ -44,7 +44,7 @@ export PATH=$PATH:/fss/gw/
 fi
 
 # assign the input arguments
-TFTP_SERVER=$1
+
 UploadProtocol=$2
 UploadHttpLink=$3
 UploadOnReboot=$4
@@ -75,15 +75,6 @@ getFWVersion()
 {
 	verStr=`cat /version.txt | grep ^imagename: | cut -d ":" -f 2`
 	echo $verStr
-}
-
-getTFTPServer()
-{
-        if [ "$1" != "" ]
-        then
-		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
-		echo $logserver
-	fi
 }
 
 getBuildType()
@@ -120,11 +111,6 @@ getBuildType()
    fi
    
 }
-if [ "$TFTP_SERVER" == "" ]
-then
-	BUILD_TYPE=`getBuildType`
-	TFTP_SERVER=`getTFTPServer $BUILD_TYPE`
-fi
 
 if [ "$UploadHttpLink" == "" ]
 then
@@ -177,57 +163,6 @@ retryUpload()
 	   fi
 	done
 		
-}
-TFTPLogUpload()
-{
-	if [ "$UploadOnReboot" == "true" ]; then
-		if [ "$nvram2Backup" == "true" ]; then
-			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
-		else
-			cd $LOG_BACK_UP_REBOOT
-		fi
-	else
-		if [ "$nvram2Backup" == "true" ]; then
-			cd $LOG_SYNC_BACK_UP_PATH
-		else
-			cd $LOG_BACK_UP_PATH
-		fi
-	fi
-
-	if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
-		FILE_NAME=`ls $UploadPath | grep "tgz"`
-		if [ "$FILE_NAME" != "" ]; then
-			cd $UploadPath
-		fi
-	fi
-
-	FILE_NAME=`ls | grep "tgz"`
-
-        # This check is to handle migration scenario from /nvram to /nvram2
-        if [ "$FILE_NAME" = "" ] && [ "$nvram2Backup" = "true" ]
-        then
-           echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
-           FILE_NAME=`ls $LOG_BACK_UP_REBOOT | grep tgz`
-           if [ "$FILE_NAME" != "" ]
-           then
-               cd $LOG_BACK_UP_REBOOT
-           fi
-        fi
-	echo_t "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER..."
-	#tftp -l $FILE_NAME -p $TFTP_SERVER  
-# this is still insecure!
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-	curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
-else
-	$CURLPATH/curl -T $FILE_NAME  --interface $WAN_INTERFACE tftp://$TFTP_SERVER
-fi
-
-	sleep 3
-        
-        if [ "$UploadPath" != "" ] && [ -d $UploadPath ]; then
-		rm -rf $UploadPath
-	fi
-   
 }
 
 # Function which will upload logs to HTTP S3 server
@@ -661,8 +596,6 @@ HttpLogUpload()
         else
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
-            echo_t "Do TFTP log Upload"
-            TFTPLogUpload
             rm -rf $UploadFile
         fi
 
@@ -708,10 +641,6 @@ then
 	   touch $WAITINGFORUPLOAD
 	   retryUpload &
    fi
-elif [ "$UploadProtocol" = "TFTP" ]
-then
-   echo_t "Upload TFTP_LOGS"
-   TFTPLogUpload
 fi
 
 # Remove the log in progress flag

@@ -59,15 +59,6 @@ UPLOAD_LOG_STATUS="/tmp/upload_log_status"
 
 ARGS=$1
 
-getTFTPServer()
-{
-        if [ "$1" != "" ]
-        then
-		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
-		echo $logserver
-	fi
-}
-
 getBuildType()
 {
    if [ "$codebig_enabled" == "yes" ]; then
@@ -101,35 +92,6 @@ getBuildType()
    
 }
 
-
-TFTPLogUploadOnRequest()
-{
-
-	# Get build type and the server depending on build type.
-	BUILD_TYPE=`getBuildType`
-	TFTP_SERVER=`getTFTPServer $BUILD_TYPE`
-
-	# We will default to logs.xcal.tv
-	if [ $TFTP_SERVER = "" ]
-	then
-		TFTP_SERVER="logs.xcal.tv"
-	fi
-
-	cd $LOG_UPLOAD_ON_REQUEST
-	
-	# Get the file and upload it
-	FILE_NAME=`ls | grep "tgz"`
-	echo_t "Log file $FILE_NAME is getting uploaded to $TFTP_SERVER for build type "$BUILD_TYPE"..."
-    # this is still insecure!
-    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-       curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT 
-    else
-	   $CURLPATH/curl -T $FILE_NAME --interface $WAN_INTERFACE tftp://$TFTP_SERVER --connect-timeout 10 -m 10 2> $UPLOADRESULT
-    fi
-
-	sleep 3
-   
-}
 
 HTTPLogUploadOnRequest()
 {
@@ -411,8 +373,6 @@ HTTPLogUploadOnRequest()
     # Any other response code, log upload is unsuccessful.
     else 
        	echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
-	echo_t "Do TFTP log Upload"
-	TFTPLogUploadOnRequest
 	#Keep tar ball and remove only the log folder
 	rm -rf $LOG_UPLOAD_ON_REQUEST$timeRequested
 		
