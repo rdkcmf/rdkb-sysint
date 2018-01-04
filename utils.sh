@@ -149,7 +149,12 @@ Uptime()
 ## Get Model No of the box
 getModel()
 {
-  grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2 | cut -d "_" -f 1
+     modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | awk '{print $5}'`
+     if [ "$modelName" = "" ]
+     then
+            modelName=`cat /etc/device.properties | grep MODEL_NUM | cut -f2 -d=`
+     fi
+     echo "$modelName"
 }
 
 getFWVersion()
