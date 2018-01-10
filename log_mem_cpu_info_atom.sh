@@ -147,6 +147,22 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
 		echo $count > $COUNTINFO
 	fi
 
+	# swap usage information
+	# vmInfoHeader: swpd,free,buff,cache,si,so
+	# vmInfoValues: <int>,<int>,<int>,<int>,<int>,<int>
+	echo "VM STATS SINCE BOOT ATOM"
+	swaped=`free | awk 'FNR == 4 {print $3}'`
+	cache=`cat /proc/meminfo | awk 'FNR == 4 {print $2}'`
+	buff=`cat /proc/meminfo | awk 'FNR == 3 {print $2}'`
+	swaped_in=`cat /proc/vmstat | grep pswpin | cut -d ' ' -f2`
+	swaped_out=`cat /proc/vmstat | grep pswpout | cut -d ' ' -f2`
+	# conversion to kb assumes 4kb page, which is quite standard
+	swaped_in_kb=$(($swaped_in * 4))
+	swaped_out_kb=$(($swaped_out * 4))
+	echo vmInfoHeader: swpd,free,buff,cache,si,so
+	echo vmInfoValues: $swaped,$freeMemSys,$buff,$cache,$swaped_in,$swaped_out
+	# end of swap usage information block
+
         nvram_fsck="/rdklogger/nvram_rw_restore.sh"
 	nvram_ro_fs=`mount | grep "nvram " | grep dev | grep "[ (]ro[ ,]"`
 	if [ "$nvram_ro_fs" != "" ]; then
@@ -155,6 +171,7 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
                     source $nvram_fsck
                 fi
 	fi
+
 
         echo "after running log_mem_cpu_info_atom..sh printing top output" 
 	top -n1 >> /rdklogs/logs/AtomConsolelog.txt.0
