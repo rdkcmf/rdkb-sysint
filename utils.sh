@@ -68,7 +68,12 @@ getIPAddress()
 
 getCMIPAddress()
 {
-    if [ $BOX_TYPE = "XF3" ]; then
+    if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ]; then
+       address=`dmcli eRT getv Device.X_CISCO_COM_CableModem.IPv6Address | grep string | awk '{print $5}'`
+       if [ ! "$address" ]; then
+          address=`dmcli eRT getv Device.X_CISCO_COM_CableModem.IPAddress | grep string | awk '{print $5}'`
+       fi
+    elif [ $BOX_TYPE = "XF3" ]; then
        # in PON you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "` 
     else                           
@@ -83,7 +88,12 @@ getCMIPAddress()
 
 getErouterIPAddress()
 {
-    if [ $BOX_TYPE = "XF3" ]; then
+    if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ]; then
+        address=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IPv6 | grep string | awk '{print $5}'`
+        if [ ! "$address" ]; then
+            address=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep string | awk '{print $5}'`
+        fi
+    elif [ $BOX_TYPE = "XF3" ]; then
        # in PON you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
     else
