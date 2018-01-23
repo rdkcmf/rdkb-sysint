@@ -59,6 +59,8 @@ PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
 PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
 CONFIGPARAMGEN="/usr/bin/configparamgen"
 
+IDLE_TIMEOUT=30
+
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
     if [ -f /etc/logFiles.properties ]; then
@@ -593,10 +595,10 @@ else
            # Trigger inotify event on ARM to upload message to splunk
            $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
            if [ $triggerType -eq 2 ]; then
-               ssh -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
                echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
-               ssh -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
            fi
            rm -f $PEER_COMM_ID
        else

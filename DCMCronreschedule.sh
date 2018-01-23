@@ -52,6 +52,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
 PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
 CONFIGPARAMGEN="/usr/bin/configparamgen"
+IDLE_TIMEOUT=30
 
 echo_t "Starting execution of DCMCronreshedule.sh" >> $DCM_LOG_FILE
 
@@ -60,7 +61,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
     
     ## Trigger an inotify event on ATOM 
     $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
-    ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'update_cronschedule' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'update_cronschedule' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
     rm -f $PEER_COMM_ID
 else
     sh /lib/rdk/dca_utility.sh 3 &
