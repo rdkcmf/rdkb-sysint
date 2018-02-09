@@ -32,24 +32,20 @@ fi
 
 t="RDKB_DataConsumption"
 tm=`date "+%s"`
-d=`date "+%s |%Y-%m-%d %H:%M:%S "`
+d=`date "+%Y-%m-%d %H:%M:%S "`
 x=`ifconfig brlan0 | grep "RX bytes" | tr '(' '|' | tr ':' '|' | cut -d'|' -f2,4`
-rx=`echo $x | cut -d'|' -f1`;
+rx=`echo $x | cut -d'|' -f1 | cut -d ' ' -f1`;
 tx=`echo $x | cut -d'|' -f2`;
 tm_0=`cat /tmp/tm_0`
-ct_0=`cat /tmp/ct_0`
 rx_0=`cat /tmp/rx_0`
 tx_0=`cat /tmp/tx_0` 
 [[ -z "$tm_0" ]] &&	tm_0="0"
-[[ -z "$ct_0" ]] &&	ct_0="0"
 [[ -z "$rx_0" ]] &&	rx_0="0"
 [[ -z "$tx_0" ]] &&	tx_0="0"
 tm_d=$(($tm-$tm_0))
 
 if [ "$tm_d" -gt "300" ]; then
-	ct=$(($ct_0+1))
 	echo $tm > /tmp/tm_0;
-	echo $ct > /tmp/ct_0;
 	echo $rx > /tmp/rx_0;
 	echo $tx > /tmp/tx_0;
 
@@ -57,7 +53,9 @@ if [ "$tm_d" -gt "300" ]; then
 	rx_d=`$BIN_PATH/Sub64 $rx $rx_0`
 	#tx_d=$(($tx-$tx_0))
 	tx_d=`$BIN_PATH/Sub64 $tx $tx_0`
-	echo "$t |$ct_0 |$d|$x|$rx_d |$tx_d " >> $LOG_PATH/RXTX100Log.txt
+
+        echo "$d $t:$rx|$tx|$rx_d|$tx_d " >> $LOG_PATH/RXTX100Log.txt
+
 
 	t="RDKB_WiFiClientDrop"
 	count=`dmcli eRT getv Device.Hosts.HostNumberOfEntries| grep type | cut -d':' -f3 | tr -d " "`
