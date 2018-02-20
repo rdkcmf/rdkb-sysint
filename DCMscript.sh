@@ -35,6 +35,10 @@ if [ -f /lib/rdk/utils.sh ]; then
    . /lib/rdk/utils.sh
 fi
 
+if [ -f /etc/mount-utils/getConfigFile.sh ];then
+      mkdir -p /tmp/.dropbear
+     . /etc/mount-utils/getConfigFile.sh
+fi
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/lib
 
@@ -216,7 +220,11 @@ dropbearRecovery()
    dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
        echo "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
-       dropbear -E -s -p $ARM_INTERFACE_IP:22 &
+       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1.xyz"
+       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2.xyz"
+       getConfigFile $DROPBEAR_PARAMS_1
+       getConfigFile $DROPBEAR_PARAMS_2
+       dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ARM_INTERFACE_IP:22 &
        sleep 2
    fi
 }

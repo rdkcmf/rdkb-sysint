@@ -25,6 +25,10 @@
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
+if [ -f /etc/mount-utils/getConfigFile.sh ];then
+      mkdir -p /tmp/.dropbear
+     . /etc/mount-utils/getConfigFile.sh
+fi
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
 EROUTER_IF=erouter0
@@ -351,7 +355,11 @@ dropbearRecovery()
 {
    dropbearPid=`ps | grep -i dropbear | grep "$ATOM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
-       dropbear -E -s -p $ATOM_INTERFACE_IP:22 &
+       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1.xyz"
+       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2.xyz"
+       getConfigFile $DROPBEAR_PARAMS_1
+       getConfigFile $DROPBEAR_PARAMS_2
+       dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ATOM_INTERFACE_IP:22 &
        sleep 2
    fi
 }
