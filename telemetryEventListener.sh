@@ -55,6 +55,9 @@ case "$eventType" in
   *update_cronschedule* )
     sh /lib/rdk/dca_utility.sh 3 &
     ;;
+  *bootupBackup* )
+    sh /lib/rdk/dcaSplunkUpload.sh logbackup_without_upload &
+    ;;
 esac
 
 # Clean up even listeners to receive further events

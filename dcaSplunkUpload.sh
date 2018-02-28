@@ -64,6 +64,9 @@ fi
 
 mkdir -p $TELEMETRY_PATH
 
+# Processing Input Args
+inputArgs=$1
+
 if [ "$sendInformation" -ne 1 ] ; then
    TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_RESEND_PATH
 else
@@ -145,6 +148,12 @@ fi
 
 if [ -z "$sleep_time" ];then
     sleep_time=10
+fi
+
+if [ "$inputArgs" = "logbackup_without_upload" ];then
+      echo_t "log backup during bootup, Will upload on later call..!"
+      cat $TELEMETRY_JSON_RESPONSE >> $TELEMETRY_RESEND_FILE
+      exit 0
 fi
 
 ##  2] Check for unsuccessful posts from previous execution in resend que.

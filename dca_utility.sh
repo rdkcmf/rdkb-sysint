@@ -471,9 +471,10 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
     generateTelemetryConfig $TELEMETRY_PROFILE_PATH $SORTED_PATTERN_CONF_FILE
     scheduleCron
     if [ $triggerType -eq 1 ]; then
+        bootupTelemetryBackup=true
         ## Telemetry must be invoked only via cron and not during boot-up
-		pidCleanup
-        exit 0
+	# pidCleanup
+        #exit 0
     fi
 fi
 
@@ -598,7 +599,11 @@ else
                ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
                echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
-               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               if [ "$bootupTelemetryBackup" = "true" -a $triggerType -eq 1 ];then
+                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'bootupBackup' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               else
+                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               fi
            fi
            rm -f $PEER_COMM_ID
        else
