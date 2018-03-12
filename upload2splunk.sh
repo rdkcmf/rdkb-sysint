@@ -46,7 +46,7 @@ else
     fi
 fi
 
-echo "================ Start -> `timestamp` ===================== "
+echo "================ Start -> `Timestamp` ===================== "
 # Samhain messages are logged to stdin
 read notificationMessages
 
