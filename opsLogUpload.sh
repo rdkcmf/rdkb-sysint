@@ -232,8 +232,8 @@ HTTPLogUploadOnRequest()
         else
            CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
         fi
-               
-		echo_t "Curl Command built: $CURL_CMD"
+        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g"`   
+        echo_t "Curl Command built: $CURL_REMOVE_HEADER"
         retries=0
         while [ "$retries" -lt 3 ]
         do 
@@ -338,7 +338,8 @@ HTTPLogUploadOnRequest()
         else
            CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 30 -m 30"
         fi       
-		echo_t "Curl Command built: $CURL_CMD"               
+        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g"`   
+        echo_t "Curl Command built: $CURL_REMOVE_HEADER"
         retries=0
         while [ "$retries" -lt 3 ]
         do       
