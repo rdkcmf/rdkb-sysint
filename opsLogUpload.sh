@@ -32,19 +32,23 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+DIRECT_BLOCK_TIME=86400
+DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_olu"
+
 # This check is put to determine whether the image is Yocto or not
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
+   CURL_BIN="curl"
+else
+   CURL_BIN="/fss/gw/curl"
 fi
 
-if [ -f /etc/device.properties ]; then
-    codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
-fi
-codebig=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport | grep value | cut -d ":" -f 3 | tr -d ' ' `
-if [ "$codebig" == "true" ]; then
-    codebig_enabled=yes
-    echo "Codebig support is enabled through RFC"
-fi
+UseCodeBig=0
+conn_str="Direct"
+first_conn=useDirectRequest
+sec_conn=useCodebigRequest
+CodebigAvailable=0
 
 PING_PATH="/usr/sbin"
 CURLPATH="/fss/gw"
@@ -57,11 +61,12 @@ WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
 
+
 ARGS=$1
 
 getBuildType()
 {
-   if [ "$codebig_enabled" == "yes" ]; then
+   if [ "$UseCodeBig" = "1" ]; then
 		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
    else
 		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
@@ -92,122 +97,200 @@ getBuildType()
    
 }
 
-
-HTTPLogUploadOnRequest()
+IsDirectBlocked()
 {
-    cd $LOG_UPLOAD_ON_REQUEST
+    ret=0
+    if [ -f $DIRECT_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
+            echo "Last direct failed blocking is still valid, preventing direct" 
+            ret=1
+        else
+            echo "Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" 
+            rm -f $DIRECT_BLOCK_FILENAME
+            ret=0
+        fi
+    fi
+    return $ret
+}
 
-    UploadFile=`ls | grep "tgz"`
-	if [ "$codebig_enabled" == "yes" ]; then
-		retries=0
-        while [ "$retries" -lt 10 ]
-        do
-        echo "Trial $retries..."
+# Get the configuration of codebig settings
+get_Codebigconfig()
+{
+   # If configparamgen not available, then only direct connection available and no fallback mechanism
+   if [ -f $CONFIGPARAMGEN ]; then
+      CodebigAvailable=1
+   fi
 
-        if [ $retries -ne 0 ]
+   if [ "$CodebigAvailable" -eq "1" ]; then
+       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   fi
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      UseCodeBig=1 
+      conn_str="Codebig"
+      first_conn=useCodebigRequest
+      sec_conn=useDirectRequest
+   fi
+
+   if [ "$CodebigAvailable" -eq 1 ]; then
+      echo_t "Using $conn_str connection as the Primary"
+   else
+      echo_t "Only $conn_str connection is available"
+   fi
+}
+
+# Direct connection Download function
+useDirectRequest()
+{
+    # Direct connection will not be tried if .lastdirectfail exists
+    IsDirectBlocked
+    if [ "$?" -eq "1" ]; then
+       return 1
+    fi
+    retries=0
+    while [ "$retries" -lt 3 ]
+    do
+        echo_t "Trying Direct Communication"
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
+
+        echo_t "File to be uploaded: $UploadFile"
+        UPTIME=`uptime`
+        echo_t "System Uptime is $UPTIME"
+        echo_t "S3 URL is : $S3_URL"
+
+        echo_t "Trial $retries for DIRECT ..."
+        #Sensitive info like Authorization signature should not print
+        echo_t "Curl Command built: $CURL_CMD"
+        HTTP_CODE=`ret= eval $CURL_CMD`
+
+        if [ "x$HTTP_CODE" != "x" ];
         then
-                if [ -f /nvram/adjdate.txt ];
-                then
+            http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+
+            if [ "$http_code" != "" ];then
+                 echo_t "Direct communication HttpCode received is : $http_code"
+                 if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+			echo $http_code > $UPLOADRESULT
+                        return 0
+                 fi
+                 echo "failed" > $UPLOADRESULT
+            fi
+        else
+            http_code=0
+            echo_t "Direct Communication Failure Attempt:$retries  - ret:$ret"
+        fi
+        retries=`expr $retries + 1`
+        sleep 30
+    done
+   echo "Retries for Direct connection exceeded " 
+   [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+    return 1
+}
+
+# Codebig connection Download function        
+useCodebigRequest()
+{
+    # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+    if [ "$CodebigAvailable" -eq "0" ] ; then
+        echo "OpsLog Upload : Only direct connection Available"
+        return 1
+    fi
+    retries=0
+    while [ "$retries" -lt 10 ]
+    do
+       echo "Trial $retries..."
+       # nice value can be normal as the first trial failed
+       if [ $retries -ne 0 ]
+       then
+           if [ -f /nvram/adjdate.txt ];
+           then
                 echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
                 echo -e "$0 --> Sleeping 10 seconds and try again\n"
             else
                 echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
                 dateString=`date +'%s'`
-                count=$(expr $dateString - $SECONDV)
+                if [ "x$SECONDV" != "x" ]; then
+                    count=$(expr $dateString - $SECONDV)
+                else
+                    count=$dateString
+                fi
                 echo "$0  --> date adjusted:"
                 date -d @$count
                 echo $count > /nvram/adjdate.txt
-		break
-                fi
+                break
+            fi
         fi
         retries=`expr $retries + 1`
         sleep 10
-        done
-        if [ ! -f /nvram/adjdate.txt ];then
+    done
+    if [ ! -f /nvram/adjdate.txt ];then
         echo "$0 --> LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
         rm -rf $UploadFile
         exit
-        fi
-        SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
-        eval $SIGN_CMD > /var/.signedRequest
-        echo "Log upload - configparamgen success"
-        CB_SIGNED=`cat /var/.signedRequest`
-        rm -f /var/.signedRequest
-        rm -f /nvram/adjdate.txt
-        S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
-        echo "serverUrl : $S3_URL"
-        authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
-        authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-	fi
-    ######################CURL COMMAND PARAMETERS##############################
-    #/fss/gw/curl 	--> Path to curl.
-    #-w           	--> Write to console.
-    #%{http_code} 	--> Header response code.
-    #-d           	--> HTTP POST data.
-    #$UploadFile  	--> File to upload.
-    #-o           	--> Write output to.
-    #$OutputFile  	--> Output File.
-    #--cacert     	--> certificate to verify peer.
-    #/nvram/cacert.pem	--> Certificate.
-    #$S3_URL		--> Public key URL Link.
-    #--connect-timeout	--> Maximum time allowed for connection in seconds. 
-    #-m			--> Maximum time allowed for the transfer in seconds.
-    #-T			--> Transfer FILE given to destination.
-    #--interface	--> Network interface to be used [eg:erouter1]
-    ##########################################################################
-    if [ "$codebig_enabled" == "yes" ]; then
-        echo_t "Trying Codebig Communication"
-	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-		CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
-	else
-		CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE -H '$authorizationHeader' --connect-timeout 30 -m 30"
-	fi
-    else
-        echo_t "Trying Direct Communication"
-	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-		CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-	else
-		CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-	fi
-        echo_t "CURL_CMD:$CURL_CMD"
     fi
 
-    echo_t "Curl Command built: $CURL_CMD"
-    echo_t "File to be uploaded: $UploadFile"
-    echo_t "S3 URL is : $S3_URL"
-
-    # Performing 3 tries for successful curl command execution.
-    # $http_code --> Response code retrieved from HTTP_CODE file path.
     retries=0
     while [ "$retries" -lt 3 ]
-    do      
-	echo_t "Trial $retries..."              
-        ret= eval $CURL_CMD > $HTTP_CODE
+    do
+         echo_t "Trying Codebig Communication"
+         SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
+         eval $SIGN_CMD > $SIGN_FILE
+         echo "Log upload - configparamgen success"
+         CB_SIGNED=`cat $SIGN_FILE`
+         rm -f $SIGN_FILE
+         [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt
+         S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+         echo "serverUrl : $S3_URL"
+         authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
+         authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
+         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
+        echo_t "File to be uploaded: $UploadFile"
+        UPTIME=`uptime`
+        echo_t "System Uptime is $UPTIME"
+        echo_t "S3 URL is : $S3_URL"
 
-	if [ -f $HTTP_CODE ];
-	then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
+        echo_t "Trial $retries for CODEBIG ..."
+        #Sensitive info like Authorization signature should not print
+        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#'"$authorizationHeader"'#<Hidden authorization-header>#p'` "
+        HTTP_CODE=`ret= eval $CURL_CMD `
 
-		if [ "$http_code" != "" ];then
-                        echo_t "HttpCode received is : $http_code"
-                        if [ "$codebig_enabled" == "yes" ]; then
-                            echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
-                        else
-                            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
-                        fi
-	       		if [ $http_code -eq 200 ];then
-					echo $http_code > $UPLOADRESULT
-					rm -f $HTTP_CODE
-	       			break
-			else
-				echo "failed" > $UPLOADRESULT
-	       	fi
-		fi
-	fi
+        if [ "x$HTTP_CODE" != "x" ];
+        then
+             http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+             echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
+
+             if [ "$http_code" != "" ];then
+                 echo_t "Codebig connection HttpCode received is : $http_code"
+                 if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+			echo $http_code > $UPLOADRESULT
+                        return 0
+                 fi
+                 echo "failed" > $UPLOADRESULT
+             fi
+        else
+             http_code=0
+             echo_t "Codebig Communication Failure Attempts:$retries - ret:$ret"
+        fi
 
         retries=`expr $retries + 1`
         sleep 30
     done
+    echo "Retries for Codebig connection exceeded "
+    return 1
+}
+
+HTTPLogUploadOnRequest()
+{
+    cd $blog_dir
+
+    # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
+    # Otherwise we will not specify the ip address family in curl options
+    addr_type=""
+    [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+
+    UploadFile=`ls | grep "tgz"`
+    $first_conn || $sec_conn || { echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code" ; rm -rf $blog_dir$timeRequested  ; }
 
     # If 200, executing second curl command with the public key.
     if [ $http_code -eq 200 ];then
@@ -225,20 +308,17 @@ HTTPLogUploadOnRequest()
             forced_https="false"
         fi
 
-		echo_t "Generated KeyIs : "
-		echo $Key
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-        fi
-        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g"`   
-        echo_t "Curl Command built: $CURL_REMOVE_HEADER"
+        RemSignature=`echo $Key | sed "s/AWSAccessKeyId=.*Signature=.*&//"`
+        echo_t "Generated KeyIs : "
+        echo $RemSignature
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
+               
         retries=0
         while [ "$retries" -lt 3 ]
         do 
 	    echo_t "Trial $retries..."                  
-            eval $CURL_CMD > $HTTP_CODE
+            echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key># p'`"
+            HTTP_CODE=`eval $CURL_CMD `
             ret=$?
             #Check for forced https security failure
             if [ "$forced_https" = "true" ]; then
@@ -248,21 +328,22 @@ HTTPLogUploadOnRequest()
                 esac
             fi
 
-            if [ -f $HTTP_CODE ];
+            if [ "x$HTTP_CODE" != "x" ];
 	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
+                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
 		if [ "$http_code" != "" ];then
 			echo_t "HttpCode received is : $http_code"
-	       		if [ $http_code -eq 200 ];then
-					echo $http_code > $UPLOADRESULT
-					rm -f $HTTP_CODE
-	       			break
-			else
-				echo "failed" > $UPLOADRESULT
-	       	fi
-		fi
-	fi
+                    if [ $http_code -eq 200 ];then
+                       echo $http_code > $UPLOADRESULT
+                       break
+                    else
+                       echo "failed" > $UPLOADRESULT
+                    fi
+                  fi
+             else
+                 http_code=0
+             fi
             retries=`expr $retries + 1`
             sleep 30
         done
@@ -271,7 +352,7 @@ HTTPLogUploadOnRequest()
         if [ $http_code -eq 200 ];then
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
-	     rm -rf $LOG_UPLOAD_ON_REQUEST
+	     rm -rf $blog_dir
         fi
 
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
@@ -289,18 +370,14 @@ HTTPLogUploadOnRequest()
             forced_https="false"
         fi
 
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-        fi
-		echo_t "Curl Command built: $CURL_CMD"               
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
 
         retries=0
         while [ "$retries" -lt 3 ]
         do       
 	    echo_t "Trial $retries..."            
-            eval $CURL_CMD > $HTTP_CODE
+            echo_t "Curl Command built: $CURL_CMD"               
+            HTTP_CODE=`eval $CURL_CMD`
             ret=$?
             #Check for forced https security failure
             if [ "$forced_https" = "true" ]; then
@@ -310,21 +387,22 @@ HTTPLogUploadOnRequest()
                 esac
             fi
 
-            if [ -f $HTTP_CODE ];
+            if [ "x$HTTP_CODE" != "x" ];
 	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
+		http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
 		if [ "$http_code" != "" ];then
 				echo_t "HttpCode received is : $http_code"
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
-					rm -f $HTTP_CODE
 	       			break
 			else
 				echo "failed" > $UPLOADRESULT
 	       	fi
 		fi
-	 fi
+            else
+                http_code=0
+            fi
             retries=`expr $retries + 1`
             sleep 30
         done
@@ -333,33 +411,29 @@ HTTPLogUploadOnRequest()
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 30 -m 30"
-        fi       
-        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g"`   
-        echo_t "Curl Command built: $CURL_REMOVE_HEADER"
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  \"$Key\" --connect-timeout 30 -m 30"
         retries=0
         while [ "$retries" -lt 3 ]
         do       
 	    echo_t "Trial $retries..."              
-            ret= eval $CURL_CMD > $HTTP_CODE
-            if [ -f $HTTP_CODE ];
+            echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+            HTTP_CODE=`ret= eval $CURL_CMD`
+            if [ "x$HTTP_CODE" != "x" ];
 	    then
-		http_code=$(awk '{print $0}' $HTTP_CODE)
+		http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
 		if [ "$http_code" != "" ];then
 	
 	       		if [ $http_code -eq 200 ];then
 					echo $http_code > $UPLOADRESULT
-					rm -f $HTTP_CODE
 	       			break
 			else
 				echo "failed" > $UPLOADRESULT
 	       	fi
 		fi
-	fi
+        else
+            http_code=0
+        fi
             retries=`expr $retries + 1`
             sleep 30
         done
@@ -367,7 +441,7 @@ HTTPLogUploadOnRequest()
         if [ $http_code -eq 200 ];then
             echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
-	    rm -rf $LOG_UPLOAD_ON_REQUEST
+	    rm -rf $blog_dir
             result=0
         fi
     fi
@@ -375,59 +449,40 @@ HTTPLogUploadOnRequest()
     else 
        	echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
 	#Keep tar ball and remove only the log folder
-	rm -rf $LOG_UPLOAD_ON_REQUEST$timeRequested
+	rm -rf $blog_dir$timeRequested
 		
     fi    
     echo_t $result
-
 }
 
 uploadOnRequest()
 {
+           
 	if [ ! -e $UPLOAD_LOG_STATUS ]; then
 		touch $UPLOAD_LOG_STATUS
 	fi
 	echo "Triggered `date`" > $UPLOAD_LOG_STATUS
 	curDir=`pwd`
-	if [ ! -d "$LOG_UPLOAD_ON_REQUEST" ]
-	then
-	    mkdir $LOG_UPLOAD_ON_REQUEST
-	else
-            rm -rf $LOG_UPLOAD_ON_REQUEST/*
+        if [  -d $blog_dir ] ; then
+            rm -rf $blog_dir/*
         fi
-	if [ "$codebig_enabled" != "yes" ]; then
-		mkdir -p $LOG_UPLOAD_ON_REQUEST$timeRequested
-		cp /version.txt $LOG_UPLOAD_ON_REQUEST$timeRequested
-	fi
-        if [ ! -d "/tmp/loguploadonrequest" ] && [ "$codebig_enabled" == "yes" ]
-        then
-                mkdir "/tmp/loguploadonrequest"
-        fi
-	if [ "$codebig_enabled" == "yes" ]; then
-		mkdir "/tmp/loguploadonrequest/$timeRequested"
-		cp /version.txt /tmp/loguploadonrequest/$timeRequested
-		dest=/tmp/loguploadonrequest/$timeRequested/
-	fi
+        mkdir -p $blog_dir$timeRequested
+        cp /version.txt $blog_dir$timeRequested
+        dest=$blog_dir$timeRequested/
+         
 	cd $LOG_PATH
 	FILES=`ls`
 
 	# Put system descriptor in log file
 	createSysDescr
 
-	cp /version.txt $LOG_UPLOAD_ON_REQUEST$timeRequested
-
 	for fname in $FILES
 	do
-		# Copy all log files from the log directory to non-volatile memory
-		if [ "$codebig_enabled" == "yes" ]; then
-			cp $fname $dest
-		else
-			cp $fname $LOG_UPLOAD_ON_REQUEST$timeRequested
-		fi
-
+           # Copy all log files from the log directory to non-volatile memory
+           cp $fname $dest
 	done
 
-	cd $LOG_UPLOAD_ON_REQUEST
+	cd $blog_dir
 	# Tar log files
 	# Syncing ATOM side logs
 	if [ "$atom_sync" = "yes" ]
@@ -443,11 +498,7 @@ uploadOnRequest()
 				if [ "$CHECK_PING_RES" -ne 100 ] 
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"
-					if [ "$codebig_enabled" == "yes" ]; then
-						protected_rsync /tmp/loguploadonrequest/$timeRequested
-					else
-						protected_rsync $LOG_UPLOAD_ON_REQUEST$timeRequested/
-					fi
+					protected_rsync $blog_dir$timeRequested
 #nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/ > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
@@ -458,16 +509,10 @@ uploadOnRequest()
 		fi
 
 	fi
-	if [ "$codebig_enabled" == "yes" ]; then
-		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-		tar -X $PATTERN_FILE -cvzf $MAC"_Lgs_$timeRequested.tgz" /tmp/loguploadonrequest/$timeRequested
-		rm $PATTERN_FILE
-		rm -rf /tmp/loguploadonrequest/$timeRequested
-	else
-		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-		tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
-		rm $PATTERN_FILE
-	fi
+	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
+	tar -X $PATTERN_FILE -cvzf $MAC"_Lgs_$timeRequested.tgz" $blog_dir$timeRequested
+	rm $PATTERN_FILE
+	rm -rf $blog_dir$timeRequested
 	echo_t "Created backup of all logs..."
  	ls
 
@@ -506,6 +551,12 @@ uploadOnRequest()
 	fi
 }
 
+get_Codebigconfig
+if [ $UseCodeBig = "1" ]; then
+      blog_dir="/tmp/loguploadonrequest/"
+else
+      blog_dir=$LOG_UPLOAD_ON_REQUEST
+fi
 
 if [ "$ARGS" = "upload" ]
 then
@@ -524,9 +575,9 @@ then
 		rm -rf $UPLOAD_ON_REQUEST
 	fi
 	
-	if [ -d $LOG_UPLOAD_ON_REQUEST ]
+	if [ -d $blog_dir ]
 	then
-		rm -rf $LOG_UPLOAD_ON_REQUEST
+		rm -rf $blog_dir
 	fi
 	rm $UPLOAD_LOG_STATUS
 	

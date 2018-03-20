@@ -25,14 +25,15 @@ source /etc/utopia/service.d/log_capture_path.sh
 . $RDK_LOGGER_PATH/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
-if [ -f /etc/device.properties ]; then
-    codebig_enabled=`cat /etc/device.properties | grep CODEBIG_ENABLED | cut -f2 -d=`
-fi
-codebig=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport | grep value | cut -d ":" -f 3 | tr -d ' ' `
-if [ "$codebig" == "true" ]; then
-    codebig_enabled=yes
-    echo "Codebig support is enabled through RFC"
-fi
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+DIRECT_BLOCK_TIME=86400
+DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_upl"
+
+UseCodeBig=0
+conn_str="Direct"
+first_conn=useDirectRequest
+sec_conn=useCodebigRequest
+CodebigAvailable=0
 
 if [ $# -ne 4 ]; then 
      #echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
@@ -40,7 +41,10 @@ if [ $# -ne 4 ]; then
 fi
 
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-export PATH=$PATH:/fss/gw/
+   export PATH=$PATH:/fss/gw/
+   CURL_BIN="curl"
+else
+   CURL_BIN=/fss/gw/curl
 fi
 
 # assign the input arguments
@@ -79,8 +83,9 @@ getFWVersion()
 
 getBuildType()
 {
-   
-	if [ "$codebig_enabled" == "yes" ]; then
+        # Currenlty this function not used. If used please ensure, calling get_Codebigconfig before this call
+        # get_Codebigconfig currenlty called in HttpLogUpload 
+	if [ "$UseCodeBig" = "1" ]; then
 		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
 	else
 		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
@@ -131,7 +136,6 @@ VERSION="/fss/gw/version.txt"
 
 http_code=0
 OutputFile='/tmp/httpresult.txt'
-HTTP_CODE="/tmp/curl_httpcode"
 
 # Function which will upload logs to TFTP server
 
@@ -165,9 +169,204 @@ retryUpload()
 		
 }
 
+IsDirectBlocked()
+{
+    ret=0
+    if [ -f $DIRECT_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
+            echo "Last direct failed blocking is still valid, preventing direct"
+            ret=1
+        else
+            echo "Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct"
+            rm -f $DIRECT_BLOCK_FILENAME
+            ret=0
+        fi
+    fi
+    return $ret
+}
+
+# Get the configuration of codebig settings
+get_Codebigconfig()
+{
+   # If configparamgen not available, then only direct connection available and no fallback mechanism
+   if [ -f $CONFIGPARAMGEN ]; then
+      CodebigAvailable=1
+   fi
+
+   if [ "$CodebigAvailable" -eq "1" ]; then
+       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   fi
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      UseCodeBig=1 
+      conn_str="Codebig"
+      first_conn=useCodebigRequest
+      sec_conn=useDirectRequest
+   fi
+
+   if [ "$CodebigAvailable" -eq 1 ]; then
+      echo_t "Using $conn_str connection as the Primary"
+   else
+      echo_t "Only $conn_str connection is available"
+   fi
+}
+
+
+# Direct connection Download function
+useDirectRequest()
+{
+    # Direct connection will not be tried if .lastdirectfail exists
+    IsDirectBlocked
+    if [ "$?" -eq "1" ]; then
+           return 1
+    fi
+    # Direct Communication
+    # Performing 3 tries for successful curl command execution.
+    # $http_code --> Response code retrieved from HTTP_CODE file path.
+    echo_t "Trying Direct Communication"
+    retries=0
+    while [ "$retries" -lt 3 ]
+    do
+        echo_t "Trial $retries for DIRECT ..."
+        # nice value can be normal as the first trial failed
+            CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+            echo_t "Curl Command built: $CURL_CMD"
+        if [ $retries -ne 0 ]
+        then
+            echo_t "CURL_CMD:$CURL_CMD"
+            HTTP_CODE=`ret= eval $CURL_CMD`
+
+            if [ "x$HTTP_CODE" != "x" ]; then
+                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+                echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+                if [ "$http_code" != "" ];then
+                    echo_t "Direct connection HttpCode received is : $http_code"
+                    if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                        return 0
+                    fi
+                fi
+            else
+                http_code=0
+                echo_t "Direct Communication Failure Attempt:$retries - ret:$ret"
+            fi
+        fi
+               
+        retries=`expr $retries + 1`
+        sleep 30
+    done
+    echo "Retries for Direct connection exceeded " 
+    [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+    return 1
+}
+
+# Codebig connection Download function        
+useCodebigRequest()
+{
+    # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+    if [ "$CodebigAvailable" -eq "0" ] ; then
+        echo "Log Upload : Only direct connection Available" 
+        return 1
+    fi
+    echo_t "Trying Codebig Communication"
+    retries=0
+    while [ "$retries" -lt 10 ]
+    do
+        echo "Trial $retries..."
+
+        if [ $retries -ne 0 ]; then
+            if [ -f /nvram/adjdate.txt ]; then
+                echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
+                echo -e "$0 --> Sleeping 10 seconds and try again\n"
+            else
+                echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
+                dateString=`date +'%s'`
+                if [ "x$SECONDV" != "x" ]; then
+                    count=$(expr $dateString - $SECONDV)
+                else
+                    count=$dateString
+                fi
+                echo "$0  --> date adjusted:"
+                date -d @$count
+                echo $count > /nvram/adjdate.txt
+                break
+            fi
+        fi
+
+        retries=`expr $retries + 1`
+        sleep 10
+    done
+    if [ ! -f /nvram/adjdate.txt ];then
+        echo "LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
+        rm -rf $UploadFile
+        exit
+    fi
+    retries=0
+    while [ "$retries" -lt 3 ]
+    do
+        SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
+        eval $SIGN_CMD > $SIGN_FILE
+        echo "Log upload - configparamgen success"
+        CB_SIGNED=`cat $SIGN_FILE`
+        rm -f $SIGN_FILE
+        [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt
+        S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+        echo "serverUrl : $S3_URL"
+        authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
+        authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
+
+        CURL_CMD="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+            #Sensitive info like Authorization signature should not print
+        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H <Hidden authorization-header> -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+
+        echo_t "File to be uploaded: $UploadFile"
+        UPTIME=`uptime`
+        echo_t "System Uptime is $UPTIME"
+        echo_t "S3 URL is : $S3_URL"
+
+        # Performing 3 tries for successful curl command execution.
+        # $http_code --> Response code retrieved from HTTP_CODE file path.
+
+        echo_t "Trial $retries for CODEBIG..."
+        # nice value can be normal as the first trial failed
+        if [ $retries -ne 0 ]
+        then
+            #Sensitive info like Authorization signature should not print
+            echo "Curl Command built: $CURL_CMD_FOR_ECHO"
+            HTTP_CODE=`ret= eval $CURL_CMD`
+
+            if [ "x$HTTP_CODE" != "x" ];
+            then
+                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+                echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
+
+                if [ "$http_code" != "" ];then
+                    echo_t "Codebig connection HttpCode received is : $http_code"
+                    if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                        return 0
+                    fi
+                fi
+            else
+                http_code=0
+                echo_t "Codebig Communication Failure Attempt:$retries - ret:$ret"
+            fi
+        fi
+
+        retries=`expr $retries + 1`
+        sleep 30
+    done
+    echo "Retries for Codebig connection exceeded " 
+    return 1
+}
+
 # Function which will upload logs to HTTP S3 server
 HttpLogUpload()
 {   
+
+    # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
+    # Otherwise we will not specify the ip address family in curl options
+    addr_type=""
+    [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+
     # Upload logs to "LOG_BACK_UP_REBOOT" upon reboot else to the default path "LOG_BACK_UP_PATH"	
 	if [ "$UploadOnReboot" == "true" ]; then
 		if [ "$nvram2Backup" == "true" ]; then
@@ -207,186 +406,18 @@ HttpLogUpload()
     S3_URL=$UploadHttpLink
     file_list=$UploadFile
 
+    get_Codebigconfig
     for UploadFile in $file_list
     do
         echo_t "Upload file is : $UploadFile"
-        ######################CURL COMMAND PARAMETERS##############################
-        #/fss/gw/curl       --> Path to curl.
-        #-w                 --> Write to console.
-        #%{http_code}       --> Header response code.
-        #-d                 --> HTTP POST data.
-        #$UploadFile        --> File to upload.
-        #-o                 --> Write output to.
-        #$OutputFile        --> Output File.
-        #--cacert           --> certificate to verify peer.
-        #/nvram/cacert.pem  --> Certificate.
-        #$S3_URL            --> Public key URL Link.
-        #--connect-timeout  --> Maximum time allowed for connection in seconds.
-        #-m                 --> Maximum time allowed for the transfer in seconds.
-        #-T                 --> Transfer FILE given to destination.
-        #--interface        --> Network interface to be used [eg:erouter1]
-        ##########################################################################
-
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-        fi
+#        CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
 
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
         echo_t "S3 URL is : $S3_URL"
 
-        if [ "$codebig_enabled" != "yes" ]; then
-            # Direct Communication
-            # Performing 3 tries for successful curl command execution.
-            # $http_code --> Response code retrieved from HTTP_CODE file path.
-            echo_t "Trying Direct Communication"
-            retries=0
-            while [ "$retries" -lt 3 ]
-            do
-                echo_t "Trial $retries..."
-                # nice value can be normal as the first trial failed
-                if [ $retries -ne 0 ]
-                then
-                    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                    else
-                        CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                    fi
-                fi
-                echo_t "Curl Command built: $CURL_CMD"
-                echo_t "CURL_CMD:$CURL_CMD"
-                ret= eval $CURL_CMD > $HTTP_CODE
-
-                if [ -f $HTTP_CODE ]; then
-                    http_code=$(awk '{print $0}' $HTTP_CODE)
-                    echo_t "Direct Communication - ret:$ret, http_code:$http_code"
-                    if [ "$http_code" != "" ];then
-                    echo_t "HttpCode received is : $http_code"
-                        if [ $http_code -eq 200 ];then
-                            rm -f $HTTP_CODE
-                            break
-                        fi
-                    fi
-                fi
-               
-                retries=`expr $retries + 1`
-                sleep 30
-            done
-        else
-            retries=0
-            while [ "$retries" -lt 10 ]
-            do
-                echo "Trial $retries..."
-
-                if [ $retries -ne 0 ]; then
-                    if [ -f /nvram/adjdate.txt ]; then
-                        echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
-                        echo -e "$0 --> Sleeping 10 seconds and try again\n"
-                        else
-                        echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
-                        dateString=`date +'%s'`
-                        count=$(expr $dateString - $SECONDV)
-                        echo "$0  --> date adjusted:"
-                        date -d @$count
-                        echo $count > /nvram/adjdate.txt
-                        break
-                    fi
-                fi
-
-                retries=`expr $retries + 1`
-                sleep 10
-            done
-            if [ ! -f /nvram/adjdate.txt ];then
-                echo "LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
-                rm -rf $UploadFile
-                exit
-            fi
-            echo_t "Trying Codebig Communication"
-            retries=0
-            while [ "$retries" -lt 3 ]
-            do
-
-                SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
-                eval $SIGN_CMD > /tmp/.signedRequest
-                echo "Log upload - configparamgen success"
-                CB_SIGNED=`cat /tmp/.signedRequest`
-                rm -f /tmp/.signedRequest
-                S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
-                echo "serverUrl : $S3_URL"
-                authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
-                authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-
-                ######################CURL COMMAND PARAMETERS##############################
-                #/fss/gw/curl       --> Path to curl.
-                #-w                 --> Write to console.
-                #%{http_code}       --> Header response code.
-                #-d                 --> HTTP POST data.
-                #$UploadFile        --> File to upload.
-                #-o                 --> Write output to.
-                #$OutputFile        --> Output File.
-                #--cacert           --> certificate to verify peer.
-                #/nvram/cacert.pem  --> Certificate.
-                #$S3_URL            --> Public key URL Link.
-                #--connect-timeout  --> Maximum time allowed for connection in seconds.
-                #-m                 --> Maximum time allowed for the transfer in seconds.
-                #-T                 --> Transfer FILE given to destination.
-                #--interface        --> Network interface to be used [eg:erouter1]
-                ##########################################################################
-                if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                    CURL_CMD="curl --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
-                    #Sensitive info like Authorization signature should not print
-                    CURL_CMD_FOR_ECHO="curl --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE -H <Hidden authorization-header> -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
-                else
-                    CURL_CMD="$CURLPATH/curl --tlsv1.2 --cacert $CA_CERT --connect-timeout 10 -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" --interface $WAN_INTERFACE '$S3_URL'"
-                    #Sensitive info like Authorization signature should not print
-                    CURL_CMD_FOR_ECHO="$CURLPATH/curl --tlsv1.2 --cacert $CA_CERT --connect-timeout 10 -H <Hidden authorozation-header> -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" --interface $WAN_INTERFACE '$S3_URL'"
-                fi
-
-                echo_t "File to be uploaded: $UploadFile"
-                UPTIME=`uptime`
-                echo_t "System Uptime is $UPTIME"
-                echo_t "S3 URL is : $S3_URL"
-
-                # Performing 3 tries for successful curl command execution.
-                # $http_code --> Response code retrieved from HTTP_CODE file path.
-
-                echo_t "Trial $retries..."
-                # nice value can be normal as the first trial failed
-                if [ $retries -ne 0 ]
-                then
-                    #Sensitive info like Authorization signature should not print
-                    echo "Curl Command built: $CURL_CMD_FOR_ECHO"
-                    ret= eval $CURL_CMD > $HTTP_CODE
-
-                    if [ -f $HTTP_CODE ];
-                    then
-                        http_code=$(awk '{print $0}' $HTTP_CODE)
-                        echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
-
-                        if [ "$http_code" != "" ];then
-                            echo_t "HttpCode received is : $http_code"
-                            if [ $http_code -eq 200 ];then
-                                rm -f $HTTP_CODE
-                                break
-                            fi
-                            if [ $http_code -eq 401 ];then
-                                rm -f $HTTP_CODE
-                                # Even in case of 401 responce also we need to retry for max 3 times, we should not loop until we get a success response.
-                                # continue
-                            fi
-                        fi
-                    fi
-                fi
-
-                retries=`expr $retries + 1`
-                sleep 30
-            done
-            rm -f /nvram/adjdate.txt
-        fi
-
+        $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; continue ; }
 
         # If 200, executing second curl command with the public key.
         if [ $http_code -eq 200 ];then
@@ -410,15 +441,9 @@ HttpLogUpload()
             echo_t "Generated KeyIs : "
             echo $RemSignature
 
-            if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                #Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
-            else
-                CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                #Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
-            fi
+            CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
+            #Sensitive info like Authorization signature should not print
+            CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 30 -m 30"
 
             retries=0
             while [ "$retries" -lt 3 ]
@@ -426,20 +451,14 @@ HttpLogUpload()
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
-                    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                        #Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
-                    else
-                        CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$Key\" --connect-timeout 30 -m 30"
-                        #Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
-                    fi
+                    CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
+                      #Sensitive info like Authorization signature should not print
+                    CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 30 -m 30"
                 fi
 
                 #Sensitive info like Authorization signature should not print
                 echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
-                eval $CURL_CMD > $HTTP_CODE
+                HTTP_CODE=`eval $CURL_CMD `
                 ret=$?
 
                 #Check for forced https security failure
@@ -450,21 +469,17 @@ HttpLogUpload()
                     esac
                 fi
 
-                if [ -f $HTTP_CODE ]; then
-                    http_code=$(awk '{print $0}' $HTTP_CODE)
+                if [ "x$HTTP_CODE" != "x" ]; then
+                    http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
                     if [ "$http_code" != "" ];then
                         echo_t "HttpCode received is : $http_code"
                         if [ $http_code -eq 200 ];then
-                            rm -f $HTTP_CODE
                             break
                         fi
-                        if [ $http_code -eq 401 ];then
-                            rm -f $HTTP_CODE
-                            # Even in case of 401 responce also we need to retry for max 3 times, we should not loop until we get a success response.
-                            # continue
-                        fi
                     fi
+                else
+                    http_code=0
                 fi
 
                 retries=`expr $retries + 1`
@@ -491,11 +506,7 @@ HttpLogUpload()
                 forced_https="false"
             fi
 
-            if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-            else
-                CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE --connect-timeout 30 -m 30"
-            fi
+            CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
 
             retries=0
             while [ "$retries" -lt 3 ]
@@ -503,14 +514,10 @@ HttpLogUpload()
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
-                    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                    else
-                        CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE \"$S3_URL\" --connect-timeout 30 -m 30"
-                    fi
+                     CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
                 fi
                 echo_t "Curl Command built: $CURL_CMD"
-                eval $CURL_CMD > $HTTP_CODE
+                HTTP_CODE=`eval $CURL_CMD` 
                 ret=$?
 
                 #Check for forced https security failure
@@ -521,16 +528,17 @@ HttpLogUpload()
                     esac
                 fi
 
-                if [ -f $HTTP_CODE ]; then
-                    http_code=$(awk '{print $0}' $HTTP_CODE)
+                if [ "x$HTTP_CODE" != "x" ]; then
+                    http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
                     if [ "$http_code" != "" ];then
                         echo_t "HttpCode received is : $http_code"
                         if [ $http_code -eq 200 ];then
-                            rm -f $HTTP_CODE
                             break
                         fi
                     fi
+                else
+                    http_code=0
                 fi
                 retries=`expr $retries + 1`
                 sleep 30
@@ -541,15 +549,9 @@ HttpLogUpload()
             #Executing curl with the response key when return code after the first curl execution is 200.
             if [ $http_code -eq 200 ];then
                 Key=$(awk '{print $0}' $OutputFile)
-                if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                    CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-                    #Sensitive info like Authorization signature should not print
-                    CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"<hidden key>\" --connect-timeout 10 -m 10"
-                else
-                    CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-                    #Sensitive info like Authorization signature should not print
-                    CURL_CMD_FOR_ECHO="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"<hidden key>\" --connect-timeout 10 -m 10"
-                fi
+                CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 10 -m 10"
+                #Sensitive info like Authorization signature should not print
+                CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
 
                 retries=0
                 while [ "$retries" -lt 3 ]
@@ -557,29 +559,24 @@ HttpLogUpload()
                     echo_t "Trial $retries..."
                     # nice value can be normal as the first trial failed
                     if [ $retries -ne 0 ]; then
-                        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                            CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
+                        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  \"$Key\" --connect-timeout 10 -m 10"
                             #Sensitive info like Authorization signature should not print
-                            CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"<hidden key>\" --connect-timeout 10 -m 10"
-                        else
-                            CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"$Key\" --connect-timeout 10 -m 10"
-                            #Sensitive info like Authorization signature should not print
-                            CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE  \"<hidden key>\" --connect-timeout 10 -m 10"
-                        fi
+                        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
                     fi
                     #Sensitive info like Authorization signature should not print
                     echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
-                    ret= eval $CURL_CMD > $HTTP_CODE
-                    if [ -f $HTTP_CODE ]; then
-                        http_code=$(awk '{print $0}' $HTTP_CODE)
+                    HTTP_CODE=`ret= eval $CURL_CMD`
+                    if [ "x$HTTP_CODE" != "x" ]; then
+                        http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
 
                         if [ "$http_code" != "" ];then
 
                             if [ $http_code -eq 200 ];then
-                                rm -f $HTTP_CODE
                                 break
                             fi
                         fi
+                    else
+                        http_code=0
                     fi
                     retries=`expr $retries + 1`
                     sleep 30
@@ -591,14 +588,11 @@ HttpLogUpload()
                     rm -rf $UploadFile
                 fi
             fi
-
-        # Any other response code, log upload is unsuccessful.
         else
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
             rm -rf $UploadFile
         fi
-
         echo_t $result
     done
 

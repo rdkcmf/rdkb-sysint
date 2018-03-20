@@ -35,6 +35,10 @@ if [ -f /lib/rdk/utils.sh ]; then
    . /lib/rdk/utils.sh
 fi
 
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+DIRECT_BLOCK_TIME=86400
+DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dcm"
+
 if [ -f /etc/mount-utils/getConfigFile.sh ];then
       mkdir -p /tmp/.dropbear
      . /etc/mount-utils/getConfigFile.sh
@@ -93,6 +97,11 @@ echo_t "CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
 
 rm -f $TELEMETRY_TEMP_RESEND_FILE
 
+conn_str="Direct"
+first_conn=useDirectRequest
+sec_conn=useCodebigRequest
+CodebigAvailable=0
+
 # This override doesn't happen during device bootup
 if [ -f $DCMRESPONSE ]; then
     Check_URL=`grep 'urn:settings:ConfigurationServiceURL' $DCMRESPONSE | cut -d '=' -f2 | head -n 1`
@@ -109,8 +118,6 @@ fi
 # File to save curl response 
 #FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
 # File to save http code
-HTTP_CODE="$PERSISTENT_PATH/http_code"
-rm -rf $HTTP_CODE
 # Timeout value
 timeout=30
 default_IP=$DEFAULT_IP
@@ -146,11 +153,151 @@ getVODId()
 {
     echo "15660"
 }
+
+IsDirectBlocked()
+{
+    ret=0
+    if [ -f $DIRECT_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
+            echo "DCM: Last direct failed blocking is still valid, preventing direct" >>  $DCM_LOG_FILE
+            ret=1
+        else
+            echo "DCM: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $DCM_LOG_FILE
+            rm -f $DIRECT_BLOCK_FILENAME
+            ret=0
+        fi
+    fi
+    return $ret
+}
+
+# Get the configuration of codebig settings
+get_Codebigconfig()
+{
+   # If configparamgen not available, then only direct connection available and no fallback mechanism
+   if [ -f $CONFIGPARAMGEN ]; then
+      CodebigAvailable=1
+   fi
+
+   if [ "$CodebigAvailable" -eq "1" ]; then
+       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   fi
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      conn_str="Codebig"
+      first_conn=useCodebigRequest
+      sec_conn=useDirectRequest
+   fi
+
+   if [ "$CodebigAvailable" -eq 1 ]; then
+      echo_t "Xconf dcm : Using $conn_str connection as the Primary" >> $DCM_LOG_FILE
+   else
+      echo_t "Xconf dcm : Only $conn_str connection is available" >> $DCM_LOG_FILE
+   fi
+}
+
+# Direct connection Download function
+useDirectRequest()
+{
+    # Direct connection will not be tried if .lastdirectfail exists
+    IsDirectBlocked
+    if [ "$?" -eq "1" ]; then
+       return 1
+    fi
+   count=0
+   while [ "$count" -lt "$RETRY_COUNT" ] ; do    
+      echo_t " DCM connection type DIRECT"
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
+      echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+      HTTP_CODE=`result= eval $CURL_CMD`
+      ret=$?
+
+      sleep 2
+      http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+      [ "x$http_code" != "x" ] || http_code=0
+
+    # log security failure
+      case $ret in
+        35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+           echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+           ;;
+      esac
+      if [ $http_code -eq 200 ]; then
+           echo_t "Direct connection success ($http_code) " >> $DCM_LOG_FILE
+           return 0
+      elif [ $http_code -eq 404 ]; then 
+           echo "`Timestamp` Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
+           bypass_conn=1
+           return 0  # Do not return 1, if retry for next conn type is not to be done
+      else 
+           if [ "$ret" -eq 0 ]; then
+               echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+           fi 
+           rm -rf $DCMRESPONSE
+      fi
+      count=$((count + 1))
+      sleep $RETRY_DELAY
+    done
+    echo_t "DCM :Retries for Direct connection exceeded " >> $DCM_LOG_FILE
+    [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+    return 1
+}
+
+# Codebig connection Download function        
+useCodebigRequest()
+{
+   # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+   if [ "$CodebigAvailable" -eq "0" ] ; then
+       echo "DCM : Only direct connection Available" >> $DCM_LOG_FILE
+       return 1
+   fi
+   count=0
+   while [ "$count" -lt "$RETRY_COUNT" ] ; do    
+      SIGN_CMD="configparamgen 3 \"$JSONSTR\""
+      eval $SIGN_CMD > $SIGN_FILE
+      CB_SIGNED_REQUEST=`cat $SIGN_FILE`
+      rm -f $SIGN_FILE
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
+      echo_t " DCM connection type CODEBIG at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $DCM_LOG_FILE
+      echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*#<hidden>#p'`" >> $DCM_LOG_FILE
+      HTTP_CODE=`result= eval $CURL_CMD`
+      curlret=$?
+      http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+      [ "x$http_code" != "x" ] || http_code=0
+      # log security failure
+      case $curlret in
+          35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+             echo_t "DCM Codebig Connection Failure Attempt: $count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
+             ;;
+        esac
+       if [ "$http_code" -eq 200 ]; then
+           echo_t "Codebig connection success ($http_code) " >> $DCM_LOG_FILE
+           return 0
+       elif [ "$http_code" -eq 404 ]; then
+           echo_t "DCM Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
+           bypass_conn=1
+           return 0  # Do not return 1, if retry for next conn type is not to be done
+       else 
+             if [ "$curlret" -eq 0 ]; then
+                echo_t "DCM Codebig Connection Failure Attempt:$count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
+             fi
+              rm -rf $DCMRESPONSE
+       fi
+       count=$((count + 1))
+       sleep $RETRY_DELAY
+    done
+    echo_t "Retries for Codebig connection exceeded " >> $DCM_LOG_FILE
+    return 1
+}
 sendHttpRequestToServer()
 {
     resp=0
     FILENAME=$1
     URL=$2
+
+    # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
+    # Otherwise we will not specify the ip address family in curl options
+    addr_type=""
+    [ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
     partnerId=$(getPartnerId)
     JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&partnerId='${partnerId}'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
 
@@ -159,60 +306,18 @@ sendHttpRequestToServer()
         URL="$URL?"
     fi
 
+    get_Codebigconfig
     #Retrieve protocol from current URL
     PROTO=`echo $URL | cut -d ":" -f1`
     #Replace the current protocol with https
     HTTPS_URL=`echo $URL | sed "s/$PROTO/https/g"`
-
-    CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
-    echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
-    result= eval $CURL_CMD > $HTTP_CODE
-    ret=$?
-
-    sleep 2
-    http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-    echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
-
-    # log security failure
-    case $ret in
-      35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-         echo_t "DCM Connection Failure - ret:$ret http_code:$http_code" >> $TLS_LOG_FILE
-         ;;
-    esac
-
-    # Retry for STBs hosted in open internet
-    if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
-        echo_t "Retry attempt to get logupload setting for STB in wild " >> $DCM_LOG_FILE
-
-        SIGN_CMD="configparamgen 3 \"$JSONSTR\""
-        eval $SIGN_CMD > /tmp/.signedRequest
-        CB_SIGNED_REQUEST=`cat /tmp/.signedRequest`
-        rm -f /tmp/.signedRequest
-        CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
-        result= eval $CURL_CMD > $HTTP_CODE
-        curlret=$?
-        http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-        ret=$?
-        # log security failure
-        case $curlret in
-          35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-             echo_t "DCM Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $TLS_LOG_FILE
-             ;;
-        esac
+    bypass_conn=0
+    $first_conn || $sec_conn || { echo_t "Failed:  Unable to do Connection" >> $DCM_LOG_FILE ; return 1 ; } 
+    if [ "$bypass_conn" -eq 1 ]; then
+       return 1
     fi
-
-    if [ $ret = 0 ] && [ "$http_code" = "404" ] ; then
-         echo "`Timestamp` Received HTTP 404 Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
-	 resp=1
-    elif [ $ret -ne 0 -o $http_code -ne 200 ] ; then
-        echo_t "HTTP request failed" >> $DCM_LOG_FILE
-        rm -rf $DCMRESPONSE
-        resp=1
-    else
-        echo_t "HTTP request success. Processing response.." >> $DCM_LOG_FILE
-    fi
-    echo_t "resp = $resp" >> $DCM_LOG_FILE
-    return $resp
+    echo_t "HTTP request success. Processing response.." >> $DCM_LOG_FILE
+    return 0
 }
 
 dropbearRecovery()
@@ -245,11 +350,6 @@ do
     fi
 done
 
-# Retry for getting a valid JSON response
-loop=1
-count=0
-while [ $loop -eq 1 ]
-do
     ret=1
     if [ "$DEVICE_TYPE" != "mediaclient" ] && [ "$estbIp" == "$default_IP" ] ; then
 	  ret=0
@@ -268,19 +368,12 @@ do
 
     if [ $ret -ne 0 ]; then
         echo_t "Processing response failed." >> $DCM_LOG_FILE
-        rm -rf $FILENAME $HTTP_CODE
-        count=$((count + 1))
-        if [ $count -ge $RETRY_COUNT ]; then
-            echo_t " $RETRY_COUNT tries failed. Giving up..." >> $DCM_LOG_FILE
-            echo 0 > $DCMFLAG
-            exit 1
-        fi
+        rm -rf $FILENAME 
         echo_t "count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
-        sleep $RETRY_DELAY
-    else
-        loop=0
+        exit 1
+    fi
 
-        if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
+    if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
 
             isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
@@ -308,6 +401,3 @@ do
              
             sh /lib/rdk/dca_utility.sh 1 &
         fi
-    fi
-done
-

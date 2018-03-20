@@ -51,14 +51,147 @@ if [ -f /lib/rdk/utils.sh ]; then
    . /lib/rdk/utils.sh
 fi
 
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+DIRECT_BLOCK_TIME=86400
+DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_rfc"
 GET="dmcli eRT getv"
 SET="dmcli eRT setv"
+
+conn_str="Direct"
+first_conn=useDirectRequest
+sec_conn=useCodebigRequest
+CodebigAvailable=0
+
 timeout=30
 RETRY_COUNT=3
 
+IsDirectBlocked()
+{
+    ret=0
+    if [ -f $DIRECT_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
+            echo "Xconf dcm rfc: Last direct failed blocking is still valid, preventing direct" >> $DCM_RFC_LOG_FILE
+            ret=1
+        else
+            echo "Xconf dcmi rfc: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $DCM_RFC_LOG_FILE
+            rm -f $DIRECT_BLOCK_FILENAME
+            ret=0
+        fi
+    fi
+    return $ret
+}
+
+# Get the configuration of codebig settings
+get_Codebigconfig()
+{
+   # If configparamgen not available, then only direct connection available and no fallback mechanism
+   if [ -f $CONFIGPARAMGEN ]; then
+      CodebigAvailable=1
+   fi
+
+   if [ "$CodebigAvailable" -eq "1" ]; then
+       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   fi
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      conn_str="Codebig"
+      first_conn=useCodebigRequest
+      sec_conn=useDirectRequest
+   fi
+
+   if [ "$CodebigAvailable" -eq 1 ]; then
+      echo_t "Xconf dcm rfc : Using $conn_str connection as the Primary" >> $DCM_RFC_LOG_FILE
+   else
+      echo_t "Xconf dcm rfc : Only $conn_str connection is available" >> $DCM_RFC_LOG_FILE
+   fi
+}
+
+# Direct connection Download function
+useDirectRequest()
+{
+    # Direct connection will not be tried if .lastdirectfail exists
+    IsDirectBlocked
+    if [ "$?" -eq "1" ]; then
+         return 1
+    fi
+    retries=0
+    while [ "$retries" -lt $RETRY_COUNT ]
+    do
+        echo_t "Connect to Xconf dcm rfc end point using DIRECT " >> $DCM_RFC_LOG_FILE
+        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
+        echo_t "CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
+        HTTP_CODE=`result= eval $CURL_CMD`
+        ret=$?
+        sleep 2
+        http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+        [ "x$http_code" != "x" ] || http_code=0
+
+        if [ $http_code -eq 200 ]; then
+           echo_t "Direct connection success ($http_code) " >> $DCM_RFC_LOG_FILE
+           return 0
+        elif [ $http_code -eq 404 ]; then
+            echo_t "Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_RFC_LOG_FILE
+            bypass_conn=1
+            return 0  # Do not return 1, if retry for next conn type is not to be done
+        else
+           echo_t "Xconf dcm rfc Direct Connection Failure : Attempt:$retries - ret:$ret http_code:$http_code" >> $DCM_RFC_LOG_FILE
+        fi
+   retries=`expr $retries + 1`
+   sleep 10
+   done
+   echo_t "Retries for Direct connection exceeded " >> $DCM_RFC_LOG_FILE
+   [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+   return 1
+}
+        
+# Codebig connection Download function        
+useCodebigRequest() 
+{
+   # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+   if [ "$CodebigAvailable" -eq "0" ] ; then
+       echo "DCM RFC : Only direct connection Available" >> $DCM_RFC_LOG_FILE
+       return 1
+   fi
+    retries=0
+    while [ "$retries" -lt $RETRY_COUNT ]
+    do
+        SIGN_CMD="configparamgen 8 \"$JSONSTR\""
+        eval $SIGN_CMD > $SIGN_FILE
+        CB_SIGNED_REQUEST=`cat $SIGN_FILE`
+        rm -f $SIGN_FILE
+        SIGN_CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
+        echo_t "Connect to Xconf dcm rfc end point using CODEBIG at `echo "$SIGN_CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $DCM_RFC_LOG_FILE
+        echo_t "CURL_CMD: `echo "$SIGN_CURL_CMD" | sed -ne 's#oauth_consumer_key=.*#<hidden>#p'`" >> $DCM_RFC_LOG_FILE
+        HTTP_CODE=`result= eval $SIGN_CURL_CMD`
+        ret=$?
+        http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+        [ "x$http_code" != "x" ] || http_code=0
+
+        if [ $http_code -eq 200 ]; then
+             echo_t "Codebig connection success ($http_code)" >> $DCM_RFC_LOG_FILE
+             return 0;
+        elif [ $http_code -eq 404 ]; then
+            echo_t "Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_RFC_LOG_FILE
+            bypass_conn=1
+            return 0  # Do not return 1, if retry for next conn type is not to be done
+        else
+           echo_t "Xconf dcm rfc Codebig Connection Failure Attempt:$retries - ret:$ret http_code:$http_code" >> $DCM_RFC_LOG_FILE
+        fi
+        retries=`expr $retries + 1`
+        sleep 10
+    done
+    echo_t "Retries for Codebig connection exceeded " >> $DCM_RFC_LOG_FILE
+    return 1
+}
 getQueryDcm()
 {
     echo_t "server url is  $DCM_RFC_SERVER_URL" >> $DCM_RFC_LOG_FILE
+
+    # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
+    # Otherwise we will not specify the ip address family in curl options
+    addr_type=""
+    [ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+
       partnerId=$(getPartnerId)
       JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&partnerId='${partnerId}'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
 
@@ -66,72 +199,44 @@ getQueryDcm()
     if [ "$last_char" != "?" ]; then
         DCM_RFC_SERVER_URL="$DCM_RFC_SERVER_URL?"
     fi
-    
-    retries=0
-    while [ "$retries" -lt $RETRY_COUNT ]
-    do
-        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" '$DCM_RFC_SERVER_URL$JSONSTR'"
-        echo_t "CURL_CMD: $CURL_CMD" >> $DCM_RFC_LOG_FILE
-        result= eval $CURL_CMD > $HTTP_CODE
-        ret=$?
-        sleep 2
-        http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-        echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
-        
-        # Retry for STBs hosted in open internet
-        if [ ! -z "$CODEBIG_ENABLED" -a "$CODEBIG_ENABLED"!=" " -a $http_code -eq 000 ] && [ -f /usr/bin/configparamgen ]; then
-            echo_t "Retry attempt to Xconf dcm rfc end point using CODEBIG " >> $DCM_RFC_LOG_FILE
+    bypass_conn=0
+    get_Codebigconfig
+    # return success - 0 for now, if failure. 
+    $first_conn || $sec_conn || { echo_t "Failed : Unable to do Connection" >> $DCM_RFC_LOG_FILE; return 1; }
+    if [ "$bypass_conn" -eq 1 ]; then
+       return 1
+    fi
+    echo_t "Curl success" >> $DCM_RFC_LOG_FILE
+    if [ -e /usr/bin/dcmjsonparser ]; then
+       echo_t "dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
+       /usr/bin/dcmjsonparser $DCMRFCRESPONSE  >> $DCM_RFC_LOG_FILE
 
-            SIGN_CMD="configparamgen 8 \"$JSONSTR\""
-            eval $SIGN_CMD > /tmp/.signedRFCRequest
-            CB_SIGNED_REQUEST=`cat /tmp/.signedRFCRequest`
-            rm -f /tmp/.signedRFCRequest
-            SIGN_CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE --connect-timeout $timeout -m $timeout -o  \"$DCMRFCRESPONSE\" \"$CB_SIGNED_REQUEST\""
-            result= eval $SIGN_CURL_CMD > $HTTP_CODE
-            ret=$?
-            http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-            echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
-        fi
-        
-        if [ $http_code -eq 200 ]; then
-            echo_t "Curl success" >> $DCM_RFC_LOG_FILE
-            if [ -e /usr/bin/dcmjsonparser ]; then
-                echo_t "dcmjsonparser binary present" >> $DCM_RFC_LOG_FILE
-                /usr/bin/dcmjsonparser $DCMRFCRESPONSE  >> $DCM_RFC_LOG_FILE
+       if [ -f $DCM_PARSER_RESPONSE ] && [ "x`cat $DCM_PARSER_RESPONSE`" != "x" ]; then 
+          echo_t "$DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
+          file=$DCM_PARSER_RESPONSE
+          $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport bool false
+          $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Container bool false
+          while read line; do
+              key=`echo $line|cut -d ":" -f1`
+              value=`echo $line|cut -d ":" -f2`
+              echo_t "key=$key value=$value" >> $DCM_RFC_LOG_FILE
+              parseConfigValue $key $value     
+          done < $file
+       else
+          echo_t "$DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
+       fi
 
-                if [ -f $DCM_PARSER_RESPONSE ]; then 
-                    echo_t "$DCM_PARSER_RESPONSE file is present" >> $DCM_RFC_LOG_FILE
-                    file=$DCM_PARSER_RESPONSE
-                    $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodebigSupport bool false
-                    $SET Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Container bool false
-                    while read line; do
-                        key=`echo $line|cut -d ":" -f1`
-                        value=`echo $line|cut -d ":" -f2`
-                        echo_t "key=$key value=$value" >> $DCM_RFC_LOG_FILE
-                        parseConfigValue $key $value     
-                    done < $file
-                else
-                    echo_t "$DCM_PARSER_RESPONSE is not present" >> $DCM_RFC_LOG_FILE  
-                fi
+       if [ -f "$RFC_POSTPROCESS" ]
+       then
+          echo_t "Calling RFCpostprocessing" >> $DCM_RFC_LOG_FILE
+          $RFC_POSTPROCESS &
+       else
+          echo_t "ERROR: No $RFC_POSTPROCESS script" >> $DCM_RFC_LOG_FILE
+       fi
 
-                if [ -f "$RFC_POSTPROCESS" ]
-                then
-                    echo_t "Calling RFCpostprocessing" >> $DCM_RFC_LOG_FILE
-                    $RFC_POSTPROCESS &
-                else
-                    echo_t "ERROR: No $RFC_POSTPROCESS script" >> $DCM_RFC_LOG_FILE
-                fi
-
-            else
-                echo_t "binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
-            fi
-            break    
-        else
-            echo_t "Curl request for DCM RFC failed" >> $DCM_RFC_LOG_FILE
-        fi
-   retries=`expr $retries + 1`
-   sleep 10
-   done
+    else
+       echo_t "binary dcmjsonparse is not present" >> $DCM_RFC_LOG_FILE
+    fi
 }
  
 ## Get Controller Id

@@ -41,16 +41,22 @@ TELEMETRY_PROFILE_RESEND_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 
 HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
-HTTP_CODE="$TELEMETRY_PATH/dca_curl_httpcode"
 
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 
 PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
 PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
 CONFIGPARAMGEN="/usr/bin/configparamgen"
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+DIRECT_BLOCK_TIME=86400
+DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dca"
 
 SLEEP_TIME_FILE="/tmp/.rtl_sleep_time.txt"
-MAX_LIMIT_RESEND=5
+#MAX_LIMIT_RESEND=2
+# Max backlog queue set to 5, after which the file will be reset to empty - all data for upload lost
+MAX_CONN_QUEUE=5
+DIRECT_RETRY_COUNT=2
+
 # exit if an instance is already running
 if [ ! -f /tmp/.dca-splunk.upload ];then
     # store the PID
@@ -62,11 +68,26 @@ else
     fi
 fi
 
+conn_type_used=""   # Use this to check the connection success, else set to fail
+conn_type="Direct" # Use this to check the connection success, else set to fail
+first_conn=useDirectRequest
+sec_conn=useCodebigRequest
+CodebigAvailable=0
+
+CURL_TIMEOUT=30
+TLS=""
+if [ -f /etc/os-release ]; then
+    TLS="--tlsv1.2"
+fi
+
+
 mkdir -p $TELEMETRY_PATH
 
 # Processing Input Args
 inputArgs=$1
 
+# dca_utility.sh does  not uses TELEMETRY_PROFILE_RESEND_PATH, to hardwired to TELEMETRY_PROFILE_DEFAULT_PATH
+[ "x$sendInformation" != "x"  ] || sendInformation=1
 if [ "$sendInformation" -ne 1 ] ; then
    TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_RESEND_PATH
 else
@@ -99,10 +120,133 @@ pidCleanup()
    fi
 }
 
+IsDirectBlocked()
+{
+    ret=0
+    if [ -f $DIRECT_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
+            echo "dca: Last direct failed blocking is still valid, preventing direct" >>  $RTL_LOG_FILE
+            ret=1
+        else
+            echo "dca: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $RTL_LOG_FILE
+            rm -f $DIRECT_BLOCK_FILENAME
+            ret=0
+        fi
+    fi
+    return $ret
+}
+
+# Get the configuration of codebig settings
+get_Codebigconfig()
+{
+   # If configparamgen not available, then only direct connection available and no fallback mechanism
+   if [ -f $CONFIGPARAMGEN ]; then
+      CodebigAvailable=1
+   fi
+   if [ "$CodebigAvailable" -eq "1" ]; then
+       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   fi
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      conn_type="Codebig"
+      first_conn=useCodebigRequest
+      sec_conn=useDirectRequest
+   fi
+
+   if [ "$CodebigAvailable" -eq 1 ]; then
+      echo_t "dca : Using $conn_type connection as the Primary" >> $RTL_LOG_FILE
+   else
+      echo_t "dca : Only $conn_type connection is available" >> $RTL_LOG_FILE
+   fi
+}
+
+# Direct connection Download function
+useDirectRequest()
+{
+       # Direct connection will not be tried if .lastdirectfail exists
+       IsDirectBlocked
+       if [ "$?" -eq "1" ]; then
+           return 1
+       fi
+      echo_t "dca$2: Using Direct commnication"
+      CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+      echo_t "CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE
+      HTTP_CODE=`result= eval $CURL_CMD`
+      ret=$?
+
+      http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+      [ "x$http_code" != "x" ] || http_code=0
+
+    # log security failure
+      case $ret in
+        35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+           echo_t "dca$2: Direct Connection Failure - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
+           ;;
+      esac
+      if [ $http_code -eq 200 ]; then
+           echo_t "dca$2: Direct connection success ($http_code) " >> $RTL_LOG_FILE
+           # Use direct connection for rest of the connections
+           conn_type_used="Direct"
+           return 0
+      fi
+    if [ "$ret" -eq 0 ]; then
+        echo_t "dca$2: Direct Connection Failure - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
+    fi
+    direct_retry=$(( direct_retry += 1 ))
+    if [ "$direct_retry" -ge "$DIRECT_RETRY_COUNT" ]; then
+       # .lastdirectfail will not be created for only direct connection 
+       [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+    fi
+    sleep 10
+    return 1
+}
+
+# Codebig connection Download function
+useCodebigRequest()
+{
+      # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+      if [ "$CodebigAvailable" -eq "0" ] ; then
+         echo "dca$2 : Only direct connection Available"
+         return 1
+      fi
+      SIGN_CMD="$CONFIGPARAMGEN 9 "
+      eval $SIGN_CMD > $SIGN_FILE
+      CB_SIGNED_REQUEST=`cat $SIGN_FILE`
+      rm -f $SIGN_FILE
+      CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$CB_SIGNED_REQUEST\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+      echo_t "dca$2: Using Codebig connection at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $RTL_LOG_FILE
+      echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*oauth_signature=.* --#<hidden> --#p'`" >> $RTL_LOG_FILE
+      HTTP_CODE=`result= eval $CURL_CMD`
+      curlret=$?
+      http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+      [ "x$http_code" != "x" ] || http_code=0
+      # log security failure
+      case $curlret in
+          35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+             echo_t "dca$2: Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
+             ;;
+      esac
+      if [ "$http_code" -eq 200 ]; then
+           echo_t "dca$2: Codebig connection success ($http_code) " >> $RTL_LOG_FILE
+           conn_type_used="Codebig"
+           return 0
+      fi
+      if [ "$curlret" -eq 0 ]; then
+          echo_t "dca$2: Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
+      fi
+      sleep 10
+    return 1
+}
+
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
 #main app
 estbMac=`getErouterMacAddress`
 cur_time=`date "+%Y-%m-%d %H:%M:%S"`
+
+# If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
+# Otherwise we will not specify the ip address family in curl options
+addr_type=""
+[ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    ##  1]  Pull processed data from ATOM 
@@ -152,75 +296,90 @@ fi
 
 if [ "$inputArgs" = "logbackup_without_upload" ];then
       echo_t "log backup during bootup, Will upload on later call..!"
-      cat $TELEMETRY_JSON_RESPONSE >> $TELEMETRY_RESEND_FILE
+      if [ -f $TELEMETRY_JSON_RESPONSE ]; then
+           outputJson=`cat $TELEMETRY_JSON_RESPONSE`
+      fi
+      if [ ! -f $TELEMETRY_JSON_RESPONSE ] || [ "x$outputJson" = "x" ] ; then
+               echo_t "dca: Unable to find Json message or Json is empty." >> $RTL_LOG_FILE
+         if [ ! -f /etc/os-release ];then pidCleanup; fi
+         exit 0 
+      fi
+      if [ -f $TELEMETRY_RESEND_FILE ]; then 
+          mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE 
+      fi
+      # ensure that Json is put at the top of the queue
+      echo "$outputJson" > $TELEMETRY_RESEND_FILE
+      if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
+         cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
+         rm -f $TELEMETRY_TEMP_RESEND_FILE
+      fi
+      # In case the file gets greater that Queue, truncate to max lenght
+      if [ -f $TELEMETRY_RESEND_FILE ]; then
+          if [ "`cat $TELEMETRY_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
+              mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE
+              no_of_json=$(( MAX_CONN_QUEUE -1 ))
+              cat $TELEMETRY_TEMP_RESEND_FILE | sed -ne '1,'"$no_of_json"' p' > $TELEMETRY_RESEND_FILE
+              rm -f $TELEMETRY_TEMP_RESEND_FILE
+          fi
+      fi
+      if [ ! -f /etc/os-release ];then pidCleanup; fi
       exit 0
 fi
-
+get_Codebigconfig
+direct_retry=0
 ##  2] Check for unsuccessful posts from previous execution in resend que.
 ##  If present repost either with appending to existing or as independent post
-retry=0
 if [ -f $TELEMETRY_RESEND_FILE ]; then
     rm -f $TELEMETRY_TEMP_RESEND_FILE
     while read resend
     do
         echo_t "dca resend : $resend" >> $RTL_LOG_FILE 
-	CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$resend' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30"
-        ret= eval $CURL_CMD > $HTTP_CODE
-        echo_t "dca resend : CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
-	sleep 5
-	http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-        echo_t "dca resend : HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
-        if [ "$http_code" != "200" ]; then
-            # Store this line from resend file to a temp resend file
-            # This is to address the use case when device is offline
-            echo "$resend" >> $TELEMETRY_TEMP_RESEND_FILE
-        fi
-        # Sleep between resending the events while connectivity is down
-        sleep 30 
-        retry=$((retry + 1))
-        if [ $retry -gt $MAX_LIMIT_RESEND ]; then
-            echo_t "dca Max limit for resend attempts reached. Ignoring messages in resend list" >> $RTL_LOG_FILE 
-            break
-        fi
+        $first_conn "$resend" "resend" || $sec_conn "$resend" "resend" ||  conn_type_used="Fail" 
+
+        if [ "x$conn_type_used" = "xFail" ] ; then 
+           echo "$resend" >> $TELEMETRY_TEMP_RESEND_FILE
+           echo_t "dca Connecion failed for this Json : requeuing back"  >> $RTL_LOG_FILE 
+        fi 
+        echo_t "dca Attempting next Json in the queue "  >> $RTL_LOG_FILE 
+        sleep 10 
    done < $TELEMETRY_RESEND_FILE
    sleep 2
-   if [ "$http_code" == "200" ]; then
-       rm -f $TELEMETRY_RESEND_FILE
-   fi
-
+   rm -f $TELEMETRY_RESEND_FILE
    if [ -f $TELEMETRY_TEMP_RESEND_FILE ]; then
-       mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
+        if [ "`cat $TELEMETRY_TEMP_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
+               rm $TELEMETRY_TEMP_RESEND_FILE
+        fi
    fi
 fi
 
-##  3] Attempt to post current message. Check for status if failed add it to resend que
-if [ ! -f $TELEMETRY_JSON_RESPONSE ]; then
-    echo_t "dca: Unable to find Json message ." >> $RTL_LOG_FILE
+##  3] Attempt to post current message. Check for status if failed add it to resend queue
+if [ -f $TELEMETRY_JSON_RESPONSE ]; then
+   outputJson=`cat $TELEMETRY_JSON_RESPONSE`
+fi
+if [ ! -f $TELEMETRY_JSON_RESPONSE ] || [ "x$outputJson" = "x" ] ; then
+    echo_t "dca: Unable to find Json message or Json is empty." >> $RTL_LOG_FILE
+    [ ! -f $TELEMETRY_TEMP_RESEND_FILE ] ||  mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
     if [ ! -f /etc/os-release ];then pidCleanup; fi
     exit 0
 fi
 
-outputJson=`cat $TELEMETRY_JSON_RESPONSE`
-timestamp=`date +%Y-%b-%d_%H-%M-%S` 
-CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' --interface $EROUTER_INTERFACE -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$outputJson' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout 30 -m 30"
-
-# Save data to resend list so that data will be uploaded in next boot-up cycle if device reboots in maintenance 
-echo "$outputJson" >> $TELEMETRY_RESEND_FILE
-echo_t "dca: CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE 
+echo "$outputJson" > $TELEMETRY_RESEND_FILE
 # sleep for random time before upload to avoid bulk requests on splunk server
 echo_t "dca: Sleeping for $sleep_time before upload." >> $RTL_LOG_FILE
 sleep $sleep_time
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
-ret= eval $CURL_CMD > $HTTP_CODE
-http_code=$(awk -F\" '{print $1}' $HTTP_CODE)
-echo_t "dca: HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
-if [ $http_code -eq 200 ];then
+$first_conn "$outputJson"  || $sec_conn "$outputJson"  ||  conn_type_used="Fail" 
+if [ "x$conn_type_used" != "xFail" ]; then
     echo_t "dca: Json message successfully submitted." >> $RTL_LOG_FILE
     rm -f $TELEMETRY_RESEND_FILE
+    [ ! -f $TELEMETRY_TEMP_RESEND_FILE ] ||  mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
 else
-    echo_t "dca: Json message submit failed. Adding message to resend que" >> $RTL_LOG_FILE
+   if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
+       cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
+       rm -f $TELEMETRY_TEMP_RESEND_FILE
+    fi
+    echo_t "dca: Json message submit failed. Adding message to resend queue" >> $RTL_LOG_FILE
 fi
-
 rm -f $TELEMETRY_JSON_RESPONSE
 # PID file cleanup
 if [ ! -f /etc/os-release ];then pidCleanup; fi
