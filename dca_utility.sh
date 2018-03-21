@@ -45,6 +45,7 @@ MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
 TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
 EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 
+# test commit for gerrit-premerge CI
 # Persist this files for telemetry operation
 # Regenerate this only when there is a change identified from XCONF update
 SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_sorted_file.conf"
