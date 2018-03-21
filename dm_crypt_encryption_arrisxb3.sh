@@ -2,11 +2,11 @@
 
 files_to_backup="/nvram2"
 dest_to_copy="/nvram/scratch_pad"
-function create_scratchpad_area(){
+create_scratchpad_area(){
          mkdir -p /nvram/scratch_pad
 }
 
-function generate_key(){
+generate_key(){
 	#Generate the key.
 	if [ ! -f /tmp/kfqimholywkj/key.nvram ]; then
 		echo "Creating the key on fly under /tmp" >> /tmp/encryption.txt
@@ -19,7 +19,7 @@ function generate_key(){
 }
 
 
-function encryption_enable(){
+encryption_enable(){
 CRYPT_NVRAM2=nvram2
 CRYPT_NVRAM=nvram
 NVRAM2_PARTITION=/dev/mmcblk0p14
