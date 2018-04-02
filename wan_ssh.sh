@@ -6,7 +6,6 @@ WAN_IP6=""
 
 #RDKB-16251
 if [ -f /etc/mount-utils/getConfigFile.sh ];then
-	mkdir -p /tmp/.dropbear
 	. /etc/mount-utils/getConfigFile.sh
 fi
 
@@ -42,12 +41,16 @@ get_wan_ips()
 start_dropbear_wan()
 {
 	get_wan_ips
-	#echo "WAN_PARAMS: $WAN_PARAMS"
-	#RDKB-16251
-	DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1.xyz"
-	DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2.xyz"
+	DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
+	DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
+        if [ ! -d '/tmp/.dropbear' ]; then
+            echo "wan_ssh.sh: need to create dropbear dir "
+            mkdir -p /tmp/.dropbear
+        fi
 	getConfigFile $DROPBEAR_PARAMS_1
 	getConfigFile $DROPBEAR_PARAMS_2
+        echo "WAN_PARAMS: $WAN_PARAMS"
+        #RDKB-16251
 	dropbear -E -s -b /etc/sshbanner.txt -a $WAN_PARAMS -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 2>/dev/null
         rm -rf /tmp/.dropbear/*
 }

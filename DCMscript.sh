@@ -37,7 +37,6 @@ if [ -f /lib/rdk/utils.sh ]; then
 fi
 
 if [ -f /etc/mount-utils/getConfigFile.sh ];then
-      mkdir -p /tmp/.dropbear
      . /etc/mount-utils/getConfigFile.sh
 fi
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
@@ -334,13 +333,19 @@ dropbearRecovery()
    dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
        echo "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
-       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1.xyz"
-       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2.xyz"
+       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
+       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
+       if [ ! -d '/tmp/.dropbear' ]; then
+           echo "wan_ssh.sh: need to create dropbear dir !!! " >> $DCM_LOG_FILE
+           mkdir -p /tmp/.dropbear
+       fi
+       echo "wan_ssh.sh: need to create dropbear files !!! " >> $DCM_LOG_FILE
        getConfigFile $DROPBEAR_PARAMS_1
        getConfigFile $DROPBEAR_PARAMS_2
        dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ARM_INTERFACE_IP:22 &
        sleep 2
    fi
+   rm -rf /tmp/.dropbear/*
 }
 
 # Safe wait for IP acquisition
