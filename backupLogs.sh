@@ -24,6 +24,22 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
+LOG_UPLOAD_PID="/tmp/.log_upload.pid"
+
+# exit if an instance is already running
+if [ ! -f $LOG_UPLOAD_PID ];then
+    # store the PID
+    echo $$ > $LOG_UPLOAD_PID
+else
+    pid=`cat $LOG_UPLOAD_PID`
+    if [ -d /proc/$pid ];then
+          echo_t "backupLogs.sh already running..."
+          exit 0
+    else
+          echo $$ > $LOG_UPLOAD_PID
+    fi
+fi
+
 PING_PATH="/usr/sbin"
 MAC=`getMacAddressOnly`
 dt=`date "+%m-%d-%y-%I-%M%p"`
@@ -46,6 +62,14 @@ else
    nvram2Backup="false"
 fi
 
+
+backup_log_pidCleanup()
+{
+   # PID file cleanup
+   if [ -f $LOG_UPLOAD_PID ];then
+        rm -rf $LOG_UPLOAD_PID
+   fi
+}
 
 getTFTPServer()
 {
@@ -245,6 +269,7 @@ then
 	fi
 
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
+    backup_log_pidCleanup
     return 0
 else
   Crashed_Process_Is=$2
@@ -291,6 +316,8 @@ if [ "$1" != "" ]
 then
      needReboot=$1
 fi
+
+backup_log_pidCleanup
 
 if [ "$needReboot" = "true" ]
 then
