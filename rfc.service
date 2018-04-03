@@ -23,16 +23,16 @@
 . /etc/device.properties
 
 #Adding support for override for dcm.properties file in non-prod builds
-if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
-      . $PERSISTENT_PATH/dcm.properties
+if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/rfc.properties ]; then
+      . $PERSISTENT_PATH/rfc.properties
 else
-      . /etc/dcm.properties
+      . /etc/rfc.properties
 fi
 
 if [ -f $RFC_SERVICE_LOCK ]; then
     echo_t "RFC: Service in progress. New instance not allowed. Lock file $RFC_SERVICE_LOCK is locked!"  >> $RFC_LOG_FILE
 else
-    sh /lib/rdk/DCM_RFCscript.sh &
+    sh /lib/rdk/RFCbase.sh &
 fi
 
 
