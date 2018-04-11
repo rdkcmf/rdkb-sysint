@@ -119,8 +119,8 @@ IsDirectBlocked()
 # Get the configuration of codebig settings
 get_Codebigconfig()
 {
-   # If configparamgen not available, then only direct connection available and no fallback mechanism
-   if [ -f $CONFIGPARAMGEN ]; then
+   # If GetServiceUrl not available, then only direct connection available and no fallback mechanism
+   if [ -f /usr/bin/GetServiceUrl ]; then
       CodebigAvailable=1
    fi
 
@@ -193,7 +193,7 @@ useDirectRequest()
 # Codebig connection Download function        
 useCodebigRequest()
 {
-    # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+    # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
     if [ "$CodebigAvailable" -eq "0" ] ; then
         echo "OpsLog Upload : Only direct connection Available"
         return 1
@@ -236,9 +236,15 @@ useCodebigRequest()
     while [ "$retries" -lt 3 ]
     do
          echo_t "Trying Codebig Communication"
-         SIGN_CMD="configparamgen 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
+         SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile\""
          eval $SIGN_CMD > $SIGN_FILE
-         echo "Log upload - configparamgen success"
+         if [ -s /var/.signedRequest ]
+         then
+             echo "Log upload - GetServiceUrl success"
+         else
+             echo "Log upload - GetServiceUrl failed"
+             exit
+         fi
          CB_SIGNED=`cat $SIGN_FILE`
          rm -f $SIGN_FILE
          [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt

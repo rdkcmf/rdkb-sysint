@@ -59,14 +59,17 @@ TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 SCP_COMPLETE="/tmp/.scp_done"
-PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
-PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
-CONFIGPARAMGEN="/usr/bin/configparamgen"
 
+PEER_COMM_ID="/tmp/elxrretyt.swr"
 IDLE_TIMEOUT=30
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
+    if [ ! -f /usr/bin/GetConfigFile ];then
+        echo "Error: GetConfigFile Not Found"
+        exit 127
+    fi
+
     if [ -f /etc/logFiles.properties ]; then
         . /etc/logFiles.properties
     fi
@@ -488,7 +491,7 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
         while [ ! -f $DCMRESPONSE ]
         do
             echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
-            $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID 
+            GetConfigFile $PEER_COMM_ID
             scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE > /dev/null 2>&1
             rm -f $PEER_COMM_ID
             sleep 10
@@ -511,7 +514,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     mkdir -p $LOG_PATH
     TMP_SCP_PATH="/tmp/scp_logs"
     mkdir -p $TMP_SCP_PATH
-    $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+    GetConfigFile $PEER_COMM_ID
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile  $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$PcdLogFile $TMP_SCP_PATH/ > /dev/null 2>&1
     rm -f $PEER_COMM_ID
@@ -622,7 +625,7 @@ else
        if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
-           $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+           GetConfigFile $PEER_COMM_ID
            if [ $triggerType -eq 2 ]; then
                ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
                echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE

@@ -31,9 +31,12 @@ RSYNC_WAITING="/tmp/rsync_waiting"
 
 SCP_COMPLETE="/tmp/.scp_done"
 
-PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
-PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
-CONFIGPARAMGEN="/usr/bin/configparamgen"
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+
+if [ ! -f /usr/bin/GetConfigFile ];then
+    echo "Error: GetConfigFile Not Found"
+    exit 127
+fi
 
 if [ -f /etc/device.properties ]
 then
@@ -105,8 +108,7 @@ createSysDescr()
 
 flush_atom_logs()
 {
-        
-        $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+    GetConfigFile $PEER_COMM_ID
  	ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
  	local loop=0
 	while :
@@ -137,8 +139,8 @@ protected_rsync()
 
 	destination=$1
 	RSYNC_PID=`pidof rsync`
-        $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
-	if [ "$RSYNC_PID" != "" ] && [ -f $RSYNC_RUNNING ] && [ ! -f $RSYNC_WAITING ]; then
+	GetConfigFile $PEER_COMM_ID
+    if [ "$RSYNC_PID" != "" ] && [ -f $RSYNC_RUNNING ] && [ ! -f $RSYNC_WAITING ]; then
 		i=0;
 		timeout=1;
 		echo_t "Already rsync running"

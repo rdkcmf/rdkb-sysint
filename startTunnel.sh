@@ -67,9 +67,15 @@ case $oper in
              fi
              # Replace CM_IP with value
              args=`echo $* | sed "s/CM_IP/$CM_IP/g"`
-             /usr/bin/configparamgen jx /etc/saf/nvgeajacl.ipe /tmp/nvgeajacl.ipe
-             /usr/bin/ssh -i /tmp/nvgeajacl.ipe $args
-             rm /tmp/nvgeajacl.ipe
+             ID="/tmp/nvgeajacl.ipe"
+
+             if [ ! -f /usr/bin/GetConfigFile ];then
+                 echo "Error: GetConfigFile Not Found"
+                 exit 127
+             fi
+             GetConfigFile $ID
+             /usr/bin/ssh -i $ID $args
+             rm $ID
              exit 1
              ;;
            stop)

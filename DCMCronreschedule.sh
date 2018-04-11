@@ -49,18 +49,22 @@ DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 
-PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
-PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
-CONFIGPARAMGEN="/usr/bin/configparamgen"
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+
 IDLE_TIMEOUT=30
 
 echo_t "Starting execution of DCMCronreshedule.sh" >> $DCM_LOG_FILE
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
     echo "Signal atom to pick the update_cronschedule data for schedule telemetry !!! " >> $DCM_LOG_FILE
-    
-    ## Trigger an inotify event on ATOM 
-    $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+
+    ## Trigger an inotify event on ATOM
+    if [ ! -f /usr/bin/GetConfigFile ];then
+        echo "Error: GetConfigFile Not Found"
+        exit 127
+    fi
+
+    GetConfigFile $PEER_COMM_ID
     ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'update_cronschedule' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
     rm -f $PEER_COMM_ID
 else

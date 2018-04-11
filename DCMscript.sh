@@ -64,9 +64,12 @@ TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 TLS_LOG_FILE_NAME="TlsVerify.txt.0"
 TLS_LOG_FILE="$LOG_PATH/$TLS_LOG_FILE_NAME"
 
-PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
-PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
-CONFIGPARAMGEN="/usr/bin/configparamgen"
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+
+if [ ! -f /usr/bin/GetConfigFile ];then
+    echo "Error: GetConfigFile Not Found"
+    exit 127
+fi
 
 # http header
 HTTP_HEADERS='Content-Type: application/json'
@@ -174,8 +177,8 @@ IsDirectBlocked()
 # Get the configuration of codebig settings
 get_Codebigconfig()
 {
-   # If configparamgen not available, then only direct connection available and no fallback mechanism
-   if [ -f $CONFIGPARAMGEN ]; then
+   # If GetServiceUrl not available, then only direct connection available and no fallback mechanism
+   if [ -f /usr/bin/GetServiceUrl ]; then
       CodebigAvailable=1
    fi
 
@@ -245,14 +248,14 @@ useDirectRequest()
 # Codebig connection Download function        
 useCodebigRequest()
 {
-   # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+   # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
    if [ "$CodebigAvailable" -eq "0" ] ; then
        echo "DCM : Only direct connection Available" >> $DCM_LOG_FILE
        return 1
    fi
    count=0
    while [ "$count" -lt "$RETRY_COUNT" ] ; do    
-      SIGN_CMD="configparamgen 3 \"$JSONSTR\""
+      SIGN_CMD="GetServiceUrl 3 \"$JSONSTR\""
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
       rm -f $SIGN_FILE
@@ -382,7 +385,7 @@ done
                sh /etc/firmwareSched.sh &
             fi
             
-            $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+            GetConfigFile $PEER_COMM_ID
             scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             if [ $? -ne 0 ]; then
                 scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1

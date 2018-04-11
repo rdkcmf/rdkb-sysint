@@ -2,13 +2,17 @@
 
 retVal=""
 
-#Retrieve Parameter2
-if [ -s  /etc/xhs/cyavtfjzx.pse ] ; then
-
-	mkdir -p /tmp/xhs
-	/usr/bin/configparamgen jx /etc/xhs/cyavtfjzx.pse /tmp/xhs/cyavtfjzx.pse
-	param2=`/bin/cat /tmp/xhs/cyavtfjzx.pse`
+if [ ! -f /usr/bin/GetConfigFile ];then
+    echo "Error: GetConfigFile Not Found"
+    exit 127
 fi
+
+COMMID="/tmp/xhs/cyavtfjzx.pse"
+
+#Retrieve Parameter2
+mkdir -p /tmp/xhs
+GetConfigFile $COMMID
+param2=`/bin/cat $COMMID`
 
 if [ -n  "$param2" ] ; then
 
@@ -25,8 +29,8 @@ fi
 param2=""
 cmMAC=""
 
-if [ -e  /tmp/xhs/cyavtfjzx.pse ] ; then
-	/bin/rm -rf /tmp/xhs/cyavtfjzx.pse
+if [ -e $COMMID ] ; then
+	/bin/rm -rf $COMMID
 fi
 
 echo $retVal

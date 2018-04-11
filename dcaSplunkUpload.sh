@@ -44,9 +44,13 @@ HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
 
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 
-PEER_COMM_DAT="/etc/dropbear/elxrretyt.swr"
-PEER_COMM_ID="/tmp/elxrretyt-$$.swr"
-CONFIGPARAMGEN="/usr/bin/configparamgen"
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+
+if [ ! -f /usr/bin/GetConfigFile ];then
+    echo "Error: GetConfigFile Not Found"
+    exit 127
+fi
+
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 DIRECT_BLOCK_TIME=86400
 DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dca"
@@ -136,8 +140,8 @@ IsDirectBlocked()
 # Get the configuration of codebig settings
 get_Codebigconfig()
 {
-   # If configparamgen not available, then only direct connection available and no fallback mechanism
-   if [ -f $CONFIGPARAMGEN ]; then
+   # If GetServiceUrl not available, then only direct connection available and no fallback mechanism
+   if [ -f /usr/bin/GetServiceUrl ]; then
       CodebigAvailable=1
    fi
    if [ "$CodebigAvailable" -eq "1" ]; then
@@ -200,12 +204,12 @@ useDirectRequest()
 # Codebig connection Download function
 useCodebigRequest()
 {
-      # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+      # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
       if [ "$CodebigAvailable" -eq "0" ] ; then
          echo "dca$2 : Only direct connection Available"
          return 1
       fi
-      SIGN_CMD="$CONFIGPARAMGEN 9 "
+      SIGN_CMD="GetServiceUrl 9 "
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
       rm -f $SIGN_FILE
@@ -249,7 +253,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    rm -f $TELEMETRY_JSON_RESPONSE
 
    
-   $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
+   GetConfigFile $PEER_COMM_ID
    scp -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE > /dev/null 2>&1
    if [ $? -ne 0 ]; then
        scp -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE > /dev/null 2>&1

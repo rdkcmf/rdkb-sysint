@@ -85,8 +85,8 @@ IsDirectBlocked()
 # Get the configuration of codebig settings
 get_Codebigconfig()
 {
-   # If configparamgen not available, then only direct connection available and no fallback mechanism
-   if [ -f $CONFIGPARAMGEN ]; then
+   # If GetServiceUrl not available, then only direct connection available and no fallback mechanism
+   if [ -f /usr/bin/GetServiceUrl ]; then
       CodebigAvailable=1
    fi
 
@@ -147,7 +147,7 @@ useDirectRequest()
 # Codebig connection Download function        
 useCodebigRequest() 
 {
-   # Do not try Codebig if CodebigAvailable != 1 (configparamgen not there)
+   # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
    if [ "$CodebigAvailable" -eq "0" ] ; then
        echo "DCM RFC : Only direct connection Available" >> $DCM_RFC_LOG_FILE
        return 1
@@ -155,7 +155,7 @@ useCodebigRequest()
     retries=0
     while [ "$retries" -lt $RETRY_COUNT ]
     do
-        SIGN_CMD="configparamgen 8 \"$JSONSTR\""
+        SIGN_CMD="GetServiceUrl 8 \"$JSONSTR\""
         eval $SIGN_CMD > $SIGN_FILE
         CB_SIGNED_REQUEST=`cat $SIGN_FILE`
         rm -f $SIGN_FILE

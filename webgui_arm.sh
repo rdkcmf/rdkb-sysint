@@ -237,18 +237,18 @@ fi
 
 if [ "$VIDEO_ANALYTICS" = "enabled" ]
 then
-    CONFIGPARAMGEN=/usr/bin/cpgc
     if [ -d /etc/webui/certs ]; then
-       mkdir -p /tmp/.webui/
-       cp /etc/webui/certs/comcast-rdk-ca-chain.cert.pem /tmp/.webui/
-       if [ -f $CONFIGPARAMGEN ]; then
-          $CONFIGPARAMGEN jx /etc/webui/certs/ptohjvfeh.sdn /tmp/.webui/rdkb-video.pem
-          if [ -f /tmp/.webui/rdkb-video.pem ]; then
-             chmod 600 /tmp/.webui/rdkb-video.pem
-          fi
-       else
-          echo "$CONFIGPARAMGEN not found !!!"
-       fi
+        if [ ! -f /usr/bin/GetConfigFile ];then
+            echo "Error: GetConfigFile Not Found"
+            exit 127
+        fi
+        mkdir -p /tmp/.webui/
+        ID="/tmp/.webui/rdkb-video.pem"
+        cp /etc/webui/certs/comcast-rdk-ca-chain.cert.pem /tmp/.webui/
+        GetConfigFile $ID
+        if [ -f /tmp/.webui/rdkb-video.pem ]; then
+            chmod 600 /tmp/.webui/rdkb-video.pem
+        fi
     fi
 fi
 
