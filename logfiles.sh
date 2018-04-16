@@ -348,6 +348,7 @@ backupnvram2logs()
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 	rm -rf $LOG_SYNC_PATH*core*
+	rm -rf $LOG_SYNC_PATH$PcdLogFile
 
 	cd $LOG_PATH
 	FILES=`ls`
@@ -392,6 +393,7 @@ backupnvram2logs_on_reboot()
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 	rm -rf $LOG_SYNC_PATH*core*
+	rm -rf $LOG_SYNC_PATH$PcdLogFile
 
 	cd $workDir
 }

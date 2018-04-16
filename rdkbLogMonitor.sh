@@ -358,6 +358,7 @@ bootup_upload()
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log
 	       rm -rf $LOG_SYNC_PATH*core*
+	       rm -rf $LOG_SYNC_PATH$PcdLogFile
             fi
 
 
