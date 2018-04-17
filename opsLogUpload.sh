@@ -266,6 +266,11 @@ useCodebigRequest()
 			echo $http_code > $UPLOADRESULT
                         return 0
                  fi
+                 if [ $http_code -eq 429 ];then
+                        echo_t "Codebig Communication Failure HttpCode received is : $http_code"
+                        http_code=0
+                        sleep 30
+                 fi
                  echo "failed" > $UPLOADRESULT
              fi
         else

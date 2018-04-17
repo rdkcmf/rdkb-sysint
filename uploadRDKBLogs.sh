@@ -344,6 +344,11 @@ useCodebigRequest()
                     if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
                         return 0
                     fi
+		    if [ $http_code -eq 429 ];then
+                        echo_t "Codebig Communication Failure HttpCode received is : $http_code"
+                        http_code=0
+			sleep 30
+                    fi
                 fi
             else
                 http_code=0
