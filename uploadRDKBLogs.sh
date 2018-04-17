@@ -35,6 +35,9 @@ first_conn=useDirectRequest
 sec_conn=useCodebigRequest
 CodebigAvailable=0
 
+encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
+URLENCODE_STRING=""
+
 if [ $# -ne 4 ]; then 
      #echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
      echo "USAGE: $0 $1 $2 $3 $4"
@@ -229,7 +232,7 @@ useDirectRequest()
     do
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
-            CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+            CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
             echo_t "Curl Command built: $CURL_CMD"
         if [ $retries -ne 0 ]
         then
@@ -314,9 +317,9 @@ useCodebigRequest()
         authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
         authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
 
-        CURL_CMD="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+        CURL_CMD="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
             #Sensitive info like Authorization signature should not print
-        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H <Hidden authorization-header> -w '%{http_code}\n' -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H <Hidden authorization-header> -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
 
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
@@ -422,6 +425,12 @@ HttpLogUpload()
         echo_t "System Uptime is $UPTIME"
         echo_t "S3 URL is : $S3_URL"
 
+        echo "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
+        if [ "$encryptionEnable" == "true" ]; then
+            S3_MD5SUM="$(openssl md5 -binary < $UploadFile | openssl enc -base64)"
+            URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
+        fi
+
         $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; continue ; }
 
         # If 200, executing second curl command with the public key.
@@ -441,12 +450,16 @@ HttpLogUpload()
             fi
 
             #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
-            RemSignature=`echo $Key | sed "s/Signature=.*&//"`
+            RemSignature=`echo $Key | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
+
+            if [ "$encryptionEnable" != "true" ]; then
+                Key=\"$Key\"
+            fi
 
             echo_t "Generated KeyIs : "
             echo $RemSignature
 
-            CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
+            CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $Key --connect-timeout 30 -m 30"
             #Sensitive info like Authorization signature should not print
             CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 30 -m 30"
 
@@ -456,7 +469,7 @@ HttpLogUpload()
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
-                    CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
+                    CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $Key --connect-timeout 30 -m 30"
                       #Sensitive info like Authorization signature should not print
                     CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 30 -m 30"
                 fi
@@ -519,7 +532,7 @@ HttpLogUpload()
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
-                     CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+                     CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
                 fi
                 echo_t "Curl Command built: $CURL_CMD"
                 HTTP_CODE=`eval $CURL_CMD` 
@@ -554,7 +567,10 @@ HttpLogUpload()
             #Executing curl with the response key when return code after the first curl execution is 200.
             if [ $http_code -eq 200 ];then
                 Key=$(awk '{print $0}' $OutputFile)
-                CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 10 -m 10"
+                if [ "$encryptionEnable" != "true" ]; then
+                    Key=\"$Key\"
+                fi
+                CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $Key --connect-timeout 10 -m 10"
                 #Sensitive info like Authorization signature should not print
                 CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
 
@@ -564,7 +580,7 @@ HttpLogUpload()
                     echo_t "Trial $retries..."
                     # nice value can be normal as the first trial failed
                     if [ $retries -ne 0 ]; then
-                        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  \"$Key\" --connect-timeout 10 -m 10"
+                        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key --connect-timeout 10 -m 10"
                             #Sensitive info like Authorization signature should not print
                         CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
                     fi

@@ -49,6 +49,8 @@ conn_str="Direct"
 first_conn=useDirectRequest
 sec_conn=useCodebigRequest
 CodebigAvailable=0
+encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
+URLENCODE_STRING=""
 
 PING_PATH="/usr/sbin"
 CURLPATH="/fss/gw"
@@ -151,7 +153,7 @@ useDirectRequest()
     while [ "$retries" -lt 3 ]
     do
         echo_t "Trying Direct Communication"
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
 
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
@@ -244,7 +246,7 @@ useCodebigRequest()
          echo "serverUrl : $S3_URL"
          authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
          authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
+         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
@@ -295,6 +297,13 @@ HTTPLogUploadOnRequest()
     [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
 
     UploadFile=`ls | grep "tgz"`
+
+    echo "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
+    if [ "$encryptionEnable" == "true" ]; then
+        S3_MD5SUM="$(openssl md5 -binary < $UploadFile | openssl enc -base64)"
+        URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
+    fi
+
     $first_conn || $sec_conn || { echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code" ; rm -rf $blog_dir$timeRequested  ; }
 
     # If 200, executing second curl command with the public key.
@@ -313,16 +322,20 @@ HTTPLogUploadOnRequest()
             forced_https="false"
         fi
 
-        RemSignature=`echo $Key | sed "s/AWSAccessKeyId=.*Signature=.*&//"`
+        RemSignature=`echo $Key | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
+        if [ "$encryptionEnable" != "true" ]; then
+            Key=\"$Key\"
+        fi
         echo_t "Generated KeyIs : "
         echo $RemSignature
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$Key\" --connect-timeout 30 -m 30"
-               
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $Key --connect-timeout 30 -m 30"
+        CURL_REMOVE_HEADER="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $RemSignature --connect-timeout 30 -m 30"
+
         retries=0
         while [ "$retries" -lt 3 ]
         do 
 	    echo_t "Trial $retries..."                  
-            echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key># p'`"
+            echo_t "Curl Command built: $CURL_REMOVE_HEADER"
             HTTP_CODE=`eval $CURL_CMD `
             ret=$?
             #Check for forced https security failure
@@ -416,12 +429,16 @@ HTTPLogUploadOnRequest()
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ $http_code -eq 200 ];then
         Key=$(awk '{print $0}' $OutputFile)
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  \"$Key\" --connect-timeout 30 -m 30"
+        if [ "$encryptionEnable" != "true" ]; then
+            Key=\"$Key\"
+        fi
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key --connect-timeout 30 -m 30"
+        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
         retries=0
         while [ "$retries" -lt 3 ]
         do       
 	    echo_t "Trial $retries..."              
-            echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+            echo_t "Curl Command built: $CURL_REMOVE_HEADER"
             HTTP_CODE=`ret= eval $CURL_CMD`
             if [ "x$HTTP_CODE" != "x" ];
 	    then
