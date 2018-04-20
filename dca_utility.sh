@@ -161,6 +161,26 @@ isNum()
     fi
 }
 
+# Function to get erouerMAC
+getEstbMac()
+{
+
+    estbMac=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_MAC  | grep type: | awk '{print $5}'|tr '[:lower:]' '[:upper:]'`
+    
+    if [ "$estbMac" ]; then
+       echo "$estbMac"
+    else
+       if [ "$BOX_TYPE" == "XB3" ]; then
+          estbMac=`/usr/bin/rpcclient $ARM_ARPING_IP "ifconfig erouter0" | grep 'Link encap:' | cut -d ' ' -f7`
+          echo "$estbMac"
+       else
+          estbMac=`ifconfig erouter0 | grep 'Link encap:' | cut -d ' ' -f7`
+          echo "$estbMac"
+       fi
+    fi
+
+}
+
 # Function to get erouter0 ipv4 address
 getErouterIpv4()
 {
@@ -576,7 +596,7 @@ else
      
 
        ## This interface is not accessible from ATOM, replace value from ARM
-       estbMac="ErouterMacAddress"
+       estbMac=$(getEstbMac)
        firmwareVersion=$(getFWVersion)
        firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
        partnerId=$(getPartnerId)
