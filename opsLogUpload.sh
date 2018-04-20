@@ -242,15 +242,15 @@ useCodebigRequest()
          CB_SIGNED=`cat $SIGN_FILE`
          rm -f $SIGN_FILE
          [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt
-         S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
-         echo "serverUrl : $S3_URL"
+         S3_URL_SIGN=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+         echo "serverUrl : $S3_URL_SIGN"
          authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
          authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
+         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL_SIGN\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
-        echo_t "S3 URL is : $S3_URL"
+        echo_t "S3 URL is : $S3_URL_SIGN"
 
         echo_t "Trial $retries for CODEBIG ..."
         #Sensitive info like Authorization signature should not print

@@ -74,7 +74,7 @@ IsDirectBlocked()
             echo "Xconf dcm rfc: Last direct failed blocking is still valid, preventing direct" >> $DCM_RFC_LOG_FILE
             ret=1
         else
-            echo "Xconf dcmi rfc: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $DCM_RFC_LOG_FILE
+            echo "Xconf dcm rfc: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $DCM_RFC_LOG_FILE
             rm -f $DIRECT_BLOCK_FILENAME
             ret=0
         fi

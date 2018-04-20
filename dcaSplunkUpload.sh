@@ -75,11 +75,7 @@ sec_conn=useCodebigRequest
 CodebigAvailable=0
 
 CURL_TIMEOUT=30
-TLS=""
-if [ -f /etc/os-release ]; then
-    TLS="--tlsv1.2"
-fi
-
+TLS="--tlsv1.2" 
 
 mkdir -p $TELEMETRY_PATH
 

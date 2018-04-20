@@ -312,19 +312,19 @@ useCodebigRequest()
         CB_SIGNED=`cat $SIGN_FILE`
         rm -f $SIGN_FILE
         [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt
-        S3_URL=`echo $CB_SIGNED | sed -e "s|?.*||g"`
-        echo "serverUrl : $S3_URL"
+        S3_URL_SIGN=`echo $CB_SIGNED | sed -e "s|?.*||g"`
+        echo "serverUrl : $S3_URL_SIGN"
         authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
         authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
 
-        CURL_CMD="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+        CURL_CMD="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL_SIGN'"
             #Sensitive info like Authorization signature should not print
-        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H <Hidden authorization-header> -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL'"
+        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 --cacert $CA_CERT --connect-timeout 30 --interface $WAN_INTERFACE $addr_type -H <Hidden authorization-header> -w '%{http_code}\n' $URLENCODE_STRING -o \"$OutputFile\" -d \"filename=$UploadFile\" '$S3_URL_SIGN'"
 
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
-        echo_t "S3 URL is : $S3_URL"
+        echo_t "S3 URL is : $S3_URL_SIGN"
 
         # Performing 3 tries for successful curl command execution.
         # $http_code --> Response code retrieved from HTTP_CODE file path.
