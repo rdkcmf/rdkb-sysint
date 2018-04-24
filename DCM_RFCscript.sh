@@ -273,13 +273,20 @@ parseConfigValue()
         paramType=`$GET $paramName | grep type| tr -s ' ' |cut -f3 -d" " | tr , " "`
         if [ -n "$paramType" ]; then
             echo_t "paramType is $paramType" >> $DCM_RFC_LOG_FILE
-            #dmcli SET
-            paramSet=`$SET $paramName $paramType $configValue | grep succeed| tr -s ' ' `
-            if [ -n "$paramSet" ]; then
-                echo_t "dmcli SET success for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
-            else
-                echo_t "dmcli SET failed for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
-            fi
+            #dmcli get value 
+            paramValue=`$GET $paramName | grep value: | cut -d':' -f3 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'`
+			echo_t "old parameter value $paramValue " >> $DCM_RFC_LOG_FILE
+            if [ "$paramValue" != "$configValue" ]; then
+		        #dmcli SET
+		        paramSet=`$SET $paramName $paramType $configValue | grep succeed| tr -s ' ' `
+		        if [ -n "$paramSet" ]; then
+		            echo_t "dmcli SET success for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
+		        else
+		            echo_t "dmcli SET failed for $paramName with value $configValue" >> $DCM_RFC_LOG_FILE
+		        fi
+		    else
+		    	echo_t "For param $paramName new and old values are same" >> $DCM_RFC_LOG_FILE
+		    fi
         else
             echo_t "dmcli GET failed for $paramName " >> $DCM_RFC_LOG_FILE
         fi
