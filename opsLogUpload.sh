@@ -32,6 +32,10 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
+if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
+    . /nvram/logupload.properties
+fi
+
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 DIRECT_BLOCK_TIME=86400
 DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_olu"

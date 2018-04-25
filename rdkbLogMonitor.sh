@@ -24,6 +24,9 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
+if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
+    . /nvram/logupload.properties
+fi
 
 # We will keep max line size as 2 so that we will not lose any log message
 
