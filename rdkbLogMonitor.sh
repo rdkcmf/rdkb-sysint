@@ -529,20 +529,25 @@ if [ "$LOGBACKUP_ENABLE" != "false" ]; then
 	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
 	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
 	if [ "$model" == "TG3482G" ];then
+		isNvram2Mounted=`grep nvram2 /proc/mounts`
 		if [ -d "/nvram2" ];then
-			if [ -d "/nvram/logs" ];then
-				file_list=`ls /nvram/logs/`
-				if [ "$file_list" != "" ]; then
-					echo_t "nvram/logs contains older logs"
-					if [ ! -d "$LOG_SYNC_PATH" ];then
-						echo_t "Creating new sync path - nvram2/logs"
-						mkdir $LOG_SYNC_PATH
+			if [ "$isNvram2Mounted" != "" ];then
+				if [ -d "/nvram/logs" ];then
+					file_list=`ls /nvram/logs/`
+					if [ "$file_list" != "" ]; then
+						echo_t "nvram/logs contains older logs"
+						if [ ! -d "$LOG_SYNC_PATH" ];then
+							echo_t "Creating new sync path - nvram2/logs"
+							mkdir $LOG_SYNC_PATH
+						fi
+						echo_t "nvram2 detected first time. Copying nvram/logs to nvram2/logs for boottime logupload"
+						cp /nvram/logs/* "$LOG_SYNC_PATH"
 					fi
-					echo_t "nvram2 detected first time. Copying nvram/logs to nvram2/logs for boottime logupload"
-					cp /nvram/logs/* "$LOG_SYNC_PATH"
+					echo_t "logs copied to nvram2. Removing old log path - nvram/logs"
+					rm -rf "/nvram/logs"
 				fi
-				echo_t "logs copied to nvram2. Removing old log path - nvram/logs"
-				rm -rf "/nvram/logs"
+			else
+			echo_t "nvram2 available, but not mounted."
 			fi
 		fi
 	fi
