@@ -20,7 +20,7 @@
 
 uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
 echo "before running log_mem_cpu_info_atom.sh.sh printing top output" 
-top -n1 >> /rdklogs/logs/AtomConsolelog.txt
+top -n1 -b >> /rdklogs/logs/AtomConsolelog.txt
 if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof stahealth.sh)"  == "" ] && [ "$(pidof radiohealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ] && [ "$(pidof dailystats_log.sh)" == "" ] && [ "$(pidof dailystats.sh)" == "" ]; then
 	if [ -e /rdklogger/log_capture_path_atom.sh ]
 	then
@@ -138,7 +138,6 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
 			top -m -b n 1 | head -n 14
 		fi
 
-
 	if [ -f $COUNTINFO ]
 	then
 		echo $count > $COUNTINFO
@@ -147,22 +146,25 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
 		echo $count > $COUNTINFO
 	fi
 
-	# swap usage information
-	# vmInfoHeader: swpd,free,buff,cache,si,so
-	# vmInfoValues: <int>,<int>,<int>,<int>,<int>,<int>
-	echo "VM STATS SINCE BOOT ATOM"
-	swaped=`free | awk 'FNR == 4 {print $3}'`
-	cache=`cat /proc/meminfo | awk 'FNR == 4 {print $2}'`
-	buff=`cat /proc/meminfo | awk 'FNR == 3 {print $2}'`
-	swaped_in=`cat /proc/vmstat | grep pswpin | cut -d ' ' -f2`
-	swaped_out=`cat /proc/vmstat | grep pswpout | cut -d ' ' -f2`
-	# conversion to kb assumes 4kb page, which is quite standard
-	swaped_in_kb=$(($swaped_in * 4))
-	swaped_out_kb=$(($swaped_out * 4))
-	echo vmInfoHeader: swpd,free,buff,cache,si,so
-	echo vmInfoValues: $swaped,$freeMemSys,$buff,$cache,$swaped_in,$swaped_out
-	# end of swap usage information block
-
+	# do saplogging only if any type of swap is enabled
+	swap_devices=`cat /proc/swaps | wc -l`
+	if [ $swap_devices -gt 1 ]; then
+	    # swap usage information
+	    # vmInfoHeader: swpd,free,buff,cache,si,so
+	    # vmInfoValues: <int>,<int>,<int>,<int>,<int>,<int>
+	    echo "VM STATS SINCE BOOT ATOM"
+	    swaped=`free | awk 'FNR == 4 {print $3}'`
+	    cache=`cat /proc/meminfo | awk 'FNR == 4 {print $2}'`
+	    buff=`cat /proc/meminfo | awk 'FNR == 3 {print $2}'`
+	    swaped_in=`cat /proc/vmstat | grep pswpin | cut -d ' ' -f2`
+	    swaped_out=`cat /proc/vmstat | grep pswpout | cut -d ' ' -f2`
+	    # conversion to kb assumes 4kb page, which is quite standard
+	    swaped_in_kb=$(($swaped_in * 4))
+	    swaped_out_kb=$(($swaped_out * 4))
+	    echo vmInfoHeader: swpd,free,buff,cache,si,so
+	    echo vmInfoValues: $swaped,$freeMemSys,$buff,$cache,$swaped_in,$swaped_out
+	    # end of swap usage information block
+        fi
         nvram_fsck="/rdklogger/nvram_rw_restore.sh"
 	nvram_ro_fs=`mount | grep "nvram " | grep dev | grep "[ (]ro[ ,]"`
 	if [ "$nvram_ro_fs" != "" ]; then
@@ -174,9 +176,8 @@ if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)"
 
 
         echo "after running log_mem_cpu_info_atom..sh printing top output" 
-	top -n1 >> /rdklogs/logs/AtomConsolelog.txt.0
+	top -n1 -b
 else
-        echo "skipping log_mem_cpu_info_atom.sh run" >> /rdklogs/logs/AtomConsolelog.txt.0
-	
+	echo "skipping log_mem_cpu_info_atom.sh run" >> /rdklogs/logs/AtomConsolelog.txt.0
 fi
 
