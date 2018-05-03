@@ -172,10 +172,10 @@ useDirectRequest()
         if [ "x$HTTP_CODE" != "x" ];
         then
             http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+            echo_t "Direct communication HttpCode received is : $http_code"
 
             if [ "$http_code" != "" ];then
-                 echo_t "Direct communication HttpCode received is : $http_code"
+                 echo_t "Direct Communication - ret:$ret, http_code:$http_code"
                  if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
 			echo $http_code > $UPLOADRESULT
                         return 0
@@ -184,7 +184,7 @@ useDirectRequest()
             fi
         else
             http_code=0
-            echo_t "Direct Communication Failure Attempt:$retries  - ret:$ret"
+            echo_t "Direct Communication Failure Attempt:$retries  - ret:$ret, http_code:$http_code"
         fi
         retries=`expr $retries + 1`
         sleep 30
@@ -270,10 +270,10 @@ useCodebigRequest()
         if [ "x$HTTP_CODE" != "x" ];
         then
              http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-             echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
+             echo_t "Codebig connection HttpCode received is : $http_code"
 
              if [ "$http_code" != "" ];then
-                 echo_t "Codebig connection HttpCode received is : $http_code"
+                 echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
                  if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
 			echo $http_code > $UPLOADRESULT
                         return 0
@@ -287,7 +287,7 @@ useCodebigRequest()
              fi
         else
              http_code=0
-             echo_t "Codebig Communication Failure Attempts:$retries - ret:$ret"
+             echo_t "Codebig Communication Failure Attempts:$retries - ret:$ret, http_code:$http_code"
         fi
 
         retries=`expr $retries + 1`

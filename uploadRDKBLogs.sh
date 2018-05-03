@@ -250,7 +250,7 @@ useDirectRequest()
                 fi
             else
                 http_code=0
-                echo_t "Direct Communication Failure Attempt:$retries - ret:$ret"
+                echo_t "Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
             fi
         fi
                
@@ -362,7 +362,7 @@ useCodebigRequest()
                 fi
             else
                 http_code=0
-                echo_t "Codebig Communication Failure Attempt:$retries - ret:$ret"
+                echo_t "Codebig Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
             fi
         fi
 

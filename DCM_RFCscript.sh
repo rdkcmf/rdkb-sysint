@@ -125,9 +125,10 @@ useDirectRequest()
         sleep 2
         http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
         [ "x$http_code" != "x" ] || http_code=0
+        echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
 
         if [ $http_code -eq 200 ]; then
-           echo_t "Direct connection success ($http_code) " >> $DCM_RFC_LOG_FILE
+           echo_t "Direct connection success - ret:$ret http_code:$http_code" >> $DCM_RFC_LOG_FILE
            return 0
         elif [ $http_code -eq 404 ]; then
             echo_t "Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_RFC_LOG_FILE
@@ -166,9 +167,10 @@ useCodebigRequest()
         ret=$?
         http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
         [ "x$http_code" != "x" ] || http_code=0
+        echo_t "ret = $ret http_code: $http_code" >> $DCM_RFC_LOG_FILE
 
         if [ $http_code -eq 200 ]; then
-             echo_t "Codebig connection success ($http_code)" >> $DCM_RFC_LOG_FILE
+             echo_t "Codebig connection success - ret:$ret http_code:$http_code"  >> $DCM_RFC_LOG_FILE
              return 0;
         elif [ $http_code -eq 404 ]; then
             echo_t "Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_RFC_LOG_FILE

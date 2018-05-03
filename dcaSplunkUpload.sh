@@ -177,6 +177,7 @@ useDirectRequest()
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
 
+      echo_t "dca $2 : Direct Connection HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
     # log security failure
       case $ret in
         35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
@@ -184,7 +185,7 @@ useDirectRequest()
            ;;
       esac
       if [ $http_code -eq 200 ]; then
-           echo_t "dca$2: Direct connection success ($http_code) " >> $RTL_LOG_FILE
+           echo_t "dca$2: Direct connection success - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
            # Use direct connection for rest of the connections
            conn_type_used="Direct"
            return 0
@@ -221,13 +222,14 @@ useCodebigRequest()
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
       # log security failure
+      echo_t "dca $2 : Codebig Connection HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
       case $curlret in
           35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
              echo_t "dca$2: Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
              ;;
       esac
       if [ "$http_code" -eq 200 ]; then
-           echo_t "dca$2: Codebig connection success ($http_code) " >> $RTL_LOG_FILE
+           echo_t "dca$2: Codebig connection success - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
            conn_type_used="Codebig"
            return 0
       fi

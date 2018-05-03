@@ -224,7 +224,7 @@ useDirectRequest()
            ;;
       esac
       if [ $http_code -eq 200 ]; then
-           echo_t "Direct connection success ($http_code) " >> $DCM_LOG_FILE
+           echo_t "Direct connection success - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
            return 0
       elif [ $http_code -eq 404 ]; then 
            echo "`Timestamp` Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
@@ -272,7 +272,7 @@ useCodebigRequest()
              ;;
         esac
        if [ "$http_code" -eq 200 ]; then
-           echo_t "Codebig connection success ($http_code) " >> $DCM_LOG_FILE
+           echo_t "Codebig connection success - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
            return 0
        elif [ "$http_code" -eq 404 ]; then
            echo_t "DCM Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
