@@ -133,7 +133,7 @@ LOG_FILE=$MAC"_Logs_$dt.tgz"
 CM_INTERFACE="wan0"
 WAN_INTERFACE="erouter0"
 CURLPATH="/fss/gw"
-CA_CERT="/nvram/cacert.pem"
+CA_CERT="/etc/cacert.pem"
 
 VERSION="/fss/gw/version.txt"
 
