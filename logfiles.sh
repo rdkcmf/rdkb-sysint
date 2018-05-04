@@ -390,12 +390,20 @@ backupnvram2logs_on_reboot()
 	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	dt=`date "+%m-%d-%y-%I-%M%p"`
+         if [ "$BOX_TYPE" = "XB3" ]; then
+	  	echo "Syncing atom dmesg log if available"
+		GetConfigFile $PEER_COMM_ID
+		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$DMESG_LOG_ATOM $LOG_SYNC_BACK_UP_REBOOT_PATH > /dev/null 2>&1
+		rm -f $PEER_COMM_ID
+		rpcclient  $ATOM_ARPING_IP ">$DMESG_LOG_ATOM" 
+	fi
 	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 	rm $PATTERN_FILE
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log
 	rm -rf $LOG_SYNC_PATH*core*
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
+        rm -rf $LOG_SYNC_PATH*dmesg_atom*
 
 	cd $workDir
 }

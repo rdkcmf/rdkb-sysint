@@ -28,6 +28,12 @@ if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
 fi
 
+if [ -f /etc/device.properties ]
+then
+    source /etc/device.properties
+fi
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+
 # We will keep max line size as 2 so that we will not lose any log message
 
 
@@ -356,11 +362,19 @@ bootup_upload()
 		rm -rf *.tgz
                echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
                dt=`date "+%m-%d-%y-%I-%M%p"`
+               if [ "$BOX_TYPE" = "XB3" ]; then
+	       		echo "Syncing atom dmesg log if available"
+			GetConfigFile $PEER_COMM_ID
+			nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$DMESG_LOG_ATOM $LOG_SYNC_BACK_UP_REBOOT_PATH > /dev/null 2>&1
+			rm -f $PEER_COMM_ID
+			rpcclient  $ATOM_ARPING_IP ">$DMESG_LOG_ATOM" 
+		fi
 	       tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
                rm $PATTERN_FILE
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log
 	       rm -rf $LOG_SYNC_PATH*core*
+	       rm -rf $LOG_SYNC_PATH*dmesg_atom*
 	       rm -rf $LOG_SYNC_PATH$PcdLogFile
             fi
 
