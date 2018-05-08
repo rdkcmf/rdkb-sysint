@@ -18,9 +18,16 @@
 # limitations under the License.
 ##########################################################################
 
+if [ -f /etc/include.properties ]; then
+    . /etc/include.properties
+fi
+
 echo "Script called to remove the ATOM side log file contents"
 
 LOG_FOLDER="/rdklogs/logs/"
+TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
+TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
+
 cd $LOG_FOLDER
 
 	file_list=`ls $LOG_PATH`
@@ -28,3 +35,10 @@ cd $LOG_FOLDER
 	do
 		> $file
 	done
+
+# Safe clean up
+# To avoid duplicate markers with random race around conditions during logupload 
+if [ -d $TELEMETRY_PATH_TEMP ]; then
+    echo "`date` Recovery clean up of dca seek values from flush logs"
+    rm -rf $TELEMETRY_PATH_TEMP
+fi 
