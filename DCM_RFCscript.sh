@@ -36,6 +36,10 @@ else
       . /etc/dcm.properties
 fi
 
+# Now Lock the recursion for this script, to prevent multiple concurent RFC read requests 
+echo 1 > $RFC_SERVICE_LOCK
+echo_t "RFC: Starting service, creating lock " >> $DCM_RFC_LOG_FILE
+
 # creeate RAM based folder
 
 if [ -z $RFC_RAM_PATH ]; then
@@ -302,4 +306,8 @@ if [ -f $DCM_PARSER_RESPONSE ]; then
 fi
 #Call getQueryDcm to GET dcm response
 getQueryDcm
+
+# Now delete service lock
+echo_t "RFC: Completed service, deleting lock " >> $DCM_RFC_LOG_FILE
+rm -f $RFC_SERVICE_LOCK
 

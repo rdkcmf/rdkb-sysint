@@ -29,6 +29,10 @@ else
       . /etc/dcm.properties
 fi
 
-sh /lib/rdk/DCM_RFCscript.sh &
+if [ -f $RFC_SERVICE_LOCK ]; then
+    echo_t "RFC: Service in progress. New instance not allowed. Lock file $RFC_SERVICE_LOCK is locked!"  >> $RFC_LOG_FILE
+else
+    sh /lib/rdk/DCM_RFCscript.sh &
+fi
 
 
