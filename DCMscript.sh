@@ -216,6 +216,7 @@ useDirectRequest()
       sleep 2
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
+      echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
 
     # log security failure
       case $ret in
@@ -265,6 +266,8 @@ useCodebigRequest()
       curlret=$?
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
+      echo_t "ret = $curlret http_code: $http_code" >> $DCM_LOG_FILE
+
       # log security failure
       case $curlret in
           35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
