@@ -542,7 +542,7 @@ uploadOnRequest()
 
 	fi
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Lgs_$timeRequested.tgz" $blog_dir$timeRequested
+	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $blog_dir$timeRequested
 	rm $PATTERN_FILE
 	rm -rf $blog_dir$timeRequested
 	echo_t "Created backup of all logs..."
