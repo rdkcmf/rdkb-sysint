@@ -19,20 +19,50 @@
 # limitations under the License.
 ##################################################################################
 
+if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
+	LOG_FOLDER="/rdklogs"
+else
+	LOG_FOLDER="/var/tmp"
+fi
+
+CONSOLEFILE="$LOG_FOLDER/logs/Consolelog.txt.0"
+
+echo_time()
+{
+	echo "`date +"%y%m%d-%T.%6N"` getPartnerId() called from: $0 -  $1"
+}
+
 # Function to get partner_id
 getPartnerId()
 {
-    if [ -f "/etc/device.properties" ]
-    then
-        partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
-        if [ "$partner_id" == "" ];then
-            #Assigning default partner_id as Comcast.
-            #If any device want to report differently, then PARTNER_ID flag has to be updated in /etc/device.properties accordingly
-            echo "comcast"
-        else
-            echo "$partner_id"
-        fi
-    else
-       echo "null"
-    fi
+#Get PartnerID set in the system via syscfg get command
+partner_id=`syscfg get PartnerID`
+
+#Try "dmcli" to retrieve partner_id if "sysconf" returned null. It's a fallback check.
+if [ "$partner_id" == "" ];then
+	partner_id=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.PartnerId | grep string | awk '{print $5}'`
+
+	#Check for PartnerID in device.properties if its not set already.
+	if [ "$partner_id" == "" ];then
+		if [ -f "/etc/device.properties" ];then
+			partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
+				if [ "$partner_id" == "" ];then
+					echo_time "partner_id is not available from syscfg.db or tr181 param or device.properties, defaulting to comcast..">>$CONSOLEFILE
+					echo "comcast"
+				else
+					echo_time "partner_id is not available from syscfg.db or tr181 param, value retrieved from device.properties : $partner_id">>$CONSOLEFILE
+					echo "$partner_id"
+				fi
+		else
+			echo_time "partner_id is not available, defaulting to comcast.">>$CONSOLEFILE
+			echo "comcast"
+		fi
+	else
+		echo_time "partner_id is not available from syscfg.db, value retrieved from tr181 param : $partner_id">>$CONSOLEFILE
+		echo "$partner_id"
+	fi
+else
+	echo_time "partner_id retrieved from syscfg.db : $partner_id">>$CONSOLEFILE
+	echo "$partner_id"
+fi
 }
