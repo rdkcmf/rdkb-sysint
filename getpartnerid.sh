@@ -66,3 +66,9 @@ else
 	echo "$partner_id"
 fi
 }
+
+case=$1
+if [ "$case" = "GetPartnerID" ]; then
+    getPartnerId
+fi
+
