@@ -52,6 +52,7 @@ backupenabled=`syscfg get logbackup_enable`
 nvram2Supported="no"
 if [ -f /etc/device.properties ]
 then
+   source /etc/device.properties
    nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
 fi
 
@@ -196,7 +197,12 @@ backupLogsonReboot()
 	# ARRISXB3-2544 :
 	# It takes too long for the unit to reboot after TFTP is completed.
 	# Hence we can upload the logs once the unit boots up. We will flag it before reboot.
-	touch $UPLOAD_ON_REBOOT
+        
+
+        if [ $BOX_TYPE != "XB6" ] && [ $MODEL_NUM != "CGM4140COM" ]
+        then
+	    touch $UPLOAD_ON_REBOOT
+        fi
 	#$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "TFTP" "URL" "true"
 	cd $curDir
    
@@ -253,7 +259,11 @@ backupLogsonReboot_nvram2()
  	ls
 	#rm -rf $LOG_SYNC_PATH*.txt*
 	#rm -rf $LOG_SYNC_PATH*.log
-	touch $UPLOAD_ON_REBOOT
+        
+        if [ $BOX_TYPE != "XB6" ] && [ $MODEL_NUM != "CGM4140COM" ]
+        then
+	  touch $UPLOAD_ON_REBOOT
+        fi
 	cd $curDir
 }
 
