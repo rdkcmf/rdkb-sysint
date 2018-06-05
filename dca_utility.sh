@@ -322,7 +322,7 @@ scheduleCron()
         cron=`cat $DCM_SETTINGS_CONF | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
     fi
 
-	#During diagnostic mode need to apply the cron schedule value through this custom configuraion 
+	#During diagnostic mode need to apply the cron schedule value through this custom configuration
 	DiagnosticMode=`dmcli eRT getv Device.SelfHeal.X_RDKCENTRAL-COM_DiagnosticMode | grep value | cut -f3 -d : | cut -f2 -d" "`
 	if [ "$DiagnosticMode" == "true" ];then
 	LogUploadFrequency=`dmcli eRT getv Device.SelfHeal.X_RDKCENTRAL-COM_DiagMode_LogUploadFrequency | grep value | cut -f3 -d : | cut -f2 -d" "`
