@@ -170,7 +170,7 @@ protected_rsync()
 		then
 			echo "Sync from ATOM complete"
 		else
-			echo "Sync from ATOM failed , retrun code is $sync_res"
+			echo "Sync from ATOM failed , return code is $sync_res"
 		fi
 
 		if [ -f $RSYNC_WAITING ]; then
@@ -185,7 +185,7 @@ protected_rsync()
 		then
 			echo "Sync from ATOM complete"
 		else
-			echo "Sync from ATOM failed , retrun code is $sync_res"
+			echo "Sync from ATOM failed , return code is $sync_res"
 		fi
 		rm $RSYNC_RUNNING
 	fi
