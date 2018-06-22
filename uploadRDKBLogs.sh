@@ -236,6 +236,12 @@ useDirectRequest()
             echo_t "Curl Command built: $CURL_CMD"
         if [ $retries -ne 0 ]
         then
+            #echo_t "Checking if file still exists !!!"
+            if [[ ! -e $UploadFile ]]; then
+                  echo_t "No file exist or already uploaded!!!"
+                  break;
+            fi
+
             echo_t "CURL_CMD:$CURL_CMD"
             HTTP_CODE=`ret= eval $CURL_CMD`
 
@@ -335,6 +341,11 @@ useCodebigRequest()
 
         # Performing 3 tries for successful curl command execution.
         # $http_code --> Response code retrieved from HTTP_CODE file path.
+        #echo_t "Checking if file still exists !!!"
+	if [[ ! -e $UploadFile ]]; then
+             echo_t "No file exist or already uploaded!!!"
+             break;
+        fi
 
         echo_t "Trial $retries for CODEBIG..."
         # nice value can be normal as the first trial failed
@@ -481,6 +492,12 @@ HttpLogUpload()
                     CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 30 -m 30"
                 fi
 
+               #echo_t "Checking if file still exists !!!"
+	       if [[ ! -e $UploadFile ]]; then
+                   echo_t "No file exist or already uploaded!!!"
+                   break;
+               fi
+
                 #Sensitive info like Authorization signature should not print
                 echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
                 HTTP_CODE=`eval $CURL_CMD `
@@ -541,6 +558,13 @@ HttpLogUpload()
                 if [ $retries -ne 0 ]; then
                      CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
                 fi
+
+               #echo_t "Checking if file still exists !!!"
+	       if [[ ! -e $UploadFile ]]; then
+                   echo_t "No file exist or already uploaded!!!"
+                   break;
+               fi
+
                 echo_t "Curl Command built: $CURL_CMD"
                 HTTP_CODE=`eval $CURL_CMD` 
                 ret=$?
@@ -591,6 +615,13 @@ HttpLogUpload()
                             #Sensitive info like Authorization signature should not print
                         CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
                     fi
+               
+                   #echo_t "Checking if file still exists !!!"
+	           if [[ ! -e $UploadFile ]]; then
+                       echo_t "No file exist or already uploaded!!!"
+                       break;
+		   fi
+
                     #Sensitive info like Authorization signature should not print
                     echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
                     HTTP_CODE=`ret= eval $CURL_CMD`
