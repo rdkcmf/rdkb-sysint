@@ -43,6 +43,7 @@ then
     source /etc/device.properties
 fi
 
+IDLE_TIMEOUT=30
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 
@@ -109,7 +110,7 @@ createSysDescr()
 flush_atom_logs()
 {
     GetConfigFile $PEER_COMM_ID
- 	ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+ 	ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
  	local loop=0
 	while :
 	do
@@ -164,7 +165,7 @@ protected_rsync()
 		if [ -f $RSYNC_RUNNING ]; then
 			rm $RSYNC_RUNNING
 		fi
-		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
 		if [ "$sync_res" -eq 0 ]
 		then
@@ -179,7 +180,7 @@ protected_rsync()
 
 	elif [ "$RSYNC_PID" == "" ]; then
 		touch $RSYNC_RUNNING
-		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
 		if [ "$sync_res" -eq 0 ]
 		then
@@ -393,7 +394,7 @@ backupnvram2logs_on_reboot()
          if [ "$BOX_TYPE" = "XB3" ]; then
 	  	echo "Syncing atom dmesg log if available"
 		GetConfigFile $PEER_COMM_ID
-		nice -n 20 rsync -e "ssh -i $PEER_COMM_ID" root@$ATOM_IP:$DMESG_LOG_ATOM $LOG_SYNC_BACK_UP_REBOOT_PATH > /dev/null 2>&1
+		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$DMESG_LOG_ATOM $LOG_SYNC_BACK_UP_REBOOT_PATH > /dev/null 2>&1
 		rm -f $PEER_COMM_ID
 		rpcclient  $ATOM_ARPING_IP ">$DMESG_LOG_ATOM" 
 	fi

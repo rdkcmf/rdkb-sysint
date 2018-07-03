@@ -64,6 +64,7 @@ TLS_LOG_FILE_NAME="TlsVerify.txt.0"
 TLS_LOG_FILE="$LOG_PATH/$TLS_LOG_FILE_NAME"
 
 PEER_COMM_ID="/tmp/elxrretyt.swr"
+IDLE_TIMEOUT=30
 
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
@@ -400,7 +401,7 @@ done
             fi
             echo "Signal atom to pick the XCONF config data $DCMRESPONSE and schedule telemetry !!! " >> $DCM_LOG_FILE
             ## Trigger an inotify event on ATOM 
-            ssh -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+            ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
             rm -f $PEER_COMM_ID
         else
             
