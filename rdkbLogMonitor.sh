@@ -728,7 +728,7 @@ do
 	    	fi
 	    fi
 
-	# Syncing logs after perticular interval
+	# Syncing logs after particular interval
 	get_logbackup_cfg
 	if [ "$LOGBACKUP_ENABLE" != "false" ]; then # nvram2 supported and backup is true
 		minute_count=$((minute_count + 1))
@@ -740,7 +740,7 @@ do
 		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
 			minute_count=0
 			syncLogs_nvram2
-			if [ $ATOM_SYNC == "" ]; then
+			if [ "$ATOM_SYNC" == "" ]; then
 			   syncLogs
 			fi
 			#ARRISXB6-5184
