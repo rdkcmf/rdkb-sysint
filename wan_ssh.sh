@@ -3,6 +3,7 @@ PORT=49971
 loop=1
 WAN_IP4=""
 WAN_IP6=""
+PID_FILE=/var/run/dropbear_wanssh.pid
 
 #RDKB-16251
 if [ -f /etc/mount-utils/getConfigFile.sh ];then
@@ -48,7 +49,7 @@ start_dropbear_wan()
 	DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
 	getConfigFile $DROPBEAR_PARAMS_1
 	getConfigFile $DROPBEAR_PARAMS_2
-	dropbear -E -s -b /etc/sshbanner.txt -a $WAN_PARAMS -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 2>/dev/null
+	dropbear -E -s -b /etc/sshbanner.txt -a $WAN_PARAMS -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -P $PID_FILE 2>/dev/null
         rm -rf /tmp/.dropbear/*
 }
 
