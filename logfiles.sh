@@ -55,6 +55,10 @@ LOG_FILE=$MAC"_Logs_$dt.tgz"
 
 FLUSH_LOG_PATH="/rdklogger/flush_logs.sh"
 
+SYS_CFG_FILE="syscfg.db"
+BBHM_CFG_FILE="bbhm_cur_cfg.xml"
+WIRELESS_CFG_FILE="wireless"
+
 moveFile()
 {        
      if [[ -f "$1" ]]; then mv $1 $2; fi
@@ -425,6 +429,12 @@ backupnvram2logs()
         else
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
+        if [ "$BOX_TYPE" = "XB6" ]; then
+        	cp /nvram/$SYS_CFG_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
+        	cp /nvram/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
+        	cp /nvram/config/$WIRELESS_CFG_FILE $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+        	sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+        fi
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	wan_event=`sysevent get wan_event_log_upload`
         if [ -f "/tmp/.uploadregularlogs" ] || [ "$wan_event" == "yes" ]
@@ -439,6 +449,11 @@ backupnvram2logs()
 	rm -rf $LOG_SYNC_PATH*.log*
 	rm -rf $LOG_SYNC_PATH*core*
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
+	if [ "$BOX_TYPE" = "XB6" ]; then
+		rm -rf $LOG_SYNC_PATH$SYS_CFG_FILE  
+		rm -rf $LOG_SYNC_PATH$BBHM_CFG_FILE
+		rm -rf $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+	fi
 
 	cd $LOG_PATH
 	FILES=`ls`
@@ -477,6 +492,12 @@ backupnvram2logs_on_reboot()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 
+         if [ "$BOX_TYPE" = "XB6" ]; then
+        	cp /nvram/$SYS_CFG_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
+        	cp /nvram/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
+        	cp /nvram/config/$WIRELESS_CFG_FILE $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+       		sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+        fi
 
 	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
@@ -487,6 +508,12 @@ backupnvram2logs_on_reboot()
 	rm -rf $LOG_SYNC_PATH*core*
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
 	rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
+	if [ "$BOX_TYPE" = "XB6" ]; then
+		rm -rf $LOG_SYNC_PATH$SYS_CFG_FILE
+		rm -rf $LOG_SYNC_PATH$BBHM_CFG_FILE
+		rm -rf $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+	fi
+
 	cd $workDir
 }
 
@@ -563,6 +590,12 @@ backupAllLogs()
 		$operation $source$fname $dt; >$source$fname;
 	done
 	cp /version.txt $dt
+	if [ "$BOX_TYPE" = "XB6" ]; then
+		cp /nvram/$SYS_CFG_FILE $dt$SYS_CFG_FILE
+        cp /nvram/$BBHM_CFG_FILE $dt$BBHM_CFG_FILE
+        cp /nvram/config/$WIRELESS_CFG_FILE $dt$WIRELESS_CFG_FILE
+        sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dt$WIRELESS_CFG_FILE
+    fi
 
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
