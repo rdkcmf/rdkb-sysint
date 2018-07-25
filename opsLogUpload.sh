@@ -428,6 +428,10 @@ HTTPLogUploadOnRequest()
 
 uploadOnRequest()
 {
+	SYS_CFG_FILE="syscfg.db"
+	BBHM_CFG_FILE="bbhm_cur_cfg.xml"
+	WIRELESS_CFG_FILE="wireless"
+           
 	if [ ! -e $UPLOAD_LOG_STATUS ]; then
 		touch $UPLOAD_LOG_STATUS
 	fi
@@ -479,6 +483,12 @@ uploadOnRequest()
 		fi
 
 	fi
+
+	if [ "$BOX_TYPE" = "XB6" ]; then
+		cp /nvram/$SYS_CFG_FILE $dest$SYS_CFG_FILE
+                cp /nvram/$BBHM_CFG_FILE $dest$BBHM_CFG_FILE
+        sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dest$WIRELESS_CFG_FILE
+        fi
 	if [ "$codebig_enabled" == "yes" ]; then
 		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 		tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" /tmp/loguploadonrequest/$timeRequested
