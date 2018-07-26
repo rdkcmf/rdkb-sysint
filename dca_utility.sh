@@ -80,6 +80,26 @@ fi
 # Retain source for future enabling. Defaulting to disable for now
 snmpCheck=false
 
+dcaCleanup()
+{
+    if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
+        GetConfigFile $PEER_COMM_ID
+        ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyTelemetryCleanup' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+        echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
+        rm -f $PEER_COMM_ID
+    else
+        touch $TELEMETRY_EXEC_COMPLETE
+    fi
+
+    echo_t "forced DCA execution before log upload/reboot. Clearing all markers !!!" >> $RTL_LOG_FILE
+    # Forced execution before flusing of logs, so clear the markers
+    if [ -d $TELEMETRY_PATH_TEMP ]; then
+       rm -rf $TELEMETRY_PATH_TEMP
+    fi
+    rm -rf $TELEMETRY_PATH
+
+}
+
 # exit if an instance is already running
 if [ ! -f /tmp/.dca-utility.pid ];then
     # store the PID
@@ -87,9 +107,22 @@ if [ ! -f /tmp/.dca-utility.pid ];then
 else
     pid=`cat /tmp/.dca-utility.pid`
     if [ -d /proc/$pid ];then
-	  exit 0
+        if [ "$1" == "2" ]; then
+           loop=0
+           while [ $loop -le 6 ]
+           do
+               sleep 10
+               loop=$((loop+1))
+               pid=`cat /tmp/.dca-utility.pid`
+               if [ ! -d /proc/$pid ]; then
+                   dcaCleanup
+                   break
+               fi
+           done
+        fi
+    	exit 0
     else
-	  echo $$ > /tmp/.dca-utility.pid
+        echo $$ > /tmp/.dca-utility.pid
     fi
 fi
 

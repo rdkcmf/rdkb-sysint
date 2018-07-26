@@ -58,6 +58,9 @@ case "$eventType" in
   *bootupBackup* )
     sh /lib/rdk/dcaSplunkUpload.sh logbackup_without_upload &
     ;;
+  *notifyTelemetryCleanup* )
+    touch $TELEMETRY_EXEC_COMPLETE
+    ;;
 esac
 
 # Clean up even listeners to receive further events
