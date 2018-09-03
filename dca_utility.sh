@@ -31,6 +31,7 @@ if [ -f /etc/mount-utils/getConfigFile.sh ];then
 fi
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
+source /lib/rdk/getaccountid.sh
 EROUTER_IF=erouter0
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
@@ -614,16 +615,17 @@ else
        firmwareVersion=$(getFWVersion)
        firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
        partnerId=$(getPartnerId)
+       accountId=$(getAccountId)
        erouterIpv4=$(getErouterIpv4)
        erouterIpv6=$(getErouterIpv6)
 
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
      
        if $singleEntry ; then
-            outputJson="$outputJson{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
+            outputJson="$outputJson{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"AccountId\":\"$accountId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
             singleEntry=false
        else
-            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
+            outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"AccountId\":\"$accountId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
        fi
 
        remain="{\"<remaining_keys>\":\"<remaining_values>\"}"

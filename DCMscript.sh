@@ -24,6 +24,7 @@
 
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
+source /lib/rdk/getaccountid.sh
 # Enable override only for non prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
       . $PERSISTENT_PATH/dcm.properties
@@ -306,7 +307,8 @@ sendHttpRequestToServer()
     addr_type=""
     [ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
     partnerId=$(getPartnerId)
-    JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&partnerId='${partnerId}'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
+    accountId=$(getAccountId)
+    JSONSTR='estbMacAddress='$(getErouterMacAddress)'&firmwareVersion='$(getFWVersion)'&env='$(getBuildType)'&model='$(getModel)'&partnerId='${partnerId}'&accountId='${accountId}'&ecmMacAddress='$(getMacAddress)'&controllerId='$(getControllerId)'&channelMapId='$(getChannelMapId)'&vodId='$(getVODId)'&version=2'
 
     last_char=`echo $URL | awk '$0=$NF' FS=`
     if [ "$last_char" != "?" ]; then
