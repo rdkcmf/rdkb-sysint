@@ -205,7 +205,7 @@ getLineSizeandRotate()
 	do
         	totalLines=`wc -l $f | cut -f1 -d" "`
 
-		if [ $totalLines -ge $MAXLINESIZE ]
+		if [ "$totalLines" -ge "$MAXLINESIZE" ]
 		then
         		rotateLogs $f
 			totalLines=0
@@ -263,7 +263,7 @@ upload_nvram2_logs()
 		then
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
 		else
-			while [ $loop -eq 1 ]
+			while [ "$loop" = "1" ]
 			do
 		    	     echo_t "Waiting for stack to come up completely to upload logs..."
 		      	     sleep 30
@@ -384,7 +384,7 @@ bootup_upload()
 
 	   HAS_WAN_IP=""
 	   
-	   while [ $loop -eq 1 ]
+	   while [ "$loop" = "1" ]
 	   do
 	      echo_t "Waiting for stack to come up completely to upload logs..."
 	      sleep 30
@@ -396,7 +396,7 @@ bootup_upload()
 	      fi
 
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
-		if [ $bootup_time_sec -ge 600 ] ; then
+		if [ "$bootup_time_sec" -ge "600" ] ; then
 			echo_t "Boot time is more than 10 min, Breaking Loop"
 			break
 		fi
@@ -471,7 +471,7 @@ bootup_upload()
 			random_sleep		
 			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH
 		else
-			while [ $loop -eq 1 ]
+			while [ "$loop" = "1" ]
 			do
 		    	     echo_t "Waiting for stack to come up completely to upload logs..."
 		      	     sleep 30
@@ -483,7 +483,7 @@ bootup_upload()
 			     fi
 
                              bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
-                             if [ $bootup_time_sec -ge 600 ] ; then
+                             if [ "$bootup_time_sec" -ge "600" ] ; then
                                   echo_t "Boot time is more than 10 min, Breaking Loop"
                                   break
                              fi
@@ -575,7 +575,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
 			loop=1
 			retry=1
-			while [ "$loop" -eq "1" ]
+			while [ "$loop" = "1" ]
 			do
 				echo_t "Waiting for time synchronization between processors before logbackup"
 				TIME_SYNC_STATUS=`sysevent get TimeSync-status`
@@ -583,7 +583,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 				then
 					echo_t "Time synced. Breaking loop"
 					break
-				elif [ "$retry" -eq "12" ]
+				elif [ "$retry" = "12" ]
 				then
 					echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
 					break
@@ -630,9 +630,9 @@ bootup_upload &
 
 UPLOAD_LOGS=`processDCMResponse`
 
-while [ $loop -eq 1 ]
+while [ "$loop" = "1" ]
 do
-	    if [ "$DeviceUP" -eq 0 ]; then
+	    if [ "$DeviceUP" = "0" ]; then
 	        #for rdkb-4260
 	        if [ -f "$SW_UPGRADE_REBOOT" ]; then
 	           echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
@@ -652,7 +652,7 @@ do
 	    then
 		getLogfileSize "$LOG_PATH"
 
-	    	if [ $totalSize -ge $MAXSIZE ]; then
+	        if [ "$totalSize" -ge "$MAXSIZE" ]; then
 			get_logbackup_cfg
 
 			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
@@ -741,11 +741,11 @@ do
 	if [ "$LOGBACKUP_ENABLE" == "true" ]; then # nvram2 supported and backup is true
 		minute_count=$((minute_count + 1))
 		bootup_time_sec=`cat /proc/uptime | cut -d'.' -f1`
-		if [ $bootup_time_sec -le 2400 ] && [ $minute_count -eq 10 ]; then
+		if [ "$bootup_time_sec" -le "2400" ] && [ $minute_count -eq 10 ]; then
 			minute_count=0
 			echo_t "RDK_LOGGER: Syncing every 10 minutes for initial 30 minutes"
 			syncLogs_nvram2
-		elif [ $minute_count -ge $LOGBACKUP_INTERVAL ]; then
+		elif [ "$minute_count" -ge "$LOGBACKUP_INTERVAL" ]; then
 			minute_count=0
 			syncLogs_nvram2
 			if [ "$ATOM_SYNC" == "" ]; then

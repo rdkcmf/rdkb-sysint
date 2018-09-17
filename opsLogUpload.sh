@@ -128,17 +128,17 @@ get_Codebigconfig()
       CodebigAvailable=1
    fi
 
-   if [ "$CodebigAvailable" -eq "1" ]; then
+   if [ "$CodebigAvailable" = "1" ]; then
        CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
-   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+   if [ "$CodebigAvailable" = "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
       UseCodeBig=1 
       conn_str="Codebig"
       first_conn=useCodebigRequest
       sec_conn=useDirectRequest
    fi
 
-   if [ "$CodebigAvailable" -eq 1 ]; then
+   if [ "$CodebigAvailable" = "1" ]; then
       echo_t "Using $conn_str connection as the Primary"
    else
       echo_t "Only $conn_str connection is available"
@@ -150,11 +150,11 @@ useDirectRequest()
 {
     # Direct connection will not be tried if .lastdirectfail exists
     IsDirectBlocked
-    if [ "$?" -eq "1" ]; then
+    if [ "$?" = "1" ]; then
        return 1
     fi
     retries=0
-    while [ "$retries" -lt 3 ]
+    while [ "$retries" -lt "3" ]
     do
         echo_t "Trying Direct Communication"
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
@@ -176,7 +176,7 @@ useDirectRequest()
 
             if [ "$http_code" != "" ];then
                  echo_t "Direct Communication - ret:$ret, http_code:$http_code"
-                 if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                 if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
 			echo $http_code > $UPLOADRESULT
                         return 0
                  fi
@@ -190,7 +190,7 @@ useDirectRequest()
         sleep 30
     done
    echo "Retries for Direct connection exceeded " 
-   [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+   [ "$CodebigAvailable" != "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
     return 1
 }
 
@@ -198,17 +198,18 @@ useDirectRequest()
 useCodebigRequest()
 {
     # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
-    if [ "$CodebigAvailable" -eq "0" ] ; then
+    if [ "$CodebigAvailable" = "0" ] ; then
         echo "OpsLog Upload : Only direct connection Available"
         return 1
     fi
+
 
     if [ "$S3_MD5SUM" != "" ]; then
         uploadfile_md5="&md5=$S3_MD5SUM"
     fi
 
     retries=0
-    while [ "$retries" -lt 3 ]
+    while [ "$retries" -lt "3" ]
     do
          echo_t "Trying Codebig Communication"
          SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
@@ -244,7 +245,7 @@ useCodebigRequest()
 
              if [ "$http_code" != "" ];then
                  echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
-                 if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                 if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
 			echo $http_code > $UPLOADRESULT
                         return 0
                  fi
@@ -283,7 +284,7 @@ HTTPLogUploadOnRequest()
     $first_conn || $sec_conn || { echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code" ; rm -rf $blog_dir$timeRequested  ; }
 
     # If 200, executing second curl command with the public key.
-    if [ $http_code -eq 200 ];then
+    if [ "$http_code" = "200" ];then
         #This means we have received the key to which we need to curl again in order to upload the file.
         #So get the key from FILENAME
         Key=$(awk '{print $0}' $OutputFile)
@@ -304,7 +305,7 @@ HTTPLogUploadOnRequest()
 	echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
 
         retries=0
-        while [ "$retries" -lt 3 ]
+        while [ "$retries" -lt "3" ]
         do 
 	    echo_t "Trial $retries..."                  
             ret= eval $CURL_CMD > $HTTP_CODE
@@ -314,7 +315,7 @@ HTTPLogUploadOnRequest()
 
 		if [ "$http_code" != "" ];then
 			echo_t "HttpCode received is : $http_code"
-                    if [ $http_code -eq 200 ];then
+			if [ "$http_code" = "200" ];then
                        echo $http_code > $UPLOADRESULT
                        break
                     else
@@ -329,14 +330,14 @@ HTTPLogUploadOnRequest()
         done
 
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
-        if [ $http_code -eq 200 ];then
+        if [ "$http_code" = "200" ];then
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
 	     rm -rf $blog_dir
         fi
 
     #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key. 
-    elif [ $http_code -eq 302 ];then
+    elif [ "$http_code" = "302" ];then
 		echo_t "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
@@ -347,7 +348,7 @@ HTTPLogUploadOnRequest()
         echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
 
         retries=0
-        while [ "$retries" -lt 3 ]
+        while [ "$retries" -lt "3" ]
         do       
 	    echo_t "Trial $retries..."            
             ret= eval $CURL_CMD > $HTTP_CODE
@@ -357,7 +358,7 @@ HTTPLogUploadOnRequest()
 
 		if [ "$http_code" != "" ];then
 				echo_t "HttpCode received is : $http_code"
-	       		if [ $http_code -eq 200 ];then
+	       		if [ "$http_code" = "200" ];then
 					echo $http_code > $UPLOADRESULT
 	       			break
 			else
@@ -373,7 +374,7 @@ HTTPLogUploadOnRequest()
 
        
         #Executing curl with the response key when return code after the first curl execution is 200.
-        if [ $http_code -eq 200 ];then
+        if [ "$http_code" = "200" ];then
         Key=$(awk '{print $0}' $OutputFile)
         if [ "$encryptionEnable" != "true" ]; then
             Key=\"$Key\"
@@ -381,7 +382,7 @@ HTTPLogUploadOnRequest()
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key --connect-timeout 30 -m 30"
         CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
         retries=0
-        while [ "$retries" -lt 3 ]
+        while [ "$retries" -lt "3" ]
         do       
 	    echo_t "Trial $retries..."              
             echo_t "Curl Command built: $CURL_REMOVE_HEADER"
@@ -392,7 +393,7 @@ HTTPLogUploadOnRequest()
 
 		if [ "$http_code" != "" ];then
 	
-	       		if [ $http_code -eq 200 ];then
+	       		if [ "$http_code" = "200" ];then
 					echo $http_code > $UPLOADRESULT
 	       			break
 			else
@@ -406,7 +407,7 @@ HTTPLogUploadOnRequest()
             sleep 30
         done
         #Logs upload successful when the return code is 200 after the second curl execution.
-        if [ $http_code -eq 200 ];then
+        if [ "$http_code" = "200" ];then
             echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	    #Remove all log directories
 	    rm -rf $blog_dir
@@ -462,7 +463,7 @@ uploadOnRequest()
 
 			if [ "$CHECK_PING_RES" != "" ]
 			then
-				if [ "$CHECK_PING_RES" -ne 100 ] 
+				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"
 					protected_rsync $blog_dir$timeRequested
@@ -525,7 +526,7 @@ uploadOnRequest()
 }
 
 get_Codebigconfig
-if [ $UseCodeBig = "1" ]; then
+if [ "$UseCodeBig" = "1" ]; then
       blog_dir="/tmp/loguploadonrequest/"
 else
       blog_dir=$LOG_UPLOAD_ON_REQUEST

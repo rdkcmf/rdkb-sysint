@@ -197,17 +197,17 @@ get_Codebigconfig()
       CodebigAvailable=1
    fi
 
-   if [ "$CodebigAvailable" -eq "1" ]; then
+   if [ "$CodebigAvailable" = "1" ]; then
        CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
-   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+   if [ "$CodebigAvailable" = "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
       UseCodeBig=1 
       conn_str="Codebig"
       first_conn=useCodebigRequest
       sec_conn=useDirectRequest
    fi
 
-   if [ "$CodebigAvailable" -eq 1 ]; then
+   if [ "$CodebigAvailable" = "1" ]; then
       echo_t "Using $conn_str connection as the Primary"
    else
       echo_t "Only $conn_str connection is available"
@@ -220,7 +220,7 @@ useDirectRequest()
 {
     # Direct connection will not be tried if .lastdirectfail exists
     IsDirectBlocked
-    if [ "$?" -eq "1" ]; then
+    if [ "$?" = "1" ]; then
            return 1
     fi
     # Direct Communication
@@ -228,7 +228,7 @@ useDirectRequest()
     # $http_code --> Response code retrieved from HTTP_CODE file path.
     echo_t "Trying Direct Communication"
     retries=0
-    while [ "$retries" -lt 3 ]
+    while [ "$retries" -lt "3" ]
     do
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
@@ -244,7 +244,7 @@ useDirectRequest()
                 echo_t "Direct Communication - ret:$ret, http_code:$http_code"
                 if [ "$http_code" != "" ];then
                     echo_t "Direct connection HttpCode received is : $http_code"
-                    if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                    if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
                         return 0
                     fi
                 fi
@@ -258,7 +258,7 @@ useDirectRequest()
         sleep 30
     done
     echo "Retries for Direct connection exceeded " 
-    [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
+    [ "$CodebigAvailable" != "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
     return 1
 }
 
@@ -266,18 +266,19 @@ useDirectRequest()
 useCodebigRequest()
 {
     # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
-    if [ "$CodebigAvailable" -eq "0" ] ; then
+    if [ "$CodebigAvailable" = "0" ] ; then
         echo "Log Upload : Only direct connection Available" 
         return 1
     fi
     echo_t "Trying Codebig Communication"
+
 
     if [ "$S3_MD5SUM" != "" ]; then
         uploadfile_md5="&md5=$S3_MD5SUM"
     fi
 
     retries=0
-    while [ "$retries" -lt 3 ]
+    while [ "$retries" -lt "3" ]
     do
         SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
         eval $SIGN_CMD > $SIGN_FILE
@@ -323,7 +324,7 @@ useCodebigRequest()
 
                 if [ "$http_code" != "" ];then
                     echo_t "Codebig connection HttpCode received is : $http_code"
-                    if [ $http_code -eq 200 ] || [ $http_code -eq 302 ] ;then
+                    if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
                         return 0
                     fi
                 fi
@@ -409,14 +410,14 @@ HttpLogUpload()
         $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; preserveThisLog $UploadFile $UploadPath; continue ; }
 
         # If 200, executing second curl command with the public key.
-        if [ $http_code -eq 200 ];then
+        if [ "$http_code" = "200" ];then
             #This means we have received the key to which we need to curl again in order to upload the file.
             #So get the key from FILENAME
             Key=$(awk -F\" '{print $0}' $OutputFile)
 
             # if url uses http, then log and force https (RDKB-13142)
             echo "$Key" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
-            if [ $? -eq 0 ]; then
+            if [ "$?" = "0" ]; then
                 echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
                 Key=$(echo "$Key" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
                 forced_https="true"
@@ -443,7 +444,7 @@ HttpLogUpload()
             fi
 
             retries=0
-            while [ "$retries" -lt 3 ]
+            while [ "$retries" -lt "3" ]
             do
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
@@ -477,7 +478,7 @@ HttpLogUpload()
 
                     if [ "$http_code" != "" ];then
                         echo_t "HttpCode received is : $http_code"
-                        if [ $http_code -eq 200 ];then
+                        if [ "$http_code" = "200" ];then
                             break
                         fi
                     fi
@@ -490,7 +491,7 @@ HttpLogUpload()
             done
 
             # Response after executing curl with the public key is 200, then file uploaded successfully.
-            if [ $http_code -eq 200 ];then
+            if [ "$http_code" = "200" ];then
                 echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
                 rm -rf $UploadFile
 		if [ -f "$PRESERVE_LOG_PATH/$UploadFile" ] && [ "$UploadPath" != "$PRESERVE_LOG_PATH" ]; then #Remove from backup.
@@ -504,12 +505,12 @@ HttpLogUpload()
             fi
 
         #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key.
-        elif [ $http_code -eq 302 ];then
+        elif [ "$http_code" = "302" ];then
             NewUrl=$(grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile)
 
             # if url uses http, then log and force https (RDKB-13142)
             echo "$NewUrl" | tr '[:upper:]' '[:lower:]' | grep -q -e 'http://'
-            if [ $? -eq 0 ]; then
+            if [ "$?" = "0" ]; then
                 echo_t "LOG UPLOAD TO S3 requested http. Forcing to https"
                 NewUrl=$(echo "$NewUrl" | sed -e 's#http://#https://#g' -e 's#:80/#:443/#')
                 forced_https="true"
@@ -520,7 +521,7 @@ HttpLogUpload()
             CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
 
             retries=0
-            while [ "$retries" -lt 3 ]
+            while [ "$retries" -lt "3" ]
             do
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
@@ -545,7 +546,7 @@ HttpLogUpload()
                     http_code=$(awk '{print $0}' $HTTP_CODE)
                     if [ "$http_code" != "" ];then
                         echo_t "HttpCode received is : $http_code"
-                        if [ $http_code -eq 200 ];then
+                        if [ "$http_code" = "200" ];then
                             break
                         fi
                     fi
@@ -559,7 +560,7 @@ HttpLogUpload()
 
 
             #Executing curl with the response key when return code after the first curl execution is 200.
-            if [ $http_code -eq 200 ];then
+            if [ "$http_code" = "200" ];then
                 Key=$(awk '{print $0}' $OutputFile)
                 if [ "$encryptionEnable" != "true" ]; then
                     Key=\"$Key\"
@@ -569,7 +570,7 @@ HttpLogUpload()
                 CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
 
                 retries=0
-                while [ "$retries" -lt 3 ]
+                while [ "$retries" -lt "3" ]
                 do
                     echo_t "Trial $retries..."
                     # nice value can be normal as the first trial failed
@@ -586,7 +587,7 @@ HttpLogUpload()
 
                         if [ "$http_code" != "" ];then
 
-                            if [ $http_code -eq 200 ];then
+                            if [ "$http_code" = "200" ];then
                                 break
                             fi
                         fi
@@ -597,7 +598,7 @@ HttpLogUpload()
                     sleep 30
                 done
                 #Logs upload successful when the return code is 200 after the second curl execution.
-                if [ $http_code -eq 200 ];then
+                if [ "$http_code" = "200" ];then
                     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
                     result=0
                     rm -rf $UploadFile

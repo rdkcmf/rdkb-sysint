@@ -118,7 +118,7 @@ flush_atom_logs()
 	do
 		sleep 10
 		loop=$((loop+1))
-		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
+		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge "6" ]
 		then
 			# Remove the contents of ATOM side log files.
 			echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
@@ -169,7 +169,7 @@ protected_rsync()
 		fi
 		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
-		if [ "$sync_res" -eq 0 ]
+		if [ "$sync_res" = "0" ]
 		then
 			echo "Sync from ATOM complete"
 		else
@@ -184,7 +184,7 @@ protected_rsync()
 		touch $RSYNC_RUNNING
 		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
 		sync_res=$?
-		if [ "$sync_res" -eq 0 ]
+		if [ "$sync_res" = "0" ]
 		then
 			echo "Sync from ATOM complete"
 		else
@@ -217,7 +217,7 @@ syncLogs_nvram2()
 
 			if [ "$CHECK_PING_RES" != "" ]
 			then
-				if [ "$CHECK_PING_RES" -ne 100 ] 
+				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					protected_rsync $LOG_PATH
@@ -309,7 +309,7 @@ preserveThisLog()
 			backupCount=`cat /tmp/backupCount`
 			logThreshold=`syscfg get log_backup_threshold`
                         echo_t "Backed up count: $backupCount and threshold : $logThreshold before copying"
-			if [ $backupCount -lt $logThreshold ]; then
+			if [ "$backupCount" -lt "$logThreshold" ]; then
 				if [ -f "$path/$file" ] ; then
 
 					if [ ! -f "$PRESERVE_LOG_PATH/$file" ]; then #Avoid duplicate copy
@@ -350,7 +350,7 @@ adjustPreserveCount()
     fi
     backupCount=`cat /tmp/backupCount`
 
-    if [ $backupCount -gt 0 ]; then 
+    if [ "$backupCount" -gt "0" ]; then
       backupCount=`expr $backupCount - 1`
       echo $backupCount > /tmp/backupCount
     fi #end of if [ $backupCount -lt ..
@@ -388,7 +388,7 @@ backupnvram2logs()
 		 local loop=0
 		 while :
 		 do
-			if [ -f "$SCP_COMPLETE" ] || [ "$loop" -ge 3 ]
+			if [ -f "$SCP_COMPLETE" ] || [ "$loop" -ge "3" ]
 			then
 				echo_t "scp completed or wait for 30 sec is over"
 				if [ -f "$SCP_COMPLETE" ]; then
@@ -533,7 +533,7 @@ backupAllLogs()
 
 			if [ "$CHECK_PING_RES" != "" ]
 			then
-				if [ "$CHECK_PING_RES" -ne 100 ] 
+				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					protected_rsync $LOG_PATH

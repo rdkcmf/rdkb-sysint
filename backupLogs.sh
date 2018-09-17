@@ -181,7 +181,7 @@ backupLogsonReboot()
 
 			if [ "$CHECK_PING_RES" != "" ]
 			then
-				if [ "$CHECK_PING_RES" -ne 100 ] 
+				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					protected_rsync $LOG_BACK_UP_REBOOT$dt/

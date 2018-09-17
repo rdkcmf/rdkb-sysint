@@ -240,13 +240,13 @@ do
 		cur_min=`date +"%M"`
 	fi
 
-	if [ "$cur_hr" -ge 02 ] && [ "$cur_hr" -le 05 ]
+  if [ "$cur_hr" -ge "02" ] && [ "$cur_hr" -le "05" ]
 	then
-      	     if [ "$cur_hr" -eq 05 ] && [ "$cur_min" -ne 00 ]
+      	     if [ "$cur_hr" = "05" ] && [ "$cur_min" != "00" ]
 	     then
 		   upload_logfile=1		
 	     else
-	  	   if [ "$upload_logfile" -eq 1 ]
+	  	   if [ "$upload_logfile" = "1" ]
 		   then	
 	 	         calcRandTimeandUpload
 	   	   fi
