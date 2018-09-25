@@ -24,6 +24,8 @@ source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 
+. /etc/device.properties
+
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
 fi
@@ -514,6 +516,49 @@ if [ "$triggerType" == "remove_old_logbackup" ]; then
 	exit
 fi
 
+TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
+PEER_COMM_ID="/tmp/elxrretyt.swr"
+PREVIOUS_LOG_DST="/tmp/nvram2_logs"
+PREVIOUS_LOG_SRC="/nvram2/logs"
+
+IDLE_TIMEOUT=30
+
+# Trigger Telemetry run for previous boot log files
+echo_t "Telemetry run for previous boot log files" >> $LOG_PATH/dcmscript.log
+
+isAxb6Device="no"
+if [ "$MODEL_NUM" == "TG3482G" ]; then
+   isNvram2Mounted=`grep nvram2 /proc/mounts`
+   if [ "$isNvram2Mounted" == "" -a -d "/nvram/logs" ]; then
+      isAxb6Device="yes"
+   fi
+fi
+
+if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" -a "x$isAxb6Device" == "xno" ]; then
+   if [ ! -f /usr/bin/GetConfigFile ]; then
+       echo "Error: GetConfigFile Not Found"
+       exit 127
+   fi
+
+   GetConfigFile $PEER_COMM_ID
+   ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "rm -rf $PREVIOUS_LOG_DST" > /dev/null 2>&1
+   rm -f $PEER_COMM_ID
+
+   GetConfigFile $PEER_COMM_ID
+   scp -i $PEER_COMM_ID -r $PREVIOUS_LOG_SRC root@$ATOM_INTERFACE_IP:$PREVIOUS_LOG_DST > /dev/null 2>&1
+   rm -f $PEER_COMM_ID
+
+   GetConfigFile $PEER_COMM_ID
+   ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/touch $TELEMETRY_PREVIOUS_LOG" > /dev/null 2>&1
+   rm -f $PEER_COMM_ID
+
+   # After scp logs to atom previous log file should be created
+   touch $TELEMETRY_PREVIOUS_LOG
+else
+   touch $TELEMETRY_PREVIOUS_LOG
+   sh /lib/rdk/dca_utility.sh 1
+fi
+
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
 
 	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
@@ -626,6 +671,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	fi
 fi
 
+        
 bootup_upload &
 
 UPLOAD_LOGS=`processDCMResponse`

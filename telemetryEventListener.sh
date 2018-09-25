@@ -26,6 +26,7 @@ RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
+TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
 
 eventType=""
 
@@ -60,6 +61,10 @@ case "$eventType" in
     ;;
   *notifyTelemetryCleanup* )
     touch $TELEMETRY_EXEC_COMPLETE
+    ;;
+  *previousLog* )
+    touch $TELEMETRY_PREVIOUS_LOG_COMPLETE
+    sh /lib/rdk/dcaSplunkUpload.sh logbackup_without_upload &
     ;;
 esac
 

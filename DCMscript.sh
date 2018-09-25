@@ -394,7 +394,51 @@ done
                echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time"
                sh /etc/firmwareSched.sh &
             fi
-            
+
+            isAxb6Device="no"
+            if [ "$MODEL_NUM" == "TG3482G" ]; then
+               isNvram2Mounted=`grep nvram2 /proc/mounts`
+               if [ "$isNvram2Mounted" == "" -a -d "/nvram/logs" ]; then
+                  isAxb6Device="yes"
+               fi
+            fi
+
+            if [ "x$isAxb6Device" == "xno" ]; then
+               TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
+               # wait for telemetry previous log to be copied to atom
+               loop=1
+               while [ $loop -eq 1 ]
+               do
+                   if [ ! -f $TELEMETRY_PREVIOUS_LOG ]; then
+                        echo_t "waiting for previous log file" >> $DCM_LOG_FILE
+                        sleep 10
+                   else
+                        echo_t "scp previous logs from arm to atom done, so breaking loop" >> $DCM_LOG_FILE
+                        loop=0
+                   fi
+               done
+
+               ### Trigger an inotify event on ATOM 
+               echo "Telemetry run for previous log trigger to atom" >> $DCM_LOG_FILE
+               GetConfigFile $PEER_COMM_ID
+               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               rm -f $PEER_COMM_ID
+
+            fi
+
+            # wait for telemetry previous log to be completed
+            loop=1
+            while [ "$loop" = "1" ]
+            do
+                if [ ! -f $TELEMETRY_PREVIOUS_LOG_COMPLETE ]; then
+                     echo_t "waiting for previous log done file" >> $DCM_LOG_FILE
+                     sleep 10
+                else
+                   echo_t "Telemetry run for previous log done, so breaking loop" >> $DCM_LOG_FILE
+                   loop=0
+                fi
+            done
+
             GetConfigFile $PEER_COMM_ID
             scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             if [ $? -ne 0 ]; then
@@ -412,5 +456,17 @@ done
 			   sh /etc/firmwareSched.sh &
 			fi
              
+            # wait for telemetry previous log to be completed
+            loop=1
+            while [ "$loop" = "1" ]
+            do
+                if [ ! -f $TELEMETRY_PREVIOUS_LOG_COMPLETE ]; then
+                     echo_t "waiting for previous log done file" >> $DCM_LOG_FILE
+                     sleep 10
+                else
+                   echo_t "Telemetry run for previous log done, so breaking loop" >> $DCM_LOG_FILE
+                   loop=0
+                fi
+            done
             sh /lib/rdk/dca_utility.sh 1 &
         fi
