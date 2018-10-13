@@ -232,6 +232,19 @@ syncLogs_nvram2()
 
         fi
 
+	if [ "$BOX_TYPE" == "XB6" ];then
+		current_time=$(date +%s)
+		   if [ -f "$lastdmesgsync" ];then
+		   	lastsync_time=`cat $lastdmesgsync`
+		   else
+			lastsync_time=0
+		   fi
+		difference_time=$(( current_time - lastsync_time ))
+		# lastsync_time=$current_time
+		echo "$current_time" > $lastdmesgsync
+		nice -n 19 journalctl -k --since "${difference_time} sec ago" >> ${DMESG_FILE}
+	fi
+
 	file_list=`ls $LOG_PATH`
 
 	for file in $file_list
@@ -267,6 +280,7 @@ syncLogs_nvram2()
 		#echo "new offset = $offset for file $LOG_PATH$file"
 		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
 	done
+	
 
 }
 

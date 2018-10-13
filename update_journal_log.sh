@@ -7,17 +7,23 @@ then
     source /etc/device.properties
 fi
 
+source /etc/utopia/service.d/log_env_var.sh
+
 current_time=0
 lastync_time=0
-DMESG_FILE="/rdklogs/logs/messages.txt"
-atom_journal_log="/rdklogs/logs/atom_journal_logs.txt.0"
 BootupLog_is_updated=0
 
 while [ 1 ]
 do
    current_time=$(date +%s)
+   if [ -f "$lastdmesgsync" ];then
+   	lastsync_time=`cat $lastdmesgsync`
+   fi
+   
    difference_time=$(( current_time - lastsync_time ))
    lastsync_time=$current_time
+   echo "$current_time" > $lastdmesgsync
+   
    #Keeps appending to the existing file 
    nice -n 19 journalctl -k --since "${difference_time} sec ago" >> ${DMESG_FILE}
    if [ "$BOX_TYPE" = "XB6" ] && [ "$MODEL_NUM" = "TG3482G" ];then
