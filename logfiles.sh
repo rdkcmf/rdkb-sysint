@@ -300,6 +300,74 @@ syncLogs_nvram2()
     fi
 }
 
+checkConnectivityAndReboot()
+{
+	rebootNeeded=0
+	uptime=`cat /proc/uptime | cut -d "." -f1`
+	if [ "$uptime" -ge "1800" ] ; then
+		#echo "box is up more than 30 min"
+		rebootNeeded=1
+
+		date | grep 1970
+		if [ $? -eq 0 ] ; then 
+			echo_t "time is still not getting synced"
+                        rebootNeeded=0
+		fi
+
+		ping -c 2 google.com >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "ping to google failed"
+		else
+			rebootNeeded=0
+		fi
+
+		ping6 -c 2 google.com >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "ping6 to google failed"
+		else
+			rebootNeeded=0
+		fi
+
+		ping -c 2 75.75.75.75 >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "ping to 75.75.75.75 failed"
+		else
+			rebootNeeded=0
+		fi
+
+		ping -c 2 8.8.8.8 >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "ping to 8.8.8.8 failed"
+		else
+			rebootNeeded=0
+		fi
+
+		ping6 -c 2 2001:558:feed::1 >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "ping6 to 2001:558:feed::1 failed"
+		else
+			rebootNeeded=0
+		fi
+		curl google.com >> /dev/null
+		if [ $? -ne 0 ] ; then 
+			echo_t "curl failed"
+		else
+			rebootNeeded=0
+		fi
+	fi
+
+	if [ $rebootNeeded -eq 1 ] ; then
+		echo_t "Connectivity is still not back.. rebooting due to no connectivity"
+		syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
+		syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
+		syscfg commit
+		sleep 5
+		reboot
+	else
+		echo_t "Connectivity is ok at `date`"
+	fi
+}
+
 preserveThisLog()
 {
 	path=$2
@@ -327,36 +395,28 @@ preserveThisLog()
                         echo_t "Backed up count: $backupCount and threshold : $logThreshold before copying"
 			if [ "$backupCount" -lt "$logThreshold" ]; then
 				if [ -f "$path/$file" ] ; then
-
 					if [ ! -f "$PRESERVE_LOG_PATH/$file" ]; then #Avoid duplicate copy
 						echo_t  "$path/$file log upload failed..preserve this log for further analysis"
 						cp $path/$file $PRESERVE_LOG_PATH
 						backupCount=`expr $backupCount + 1`
 						echo $backupCount > /tmp/backupCount
 						#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
-					#	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-						if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ];then
-                                                        if [ $3 != "wan-stopped" ]; then
-							    if [ "$backupCount" -eq "$logThreshold" ]; then
-								    echo_t "Connectivity is still not back.. rebooting due to no connectivity"
-                                                                    if [ -e "/usr/bin/onboarding_log" ]; then
-                                                                    		/usr/bin/onboarding_log "Device reboot due to reason no-connectivity"
-                                                                    fi
-								    syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
-								    syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
-								    syscfg commit
-								    sleep 5
-								    reboot
-							    fi #if [ $backupCount -eq ..;
-                                                        else
-                                                                echo_t "The wan-stopped case, we shouldn't check for connectivity"
-                                                        fi
-                                                fi #if [ "$BOX_TYPE" = "XB6" ] && [ "$MANUFACTURE" = "Arris" ];
-                                        fi
-                                else
+						model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
+					fi
+				else
 					echo_t "$path/$file not found at path $path"
 				fi #if [ -f "$path/$file" ] ; then 
 			fi #end of if [ $backupCount -lt ..
+			#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
+			if [ "$model" = "TG3482G" ]; then
+                                if [ $3 != "wan-stopped" ]; then
+				        if [ $backupCount -ge 2 ]; then
+					        checkConnectivityAndReboot
+				        fi #if [ $backupCount -eq ..; 
+                                else
+                                        echo_t "The wan-stopped case, we shouldn't check for connectivity"
+                                fi
+			fi #if [ "$model" = "TG3482G" ];
 		fi #if [ ! -d $PRESERVE_LOG_PATH ] ; then
 	fi #if [ "$logBackupEnable" = "true" ];then
 }
