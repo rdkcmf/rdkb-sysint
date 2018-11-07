@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##################################################################################
+source /lib/rdk/getpartnerid.sh
 
 retVal=""
 
@@ -26,10 +27,16 @@ if [ ! -f /usr/bin/GetConfigFile ];then
     exit 127
 fi
 
-COMMID="/tmp/xhs/cyavtfjzx.pse"
+partnerId=$(getPartnerId)
 
 #Retrieve Parameter2
 mkdir -p /tmp/xhs
+if [ "$partnerId" = "cox" ];then
+    COMMID="/tmp/xhs/cyavtfjzx.pse-cox"
+else
+    COMMID="/tmp/xhs/cyavtfjzx.pse"
+fi
+
 GetConfigFile $COMMID
 param2=`/bin/cat $COMMID`
 
