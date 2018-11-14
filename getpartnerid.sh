@@ -37,9 +37,10 @@ getPartnerId()
 {
 #Get PartnerID set in the system via syscfg get command
 partner_id=`syscfg get PartnerID`
+syscfg_err=`echo $partner_id | grep -i error`
 
 #Try "dmcli" to retrieve partner_id if "sysconf" returned null. It's a fallback check.
-if [ "$partner_id" == "" ];then
+if [ "$partner_id" == "" ] || [ "$syscfg_err" != "" ];then
 	partner_id=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.PartnerId | grep string | awk '{print $5}'`
 
 	#Check for PartnerID in device.properties if its not set already.
