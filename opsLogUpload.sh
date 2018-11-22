@@ -311,8 +311,7 @@ HTTPLogUploadOnRequest()
             ret= eval $CURL_CMD > $HTTP_CODE
             if [ -f $HTTP_CODE ];
 	    then
-                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-
+		http_code=$(awk '{print $0}' $HTTP_CODE)
 		if [ "$http_code" != "" ];then
 			echo_t "HttpCode received is : $http_code"
 			if [ "$http_code" = "200" ];then
