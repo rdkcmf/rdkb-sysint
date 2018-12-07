@@ -167,7 +167,7 @@ useDirectRequest()
       echo_t "dca$2: Using Direct commnication"
       CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
       echo_t "CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE
-      HTTP_CODE=`result= eval $CURL_CMD`
+      HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
       ret=$?
 
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
@@ -213,7 +213,7 @@ useCodebigRequest()
       CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$CB_SIGNED_REQUEST\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
       echo_t "dca$2: Using Codebig connection at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $RTL_LOG_FILE
       echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*oauth_signature=.* --#<hidden> --#p'`" >> $RTL_LOG_FILE
-      HTTP_CODE=`result= eval $CURL_CMD`
+      HTTP_CODE=`curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$CB_SIGNED_REQUEST" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
       curlret=$?
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
