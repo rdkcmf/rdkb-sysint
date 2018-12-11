@@ -25,6 +25,7 @@ source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
 LOG_UPLOAD_PID="/tmp/.log_upload.pid"
+REBOOT_PENDING_DELAY=2
 
 # exit if an instance is already running
 if [ ! -f $LOG_UPLOAD_PID ];then
@@ -78,6 +79,14 @@ getTFTPServer()
 		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
 		echo $logserver
 	fi
+}
+
+Trigger_RebootPendingNotify()
+{
+	#Trigger RebootPendingNotification prior to device reboot for all software managed types of reboots
+	echo_t "RDKB_REBOOT : Setting RebootPendingNotification before reboot"
+	dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.RebootPendingNotification uint $REBOOT_PENDING_DELAY
+	echo_t "RDKB_REBOOT  : RebootPendingNotification SET succeeded"
 }
 
 getBuildType()
@@ -334,6 +343,11 @@ backup_log_pidCleanup
 
 if [ "$needReboot" = "true" ]
 then
+	echo_t "Trigger RebootPendingNotification in background"
+	Trigger_RebootPendingNotify &
+	echo_t "sleep for $REBOOT_PENDING_DELAY sec to send reboot pending notification"
+	sleep $REBOOT_PENDING_DELAY
+
 	rebootFunc
 fi
 
