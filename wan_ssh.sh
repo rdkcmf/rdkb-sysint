@@ -58,25 +58,25 @@ start_dropbear_wan()
 add_v4firewall_rule()
 {
 	#insert ipv4_firewall rule to accept ssh connection
-	iptables -I INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT
+	iptables -I INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER
 }
 
 add_v6firewall_rule()
 {
 	#insert ipv6_firewall rule to accept ssh connection
-	ip6tables -I INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT
+	ip6tables -I INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER
 }
 
 remove_v4firewall_rule()
 {
         #insert ipv4_firewall rule to DROP ssh connection
-        iptables -D INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT
+        iptables -D INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER
 }
 
 remove_v6firewall_rule()
 {
         #insert ipv6_firewall rule to DROP ssh connection
-        ip6tables -D INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT
+        ip6tables -D INPUT -i $WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER
 }
 
 start_wan_ssh_service()
@@ -94,8 +94,8 @@ start_wan_ssh_service()
 			check_dropbear_v6=`ps w| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
 		fi
 
-		check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT"`
-		check_v6_rule=`ip6tables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT"`
+		check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
+		check_v6_rule=`ip6tables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
 
 
 		#echo "WAN_IP4: $check_WAN_IP4"
@@ -152,8 +152,8 @@ stop_wan_ssh_service()
                         check_dropbear_v6=`ps w| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
                 fi
 
-                check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT"`
-                check_v6_rule=`ip6tables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j ACCEPT"`
+                check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
+                check_v6_rule=`ip6tables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
 
 
                 #echo "WAN_IP4: $check_WAN_IP4"
