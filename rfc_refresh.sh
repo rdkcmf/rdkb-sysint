@@ -29,22 +29,9 @@ if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
 
-IPV6_BIN="/usr/sbin/ip6tables"
-IPV4_BIN="/usr/sbin/iptables"
-
-if [ -z "$CM_INTERFACE" ]; then
-    CM_INTERFACE="wan0"
-fi
-
-CM_IP=`getCMIPAddress`
-case $CM_IP in 
-       *\:*\:* ) ## IPv6 IP
-             IP_MODE="ipv6"
-             ;;
-       *\.*\.* ) ## IPv4 IP
-             IP_MODE="ipv4"
-             ;;
-esac
+IPV6_BIN="/usr/sbin/ip6tables -w "
+IPV4_BIN="/usr/sbin/iptables -w "
+PROD_SSH_WHITELIST_FILE="/etc/dropbear/prodMgmtIps.cfg"
 
 rfclog ()
 {
@@ -61,82 +48,62 @@ REFRESH=$1
 touch /tmp/.rfcLock
 
 if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
-   if [ "x$IP_MODE" == "xipv6" ]; then
-      rfclog "Box is in IPv6 mode. Refreshing Ipv6 rules"
-      #Flush SSH_FILTER chain
-      $IPV6_BIN -F SSH_FILTER
+   #Flush SSH_FILTER chain
+   rfclog "Refreshing SSH_FILTER rules"
+   $IPV6_BIN -F SSH_FILTER
+   $IPV4_BIN -F SSH_FILTER
+   #Whitelist RFC SSH IP's
+   SSH_WHITELIST_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
+   
+   rfclog "SSH Dynamic Whitelist Address : "
+   while read line
+   do
+       case $line in
+           *\:*\:* ) ## IPv6 IP
+             $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
+             rfclog "SSH IPv6 Address : $line"
+             ;;
+           *\.*\.* ) ## IPv4 IP
+             $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
+             rfclog "SSH IPv4 Address : $line"
+             ;;
+       esac
+   done < $SSH_WHITELIST_FILE
 
-      #Whitelist RFC SSH IP's
-      SSH_WHITELIST_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
-      while read line
-      do
-          $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
-      done < $SSH_WHITELIST_FILE
 
-      #Enable SSH only from whitelisted source for all builds
-         PROD_SSH_WHITELIST_FILE="/etc/dropbear/prodMgmtIps.cfg"
-         ipv6_enable=0
-         while read line
-         do
+   rfclog "SSH Static Whitelist Address : "
+   while read line
+   do
              echo $line | grep -i "#" > /dev/null
              if [ $? -eq 0 ]; then
                 continue
              fi
-             echo $line | grep -i ipv6 > /dev/null
-             if [ $? -eq 0 ]; then
-                ipv6_enable=1
-                continue
-             fi
-             echo $line | grep -i ipv4 > /dev/null
-             if [ $? -eq 0 ]; then
-                break
-             fi
-             if [ $ipv6_enable -eq 1 ]; then
-                $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
-             fi
-         done < $PROD_SSH_WHITELIST_FILE
+             case $line in
+               *\:*\:* ) ## IPv6 IP
+                 $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
+                 rfclog "SSH IPv6 Address : $line"
+                 ;;
+               *\.*\.* ) ## IPv4 IP
+                 $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
+                 rfclog "SSH IPv4 Address : $line"
+                 ;;
+             esac
+    done < $PROD_SSH_WHITELIST_FILE
+    
+    #Drop other SSH packets
+    $IPV6_BIN -A SSH_FILTER -j LOG_SSH_DROP
 
-      #Drop other SSH packets
-      $IPV6_BIN -A SSH_FILTER -j LOG_SSH_DROP
-   elif [ "x$IP_MODE" == "xipv4" ]; then
-      rfclog "Box in IPv4 mode. Refreshing Ipv4 rules"
-      #Flush SSH_FILTER chain
-      $IPV4_BIN -F SSH_FILTER
+    #Whitelist ARM & ATOM IP's
+    if [ ! -z "$ATOM_INTERFACE_IP" ]; then
+        $IPV4_BIN -A SSH_FILTER -s $ATOM_INTERFACE_IP -j ACCEPT
+    fi 
+    if [ ! -z "$ARM_INTERFACE_IP" ]; then
+        $IPV4_BIN -A SSH_FILTER -s $ARM_INTERFACE_IP -j ACCEPT
+    fi
 
-      #Whitelist ARM & ATOM IP's
-      $IPV4_BIN -A SSH_FILTER -s $ATOM_INTERFACE_IP -j ACCEPT
-      $IPV4_BIN -A SSH_FILTER -s $ARM_INTERFACE_IP -j ACCEPT
-
-      #Whitelist RFC SSH IP's
-      SSH_WHITELIST_FILE="$(ls /tmp/RFC/.RFC_* | grep -i sshwhitelist)"
-      while read line
-      do
-          $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
-      done < $SSH_WHITELIST_FILE
-
-      #Enable SSH only from whitelisted source for all builds
-         PROD_SSH_WHITELIST_FILE="/etc/dropbear/prodMgmtIps.cfg"
-         ipv4_enable=0
-         while read line
-         do
-             echo $line | grep -i "#" > /dev/null
-             if [ $? -eq 0 ]; then
-                continue
-             fi
-             echo $line | grep -i ipv4 > /dev/null
-             if [ $? -eq 0 ]; then
-                ipv4_enable=1
-                continue
-             fi
-             if [ $ipv4_enable -eq 1 ]; then
-                $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
-             fi
-         done < $PROD_SSH_WHITELIST_FILE
-
-      #Drop other SSH packets
-      $IPV4_BIN -A SSH_FILTER -j LOG_SSH_DROP
-   fi
-   rfclog "SSH Whitelisting done" 
+    #Drop other SSH packets
+    $IPV4_BIN -A SSH_FILTER -j LOG_SSH_DROP
+    rfclog "SSH Whitelisting done" 
 fi
 
 rm /tmp/.rfcLock
