@@ -202,39 +202,6 @@ useCodebigRequest()
         echo "OpsLog Upload : Only direct connection Available"
         return 1
     fi
-    retries=0
-    while [ "$retries" -lt 10 ]
-    do
-       echo "Trial $retries..."
-       # nice value can be normal as the first trial failed
-       if [ $retries -ne 0 ]
-       then
-           if [ -f /nvram/adjdate.txt ];
-           then
-                echo -e "$0  --> /nvram/adjdate exist. It is used by another program"
-                echo -e "$0 --> Sleeping 10 seconds and try again\n"
-            else
-                echo -e "$0  --> /nvram/adjdate NOT exist. Writing date value"
-                dateString=`date +'%s'`
-                if [ "x$SECONDV" != "x" ]; then
-                    count=$(expr $dateString - $SECONDV)
-                else
-                    count=$dateString
-                fi
-                echo "$0  --> date adjusted:"
-                date -d @$count
-                echo $count > /nvram/adjdate.txt
-                break
-            fi
-        fi
-        retries=`expr $retries + 1`
-        sleep 10
-    done
-    if [ ! -f /nvram/adjdate.txt ];then
-        echo "$0 --> LOG UPLOAD UNSUCCESSFUL TO S3 because unable to write date info to /nvram/adjdate.txt"
-        rm -rf $UploadFile
-        exit
-    fi
 
     if [ "$S3_MD5SUM" != "" ]; then
         uploadfile_md5="&md5=$S3_MD5SUM"
@@ -246,7 +213,7 @@ useCodebigRequest()
          echo_t "Trying Codebig Communication"
          SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
          eval $SIGN_CMD > $SIGN_FILE
-         if [ -s /var/.signedRequest ]
+         if [ -s $SIGN_FILE ]
          then
              echo "Log upload - GetServiceUrl success"
          else
@@ -255,7 +222,6 @@ useCodebigRequest()
          fi
          CB_SIGNED=`cat $SIGN_FILE`
          rm -f $SIGN_FILE
-         [ ! -f /nvram/adjdate.txt ] || rm -f /nvram/adjdate.txt
          S3_URL_SIGN=`echo $CB_SIGNED | sed -e "s|?.*||g"`
          echo "serverUrl : $S3_URL_SIGN"
          authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
