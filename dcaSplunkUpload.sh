@@ -129,17 +129,7 @@ pidCleanup()
 IsDirectBlocked()
 {
     ret=0
-    if [ -f $DIRECT_BLOCK_FILENAME ]; then
-        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
-        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
-            echo "dca: Last direct failed blocking is still valid, preventing direct" >>  $RTL_LOG_FILE
-            ret=1
-        else
-            echo "dca: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $RTL_LOG_FILE
-            rm -f $DIRECT_BLOCK_FILENAME
-            ret=0
-        fi
-    fi
+    # Temporarily disabling blocking of direct connection due to increased load on Codebig servers.
     return $ret
 }
 
