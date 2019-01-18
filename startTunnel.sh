@@ -53,6 +53,9 @@ case $oper in
              if [ $BOX_TYPE = "XF3" ]; then
                 # PACE XF3 and PACE CFG3
                 CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+                if [ -z "$CM_IP" ]; then
+                    CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+                fi
              elif [ "$BOX_TYPE" = "TCCBR" ] || [ "$MODEL_NUM" = "CGM4140COM" ]; then
                 # TCH XB6 and TCH CBR
                 # getting the IPV4 address for CM
@@ -62,13 +65,20 @@ case $oper in
                    Check=$(ip_to_hex $IpCheckVal)
                    # getting the IPV6 address for CM
                    CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+                   if [ -z "$CM_IP" ]; then
+                       CM_IP=$CM_IPV4
+                   fi
                 else
-                CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-                IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
-                Check=$(ip_to_hex $IpCheckVal)
-                # getting the IPV6 address for CM
-                CM_IP=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1`
-                CM_IP="$CM_IP%privbr"
+                   CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+                   IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
+                   Check=$(ip_to_hex $IpCheckVal)
+                   # getting the IPV6 address for CM
+                   CM_IP=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+                   if [ ! -z "$CM_IP" ]; then
+                       CM_IP="$CM_IP%privbr"
+                   else
+                       CM_IP=$CM_IPV4
+                   fi
                 fi
              else
                 # OTHER PLATFORMS
