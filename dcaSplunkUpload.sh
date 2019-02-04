@@ -206,6 +206,12 @@ useCodebigRequest()
          echo "dca$2 : Only direct connection Available"
          return 1
       fi
+
+      if [ "x$CodeBigEnable" = "x" ] ; then
+          echo_t "dca$2 : Codebig connection attempts are disabled through RFC. Exiting !!!" >> $RTL_LOG_FILE
+          return 1
+      fi
+
       SIGN_CMD="GetServiceUrl 9 "
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
