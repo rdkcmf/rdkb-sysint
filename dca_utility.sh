@@ -132,11 +132,6 @@ else
     fi
 fi
 
-if [ "$LIGHTSLEEP_ENABLE" == "true" ] && [ -f /tmp/.standby ]; then
-    pidCleanup
-    exit 0
-fi
-
 mkdir -p $LOG_PATH
 touch $RTL_LOG_FILE
 
@@ -182,7 +177,7 @@ fi
 
 if [ ! -d "$TELEMETRY_PATH_TEMP" ]
 then
-    echo "Telemetry Folder does not exist . Creating now" >> $RTL_LOG_FILE
+    echo_t "Telemetry Folder does not exist . Creating now" >> $RTL_LOG_FILE
     mkdir -p "$TELEMETRY_PATH_TEMP"
 else
     cp $TELEMETRY_PATH/rtl_* $TELEMETRY_PATH_TEMP/
@@ -445,6 +440,7 @@ dropbearRecovery()
    
 clearTelemetryConfig()
 {
+    echo_t "dca: Clearing telemetry config and markers" >> $RTL_LOG_FILE
     if [ -f $RTL_DELTA_LOG_FILE ]; then
         echo_t "dca: Deleting : $RTL_DELTA_LOG_FILE" >> $RTL_LOG_FILE
         rm -f $RTL_DELTA_LOG_FILE
@@ -482,6 +478,7 @@ clearTelemetryConfig()
 ## Pass The I/P O/P Files As Arguments
 generateTelemetryConfig()
 {
+    echo_t "dca: Generating telemetry config file." >> $RTL_LOG_FILE
     input_file=$1
     output_file=$2
     touch $TEMP_PATTERN_CONF_FILE
@@ -526,7 +523,7 @@ generateTelemetryConfig()
 
 # Reschedule the cron based on diagnositic mode
 if [ $triggerType -eq 3 ] ; then
-	echo "$timestamp: dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
+	echo_t "$timestamp: dca: Processing rescheduleCron job" >> $RTL_LOG_FILE
     scheduleCron
     ## Telemetry must be invoked only for reschedule cron job
     pidCleanup
@@ -564,6 +561,8 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 -a ! -f $TELEMETRY
         #exit 0
     fi
 fi
+
+mkdir -p $TELEMETRY_PATH_TEMP
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     dropbearRecovery
@@ -611,7 +610,7 @@ rm -f $TELEMETRY_JSON_RESPONSE
 if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
     echo "WARNING !!! Unable to locate telemetry config file $SORTED_PATTERN_CONF_FILE. Exiting !!!" >> $RTL_LOG_FILE
 else
-    echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
+    # echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
     defaultOutputJSON="{\"searchResult\":[{\"<remaining_keys>\":\"<remaining_values>\"}]}"
     echo "nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE $previousLogPath" >> $RTL_LOG_FILE
     dcaOutputJson=`nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE $previousLogPath 2>> $RTL_LOG_FILE`
