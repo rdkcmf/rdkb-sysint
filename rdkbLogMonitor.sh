@@ -351,7 +351,15 @@ bootup_upload()
 		
 		rm -rf *.tgz
                echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-               tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+               if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+                echo "tar activation logs from bootup_upload"
+                copy_onboardlogs "$LOG_SYNC_PATH"
+                tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_activation_log.tgz" $LOG_SYNC_PATH
+                rm -rf /tmp/backup_onboardlogs
+               else
+                echo "tar logs from bootup_upload"
+                tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+               fi
                rm $PATTERN_FILE
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log*
