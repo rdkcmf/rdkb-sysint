@@ -481,7 +481,6 @@ uploadOnRequest()
 				echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 			fi
 		fi
-
 	fi
 
 	if [ "$BOX_TYPE" = "XB6" ]; then
@@ -489,14 +488,33 @@ uploadOnRequest()
                 cp /nvram/$BBHM_CFG_FILE $dest$BBHM_CFG_FILE
         sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dest$WIRELESS_CFG_FILE
         fi
+	if [ -f /tmp/backup_onboardlogs ]; then
+        backup_onboarding_logs
+        fi
 	if [ "$codebig_enabled" == "yes" ]; then
 		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-		tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" /tmp/loguploadonrequest/$timeRequested
+		if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+		    echo "tar activation logs from uploadOnRequest"
+		    copy_onboardlogs "/tmp/loguploadonrequest/$timeRequested"
+		    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$timeRequested"_activation_log.tgz" /tmp/loguploadonrequest/$timeRequested
+		    rm -rf /tmp/backup_onboardlogs
+	    else
+	        echo "tar logs from uploadOnRequest"
+		    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" /tmp/loguploadonrequest/$timeRequested
+	    fi
 		rm $PATTERN_FILE
 		rm -rf /tmp/loguploadonrequest/$timeRequested
 	else
 		echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-		tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
+		if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+		    echo "tar activation logs from uploadOnRequest"
+		    copy_onboardlogs "$timeRequested"
+		    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$timeRequested"_activation_log.tgz" $timeRequested
+		    rm -rf /tmp/backup_onboardlogs
+	    else
+	        echo "tar logs from uploadOnRequest"
+	        tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$timeRequested.tgz" $timeRequested
+	    fi
 		rm $PATTERN_FILE
 	fi
 	echo_t "Created backup of all logs..."

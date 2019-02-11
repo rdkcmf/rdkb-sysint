@@ -32,6 +32,10 @@ RSYNC_WAITING="/tmp/rsync_waiting"
 SCP_COMPLETE="/tmp/.scp_done"
 
 PEER_COMM_ID="/tmp/elxrretyt-logf.swr"
+if [ -f /etc/ONBOARD_LOGGING_ENABLE ]; then
+    ONBOARDLOGS_NVRAM_BACKUP_PATH="/nvram2/onboardlogs/"
+    ONBOARDLOGS_TMP_BACKUP_PATH="/tmp/onboardlogs/"
+fi
 
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
@@ -286,7 +290,9 @@ syncLogs_nvram2()
 		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
 	done
 	
-
+    if [ -f /tmp/backup_onboardlogs ]; then
+        backup_onboarding_logs
+    fi
 }
 
 preserveThisLog()
@@ -328,6 +334,9 @@ preserveThisLog()
                                                         if [ $3 != "wan-stopped" ]; then
 							    if [ "$backupCount" -eq "$logThreshold" ]; then
 								    echo_t "Connectivity is still not back.. rebooting due to no connectivity"
+                                                                    if [ -e "/usr/bin/onboarding_log" ]; then
+                                                                    		/usr/bin/onboarding_log "Device reboot due to reason no-connectivity"
+                                                                    fi
 								    syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
 								    syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
 								    syscfg commit
@@ -445,7 +454,15 @@ backupnvram2logs()
 	wan_event=`sysevent get wan_event_log_upload`
         if [ -f "/tmp/.uploadregularlogs" ] || [ "$wan_event" == "yes" ]
         then
-	        tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+            if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+                echo "tar activation logs from backupnvram2logs"
+                copy_onboardlogs "$LOG_SYNC_PATH"
+                tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_activation_log.tgz" $LOG_SYNC_PATH
+                rm -rf /tmp/backup_onboardlogs
+            else
+                echo "tar logs from backupnvram2logs"
+	            tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	        fi
         fi
 
 	rm $PATTERN_FILE
@@ -507,7 +524,15 @@ backupnvram2logs_on_reboot()
 
 	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+	    echo "tar activation logs from backupnvram2logs_on_reboot"
+	    copy_onboardlogs "$LOG_SYNC_PATH"
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_activation_log.tgz" $LOG_SYNC_PATH
+	    rm -rf /tmp/backup_onboardlogs
+    else
+        echo "tar logs from backupnvram2logs_on_reboot"
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+    fi
 	rm $PATTERN_FILE
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log*
@@ -604,7 +629,15 @@ backupAllLogs()
     fi
 
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
-	tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
+	if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
+	    echo "tar activation logs from backupAllLogs"
+	    copy_onboardlogs "$dt"
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"activation_log.tgz" $dt
+	    rm -rf /tmp/backup_onboardlogs
+	else
+	    echo "tar logs from backupAllLogs"
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
+    fi
 	rm $PATTERN_FILE
  	rm -rf $dt
 	cd $workDir
@@ -689,6 +722,10 @@ syncLogs()
 	
 	#moveFiles $LOG_BACK_UP_REBOOT $LOG_PATH
 	#rm -rf $LOG_BACK_UP_REBOOT
+
+    if [ -f /tmp/backup_onboardlogs ]; then
+        backup_onboarding_logs
+    fi
 }
 
 
@@ -743,4 +780,142 @@ processDCMResponse()
 
  
     fi
+}
+
+getMaxSize()
+{
+    size_list=$1
+    total_size=0
+    for size in $size_list
+    do
+        total_size=$((total_size+size))
+    done
+    echo $total_size
+}
+
+compress_onboard_logs()
+{
+    curDir=`pwd`
+    cd $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    file_list=`ls OnBoarding*`
+    echo_t "tar onboard logs to reduce size"
+    echo "*.tgz" > $PATTERN_FILE
+    dt=`date "+%m-%d-%y-%I-%M%p"`
+    MAC=`getMacAddressOnly`
+    mkdir $dt
+    for file in $file_list
+    do
+        cp $file $dt; >$file;
+    done
+    env GZIP=-9 tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_OnBoard.tgz" $dt
+    rm -rf $dt
+    cd $curDir
+}
+
+upload_onboard_files()
+{
+    curDir=`pwd`
+    cd $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    file_list=`ls`
+    #uploading onboard logs to log server
+    echo_t "Uploading onboard files"
+    file_list=`ls *.tgz`
+    for file in $file_list
+    do
+        $RDK_LOGGER_PATH/onboardLogUpload.sh "upload" $file
+    done
+    cd $curDir
+}
+
+copy_onboard_files()
+{
+    curDir=`pwd`
+    cd $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    file_list=`ls *.tgz`
+    echo_t "Copying onboard files to $ONBOARDLOGS_TMP_BACKUP_PATH"
+    for file in $file_list
+    do
+        mv $file $ONBOARDLOGS_TMP_BACKUP_PATH
+    done
+    cd $curDir
+}
+
+backup_onboarding_logs()
+{
+    if [ ! -d $ONBOARDLOGS_NVRAM_BACKUP_PATH ]; then
+        mkdir -p $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    fi
+    curDir=`pwd`
+
+    #copy/append onboard logs to $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    cd $LOG_PATH
+    file_list=`ls OnBoarding*`
+    echo_t "backup onboardlogs to nvram"
+    for file in $file_list
+    do
+        if [ -f $ONBOARDLOGS_NVRAM_BACKUP_PATH$file ]; then
+            cat $LOG_PATH$file >> $ONBOARDLOGS_NVRAM_BACKUP_PATH$file
+            >$LOG_PATH$file
+            if [ "$BOX_TYPE" == "XB3" ];then
+                rpcclient  $ATOM_ARPING_IP ">$LOG_PATH$file"
+            fi
+        else
+            cp $LOG_PATH$file $ONBOARDLOGS_NVRAM_BACKUP_PATH
+            >$LOG_PATH$file
+            if [ "$BOX_TYPE" == "XB3" ];then
+                rpcclient  $ATOM_ARPING_IP ">$LOG_PATH$file"
+            fi
+        fi
+    done
+    cd $curDir
+
+    #Checking onboarding logs size and compressing to reduce size
+    size_list=`du -sk $ONBOARDLOGS_NVRAM_BACKUP_PATH/OnBoarding*|awk '{print $1}'`
+    max_size=`getMaxSize "$size_list"`
+    echo_t "OnBoard files size is $max_size KB"
+    if [ $max_size -ge $MAX_NVRAM_ONBOARDING_FILES_SIZE ];then
+        compress_onboard_logs
+    fi
+
+    #Checking onboarding logs size along with zipped files size and uploading to server
+    max_size=`du -sk $ONBOARDLOGS_NVRAM_BACKUP_PATH|awk '{print $1}'`
+    echo_t "$ONBOARDLOGS_NVRAM_BACKUP_PATH size is $max_size KB"
+    if [ $max_size -gt $MAX_NVRAM_ONBOARDING_FILES_SIZE ];then
+        upload_onboard_files
+        if [ ! -d $ONBOARDLOGS_TMP_BACKUP_PATH ]; then
+            mkdir -p $ONBOARDLOGS_TMP_BACKUP_PATH
+            #copying onboard files
+            copy_onboard_files
+        else
+            #Checking space availability in /tmp
+            max_size=`du -sk $ONBOARDLOGS_TMP_BACKUP_PATH|awk '{print $1}'`
+            echo_t "$ONBOARDLOGS_TMP_BACKUP_PATH size is $max_size KB"
+            if [ $max_size -gt $MAX_TMP_ONBOARDING_FILES_SIZE ];then
+                #removing onboard files
+                echo_t "Retaining old onboard files and removing new onboard files from $ONBOARDLOGS_NVRAM_BACKUP_PATH"
+                rm -rf $ONBOARDLOGS_NVRAM_BACKUP_PATH/*.tgz
+            else
+                #copying onboard files
+                copy_onboard_files
+            fi
+        fi
+    fi
+
+    echo_t "done onboardlogs backup"
+}
+
+copy_onboardlogs()
+{
+    dest=$1
+    echo_t "copy onboardlogs to $1"
+    curDir=`pwd`
+    cd $ONBOARDLOGS_NVRAM_BACKUP_PATH
+    file_list=`ls OnBoarding*`
+
+    for file in $file_list
+    do
+        cp $ONBOARDLOGS_NVRAM_BACKUP_PATH$file $dest
+    done
+    cd $curDir
+    echo_t "done onboardlogs copy to $1"
 }

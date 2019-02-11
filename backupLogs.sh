@@ -205,6 +205,9 @@ backupLogsonReboot()
 		fi
 
 	fi
+	if [ -f /tmp/backup_onboardlogs ]; then
+        backup_onboarding_logs
+    fi
 	#echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	#tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $dt
 	#rm $PATTERN_FILE
