@@ -20,8 +20,8 @@
 
 
 uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
-echo "before running log_mem_cpu_info_atom.sh.sh printing top output" 
-top -n1 -b >> /rdklogs/logs/AtomConsolelog.txt
+echo "before running log_mem_cpu_info_atom.sh.sh printing top output" >> /rdklogs/logs/CPUInfoPeer.txt.0
+top -n1 -b >> /rdklogs/logs/CPUInfoPeer.txt.0
 if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof stahealth.sh)"  == "" ] && [ "$(pidof radiohealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ] && [ "$(pidof dailystats_log.sh)" == "" ] && [ "$(pidof dailystats.sh)" == "" ]; then
 	if [ -e /rdklogger/log_capture_path_atom.sh ]
 	then
@@ -123,11 +123,11 @@ TMPFS_THRESHOLD=85
 
 		if [ "$count" -eq "$max_count" ]
 		then
-			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is"
-			echo_t ""
-			top -m -b n 1
+			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is" >> /rdklogs/logs/CPUInfoPeer.txt.0
+			echo_t "" >> /rdklogs/logs/CPUInfoPeer.txt.0
+			top -m -b n 1 >> /rdklogs/logs/CPUInfoPeer.txt.0
 
-			echo_t "================================================================================"
+			echo_t "================================================================================" >> /rdklogs/logs/CPUInfoPeer.txt.0
 			echo_t ""
 			echo "RDKB_DISK_USAGE_ATOM : Systems Disk Space Usage log at $timestamp is"
 			echo_t ""
@@ -136,9 +136,9 @@ TMPFS_THRESHOLD=85
 			count=0
 		
 		else
-			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is"
-			echo_t ""
-			top -m -b n 1 | head -n 14
+			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is" >> /rdklogs/logs/CPUInfoPeer.txt.0
+			echo_t "" >> /rdklogs/logs/CPUInfoPeer.txt.0
+			top -m -b n 1 | head -n 14 >> /rdklogs/logs/CPUInfoPeer.txt.0
 		fi
 
         TMPFS_CUR_USAGE=0
@@ -185,8 +185,8 @@ TMPFS_THRESHOLD=85
 	fi
 
 
-        echo "after running log_mem_cpu_info_atom..sh printing top output" 
-	top -n1 -b
+        echo "after running log_mem_cpu_info_atom..sh printing top output" >> /rdklogs/logs/CPUInfoPeer.txt.0 
+	top -n1 -b >> /rdklogs/logs/CPUInfoPeer.txt.0
 else
 	echo "skipping log_mem_cpu_info_atom.sh run" >> /rdklogs/logs/AtomConsolelog.txt.0
 fi
