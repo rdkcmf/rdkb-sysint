@@ -72,12 +72,18 @@ case $oper in
                    CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
                    IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
                    Check=$(ip_to_hex $IpCheckVal)
-                   # getting the IPV6 address for CM
-                   CM_IP=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1`
-                   if [ ! -z "$CM_IP" ]; then
-                       CM_IP="$CM_IP%privbr"
-                   else
-                       CM_IP=$CM_IPV4
+                   # Get Gobal scope IPv6 address from interface privbr
+                   CM_IP=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1` 
+                   # If Gobal scope IPv6 address is not present
+                   if [ -z "$CM_IP" ]; then
+                       # Get Link local scope IPv6 address from interface privbr
+                       CM_IP=`ifconfig privbr | grep $Check | awk '/inet6/{print $3}' | cut -d '/' -f1`
+                       # If Link local scope IPv6 address is present
+                       if [ ! -z "$CM_IP" ]; then
+                           CM_IP="$CM_IP%privbr"
+                       else
+                           CM_IP=$CM_IPV4
+                       fi
                    fi
                 fi
              else
