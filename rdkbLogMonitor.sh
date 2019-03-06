@@ -18,13 +18,12 @@
 # limitations under the License.
 ##########################################################################
 
+RDK_LOGGER_PATH="/rdklogger"
 
-source /etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
+#source /etc/utopia/service.d/log_env_var.sh
+#source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
-
-. /etc/device.properties
 
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
@@ -234,14 +233,14 @@ SERVER=`getTFTPServer $BUILD_TYPE`
 get_logbackup_cfg()
 {
 backupenable=`syscfg get logbackup_enable`
-isNvram2Supported="no"
-if [ -f /etc/device.properties ]
-then
-   isNvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
-	
-fi
+#isNvram2Supported="no"
+#if [ -f /etc/device.properties ]
+#then
+#   isNvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+#	
+#fi
 
-if [ "$isNvram2Supported" = "yes" ] && [ "$backupenable" = "true" ]
+if [ "$NVRAM2_SUPPORTED" = "yes" ] && [ "$backupenable" = "true" ]
 then
 	LOGBACKUP_ENABLE="true"
 else
@@ -573,8 +572,8 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 
 	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
 	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
-	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-	if [ "$model" == "TG3482G" ];then
+#	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
+	if [ "$MODEL_NUM" == "TG3482G" ];then
 		isNvram2Mounted=`grep nvram2 /proc/mounts`
 		if [ -d "/nvram2" ];then
 			if [ "$isNvram2Mounted" != "" ];then

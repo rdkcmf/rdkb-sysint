@@ -18,9 +18,9 @@
 # limitations under the License.
 ##########################################################################
 
-source /etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
+RDK_LOGGER_PATH="/rdklogger"
 
+NVRAM2_SUPPORTED="no"
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
@@ -50,13 +50,13 @@ PATTERN_FILE="/tmp/pattern_file"
 
 nvram2Backup="false"
 backupenabled=`syscfg get logbackup_enable`
-nvram2Supported="no"
-if [ -f /etc/device.properties ]
-then
-   nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
-fi
 
-if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+#if [ -f /etc/device.properties ]
+#then
+   #nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+#fi
+
+if [ "$NVRAM2_SUPPORTED" = "yes" ] && [ "$backupenabled" = "true" ]
 then
    nvram2Backup="true"
 else
@@ -170,7 +170,7 @@ backupLogsonReboot()
 	cd $LOG_BACK_UP_REBOOT
 	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dt
 
-	if [ "$atom_sync" = "yes" ]
+	if [ "$ATOM_SYNC" = "yes" ]
 	then
 		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
@@ -231,7 +231,7 @@ backupLogsonReboot_nvram2()
 
         if [ -e $HAVECRASH ]
         then
-            if [ "$atom_sync" = "yes" ]
+            if [ "$ATOM_SYNC" = "yes" ]
             then
                # Remove the contents of ATOM side log files.
                 echo_t "Call dca for log processing and then flush ATOM logs"

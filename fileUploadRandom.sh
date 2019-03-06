@@ -18,14 +18,11 @@
 # limitations under the License.
 ##########################################################################
 
-source /etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
+NVRAM2_SUPPORTED="no"
+RDK_LOGGER_PATH="/rdklogger"
+
 source $RDK_LOGGER_PATH/logfiles.sh
 
-if [ -f /etc/device.properties ]
-then
-    source /etc/device.properties
-fi
 MAINTENANCEWINDOW="/tmp/maint_upload"
 
 TELEMETRY_INOTIFY_FOLDER=/telemetry
@@ -93,14 +90,14 @@ calcRandTimeandUpload()
     # Check if nvram2 log back up is enabled
     nvram2Backup="false"
     backupenabled=`syscfg get logbackup_enable`
-    nvram2Supported="no"
-    
-    if [ -f /etc/device.properties ]
-    then
-       nvram2Supported=`echo $NVRAM2_SUPPORTED`
-    fi
 
-    if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+    
+#    if [ -f /etc/device.properties ]
+#    then
+#       nvram2Supported=`echo $NVRAM2_SUPPORTED`
+#    fi
+
+    if [ "$NVRAM2_SUPPORTED" = "yes" ] && [ "$backupenabled" = "true" ]
     then
 	nvram2Backup="true"
     else

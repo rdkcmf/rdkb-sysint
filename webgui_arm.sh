@@ -51,7 +51,6 @@
 # start lighttpd
 source /etc/utopia/service.d/log_capture_path.sh
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
-source /etc/device.properties
 REVERT_FLAG="/nvram/reverted"
 LIGHTTPD_CONF="/var/lighttpd.conf"
 LIGHTTPD_DEF_CONF="/etc/lighttpd.conf"
