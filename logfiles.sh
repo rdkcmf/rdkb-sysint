@@ -17,8 +17,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
+RDK_LOGGER_PATH="/rdklogger"
 
-source /etc/utopia/service.d/log_env_var.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
 source /etc/logFiles.properties
@@ -39,11 +39,6 @@ if [ ! -f /usr/bin/GetConfigFile ];then
 fi
 
 PRESERVE_LOG_PATH="$LOG_SYNC_PATH/../preserveLogs/"
-
-if [ -f /etc/device.properties ]
-then
-    source /etc/device.properties
-fi
 
 IDLE_TIMEOUT=30
 TELEMETRY_INOTIFY_FOLDER=/telemetry
@@ -206,7 +201,7 @@ syncLogs_nvram2()
 	fi
 
 	 # Sync ATOM side logs in /nvram2/logs/ folder
-        if [ "$atom_sync" = "yes" ]
+        if [ "$ATOM_SYNC" = "yes" ]
         then
 		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]
@@ -318,8 +313,8 @@ preserveThisLog()
 						backupCount=`expr $backupCount + 1`
 						echo $backupCount > /tmp/backupCount
 						#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
-						model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-						if [ "$model" = "TG3482G" ]; then
+					#	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
+						if [ "$MODEL_NUM" = "TG3482G" ]; then
 							if [ "$backupCount" -eq "$logThreshold" ]; then
 								echo_t "Connectivity is still not back.. rebooting due to no connectivity"
 								syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
@@ -374,7 +369,7 @@ backupnvram2logs()
 	   fi
 	fi
 
-        if [ "$atom_sync" = "yes" ]
+        if [ "$ATOM_SYNC" = "yes" ]
         then
                  # Remove the contents of ATOM side log files.
 #                dmcli eRT setv Device.Logging.FlushAllLogs bool true
@@ -532,7 +527,7 @@ backupAllLogs()
 	fi	
 
 	# Syncing ATOM side logs
-	if [ "$atom_sync" = "yes" ]
+	if [ "$ATOM_SYNC" = "yes" ]
 	then
 		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]

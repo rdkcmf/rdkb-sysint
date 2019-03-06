@@ -27,8 +27,11 @@
 #
 #
 
-source /etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
+#source /etc/utopia/service.d/log_env_var.sh
+#source /etc/utopia/service.d/log_capture_path.sh
+
+RDK_LOGGER_PATH="/rdklogger"
+
 source $RDK_LOGGER_PATH/logfiles.sh
 source $RDK_LOGGER_PATH/utils.sh
 
@@ -452,7 +455,7 @@ uploadOnRequest()
 	cd $blog_dir
 	# Tar log files
 	# Syncing ATOM side logs
-	if [ "$atom_sync" = "yes" ]
+	if [ "$ATOM_SYNC" = "yes" ]
 	then
 		echo_t "Check whether ATOM ip accessible before syncing ATOM side logs"
 		if [ -f $PING_PATH/ping_peer ]

@@ -19,11 +19,9 @@
 ##########################################################################
 # Scripts having common utility functions
 
-if [ -f /fss/gw/etc/utopia/service.d/log_env_var.sh ];then
-	source /fss/gw/etc/utopia/service.d/log_env_var.sh
+if [ -f /etc/utopia/service.d/log_env_var.sh ];then
+	source /etc/utopia/service.d/log_env_var.sh
 fi
-
-source /etc/device.properties
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
@@ -128,7 +126,7 @@ getModel()
      modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | awk '{print $5}'`
      if [ "$modelName" = "" ]
      then
-            modelName=`cat /etc/device.properties | grep MODEL_NUM | cut -f2 -d=`
+            modelName=`echo $MODEL_NUM`
      fi
      echo "$modelName"
 }

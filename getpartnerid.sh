@@ -25,6 +25,8 @@ else
 	LOG_FOLDER="/var/tmp"
 fi
 
+. /etc/device.properties
+
 CONSOLEFILE="$LOG_FOLDER/logs/Consolelog.txt.0"
 
 echo_time()
@@ -46,7 +48,8 @@ if [ "$partner_id" == "" ] || [ "$syscfg_err" != "" ];then
 	#Check for PartnerID in device.properties if its not set already.
 	if [ "$partner_id" == "" ];then
 		if [ -f "/etc/device.properties" ];then
-			partner_id=`cat /etc/device.properties | grep PARTNER_ID | cut -f2 -d=`
+# PARTNER_ID is read from etc/device.properties file
+			partner_id=`echo $PARTNER_ID`
 				if [ "$partner_id" == "" ];then
 					echo_time "partner_id is not available from syscfg.db or tr181 param or device.properties, defaulting to comcast..">>$CONSOLEFILE
 					echo "comcast"

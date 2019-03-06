@@ -19,9 +19,11 @@
 ##########################################################################
 # Script responsible for log upload based on protocol
 
-source /etc/utopia/service.d/log_env_var.sh
-source /etc/utopia/service.d/log_capture_path.sh
+#source /etc/utopia/service.d/log_env_var.sh
+#source /etc/utopia/service.d/log_capture_path.sh
+RDK_LOGGER_PATH="/rdklogger"
 
+NVRAM2_SUPPORTED="no"
 . $RDK_LOGGER_PATH/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
@@ -60,13 +62,13 @@ if [ "$5" != "" ]; then
 	nvram2Backup=$5
 else
     backupenabled=`syscfg get logbackup_enable`
-    nvram2Supported="no"
-    if [ -f /etc/device.properties ]
-    then
-       nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
-    fi
+    #nvram2Supported="no"
+ #   if [ -f /etc/device.properties ]
+  #  then
+  #     nvram2Supported=`cat /etc/device.properties | grep NVRAM2_SUPPORTED | cut -f2 -d=`
+  #  fi
 
-    if [ "$nvram2Supported" = "yes" ] && [ "$backupenabled" = "true" ]
+    if [ "$NVRAM2_SUPPORTED" = "yes" ] && [ "$backupenabled" = "true" ]
     then
        nvram2Backup="true"
     else
