@@ -61,6 +61,8 @@ SLEEP_TIME_FILE="/tmp/.rtl_sleep_time.txt"
 MAX_CONN_QUEUE=5
 DIRECT_RETRY_COUNT=2
 
+ignoreResendList="false"
+
 # exit if an instance is already running
 if [ ! -f /tmp/.dca-splunk.upload ];then
     # store the PID
@@ -68,7 +70,12 @@ if [ ! -f /tmp/.dca-splunk.upload ];then
 else
     pid=`cat /tmp/.dca-splunk.upload`
     if [ -d /proc/$pid ];then
-         exit 0
+         echo_t "dca : previous instance of dcaSplunkUpload.sh is running."
+         ignoreResendList="true"
+         # Cannot exit as triggers can be from immediate log upload
+    else
+        rm -f /tmp/.dca-splunk.upload
+        echo $$ > /tmp/.dca-splunk.upload
     fi
 fi
 
@@ -359,7 +366,7 @@ get_Codebigconfig
 direct_retry=0
 ##  2] Check for unsuccessful posts from previous execution in resend que.
 ##  If present repost either with appending to existing or as independent post
-if [ -f $TELEMETRY_RESEND_FILE ]; then
+if [ -f $TELEMETRY_RESEND_FILE ] && [ "x$ignoreResendList" != "xtrue" ]; then
     rm -f $TELEMETRY_TEMP_RESEND_FILE
     while read resend
     do
