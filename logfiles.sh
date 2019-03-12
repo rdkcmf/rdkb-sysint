@@ -121,12 +121,12 @@ flush_atom_logs()
 		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge "6" ]
 		then
 			# Remove the contents of ATOM side log files.
-			echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
-		        dmcli eRT setv Device.Logging.FlushAllLogs bool true | grep "succeed"
-                        if [ 0 -ne $? ]
-                        then
-                            echo_t "Dmcli command failed to execute, calling rpclient to flush logs"
-                            rpcclient  $ATOM_ARPING_IP "$FLUSH_LOG_PATH" &
+                     echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
+                        atom_log_flush=`rpcclient  $ATOM_ARPING_IP "$FLUSH_LOG_PATH"`
+			atom_log_flush_output=`echo "$atom_log_flush" | grep "RPC CONNECTED"`
+			if [ "$atom_log_flush_output" = "" ];then
+                     	echo_t "rpcclient failed, setting FlushAllLogs TR-181 to flush atom side logs"
+		       	 dmcli eRT setv Device.Logging.FlushAllLogs bool true 
                         fi
 			rm -rf $DCA_COMPLETED	
 			break
