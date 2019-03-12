@@ -426,10 +426,10 @@ dropbearRecovery()
        DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
        DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
        if [ ! -d '/tmp/.dropbear' ]; then
-          echo "wan_ssh.sh: need to create dropbear dir !!! " >> $DCM_LOG_FILE
+          echo "wan_ssh.sh: need to create dropbear dir !!! " >> $RTL_LOG_FILE
           mkdir -p /tmp/.dropbear
        fi
-       echo "wan_ssh.sh: need to create dropbear files !!! " >> $DCM_LOG_FILE
+       echo "wan_ssh.sh: need to create dropbear files !!! " >> $RTL_LOG_FILE
        getConfigFile $DROPBEAR_PARAMS_1
        getConfigFile $DROPBEAR_PARAMS_2
        dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ATOM_INTERFACE_IP:22 &
