@@ -30,6 +30,12 @@ TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
 
 eventType=""
 
+cleanUp() {
+    rm -f $TELEMETRY_INOTIFY_EVENT
+}
+
+trap cleanUp EXIT
+
 if [ -f $TELEMETRY_INOTIFY_EVENT ]; then
    eventType=`cat $TELEMETRY_INOTIFY_EVENT`
 else
@@ -70,4 +76,3 @@ esac
 
 # Clean up even listeners to receive further events
 sleep 2
-rm -f $TELEMETRY_INOTIFY_EVENT
