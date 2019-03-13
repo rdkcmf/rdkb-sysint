@@ -66,8 +66,8 @@ getIPAddress()
 
 getCMIPAddress()
 {
-    if [ $BOX_TYPE = "XF3" ]; then
-       # in PON you cant get the CM IP address, so use eRouter IP address
+    if [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ]; then
+       # in PON/DSL you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "` 
     else                           
        address=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
@@ -95,11 +95,13 @@ getMacAddress()
         mac=`dmcli eRT getv Device.DPoE.Mac_address | grep value | awk '{print $5}'`
     elif [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ];then
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
+    elif [ "$BOX_TYPE" = "HUB4" ]; then
+        mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f11`
     else                                                           
         mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
     fi
     echo $mac
-} 
+}
 
 ## Get eSTB mac address 
 getErouterMacAddress()
