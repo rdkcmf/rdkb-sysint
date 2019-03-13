@@ -665,6 +665,30 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 			done
 		fi
 
+		#HUB4 uses NTP for syncing time. It doesnt have DOCSIS time sync, Hence waiting for NTP time sync.
+		if [ "$BOX_TYPE" == "HUB4" ]; then
+			loop=1
+			retry=1
+			while [ "$loop" = "1" ]
+			do
+				echo_t "Waiting for time synchronization before logbackup"
+				TIME_SYNC_STATUS=`timedatectl status | grep "NTP synchronized" | cut -d " " -f 3`
+				if [ "$TIME_SYNC_STATUS" == "yes" ]
+				then
+					echo_t "Time synced. Breaking loop"
+					break
+				elif [ "$retry" = "12" ]
+				then
+					echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
+					break
+				else
+					echo_t "Time not synced yet. Sleeping.. Retry:$retry"
+					retry=`expr $retry + 1`
+					sleep 10
+				fi
+			done
+		fi
+
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
 
@@ -696,7 +720,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	fi
 fi
 
-        
+
 bootup_upload &
 
 UPLOAD_LOGS=`processDCMResponse`
