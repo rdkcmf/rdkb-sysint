@@ -343,11 +343,13 @@ backup_log_pidCleanup
 
 if [ "$needReboot" = "true" ]
 then
-	echo_t "Trigger RebootPendingNotification in background"
-	Trigger_RebootPendingNotify &
-	echo_t "sleep for $REBOOT_PENDING_DELAY sec to send reboot pending notification"
-	sleep $REBOOT_PENDING_DELAY
-
+	# RebootPendingNotifications are applicable only for residential devices and not applicable for business gateways.
+	if [ "$IS_BCI" != "yes" ]; then
+		echo_t "Trigger RebootPendingNotification in background"
+		Trigger_RebootPendingNotify &
+		echo_t "sleep for $REBOOT_PENDING_DELAY sec to send reboot pending notification"
+		sleep $REBOOT_PENDING_DELAY
+	fi
 	rebootFunc
 fi
 
