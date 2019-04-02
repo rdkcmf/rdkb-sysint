@@ -110,15 +110,33 @@ else
       . /etc/dcm.properties
 fi
 
-if [ -f "$DCMRESPONSE" ]; then    
-    DCA_UPLOAD_URL_FROM_DCM_RES=`grep '"uploadRepository:URL":"' $DCMRESPONSE | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
+getTelemetryEndpoint() {
+    DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
+    TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
+    TelemetryEndpointURL=""
+    if [ "x$TelemetryEndpoint" = "xtrue" ]; then
+        TelemetryEndpointURL=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.URL  | grep value | awk '{print $5}'`
+        if [ ! -z "$TelemetryEndpointURL" ]; then
+            echo "https://$TelemetryEndpointURL"
+            echo_t "dca upload url from RFC is $TelemetryEndpointURL" >> $RTL_LOG_FILE
+        fi
+    else
+        if [ -f "$DCMRESPONSE" ]; then    
+            TelemetryEndpointURL=`grep '"uploadRepository:URL":"' $DCMRESPONSE | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
+        
+            if [ ! -z "$TelemetryEndpointURL" ]; then	    
+            	echo "$TelemetryEndpointURL"
+            	echo_t "dca upload url from dcmresponse is $TelemetryEndpointURL" >> $RTL_LOG_FILE
+            fi
+        fi
+    fi
 
-    echo_t "dca upload url from dcmresponse is $DCA_UPLOAD_URL_FROM_DCM_RES"
-    
-	if [ ! -z $DCA_UPLOAD_URL_FROM_DCM_RES ]; then	    
-		DCA_UPLOAD_URL=$DCA_UPLOAD_URL_FROM_DCM_RES
-	fi
-fi
+    if [ -z "$TelemetryEndpointURL" ]; then
+        echo "$DEFAULT_DCA_UPLOAD_URL"
+    fi
+}
+
+DCA_UPLOAD_URL=$(getTelemetryEndpoint)
 
 if [ -z $DCA_UPLOAD_URL ]; then
     echo_t "dca upload url read from dcm.properties is NULL"
