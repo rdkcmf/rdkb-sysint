@@ -438,11 +438,11 @@ HttpLogUpload()
             if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
                 CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key --connect-timeout 30 -m 30"
 		#Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
+                CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" --connect-timeout 30 -m 30"
             else
                 CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key --connect-timeout 30 -m 30"
 		#Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
+                CURL_CMD_FOR_ECHO="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" --connect-timeout 30 -m 30"
             fi
 
             retries=0
@@ -454,11 +454,11 @@ HttpLogUpload()
                     if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
                         CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key --connect-timeout 30 -m 30"
 			#Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
+                        CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" --connect-timeout 30 -m 30"
                     else
                         CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key --connect-timeout 30 -m 30"
 			#Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"<hidden key>\" --connect-timeout 30 -m 30"
+                        CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" --connect-timeout 30 -m 30"
                     fi
                 fi
 
@@ -564,12 +564,14 @@ HttpLogUpload()
             #Executing curl with the response key when return code after the first curl execution is 200.
             if [ "$http_code" = "200" ];then
                 Key=$(awk '{print $0}' $OutputFile)
+	        #RDKB-14283 Remove Signature from CURL command in consolelog.txt and ArmConsolelog.txt
+                RemSignature=`echo $Key | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
                 if [ "$encryptionEnable" != "true" ]; then
                     Key=\"$Key\"
                 fi
                 CURL_CMD="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type $Key --connect-timeout 10 -m 10"
                 #Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
+                CURL_CMD_FOR_ECHO="nice -n 20 $CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$RemSignature\" --connect-timeout 10 -m 10"
 
                 retries=0
                 while [ "$retries" -lt "3" ]
@@ -579,7 +581,7 @@ HttpLogUpload()
                     if [ $retries -ne 0 ]; then
                         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key --connect-timeout 10 -m 10"
                             #Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"<hidden key>\" --connect-timeout 10 -m 10"
+                        CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$RemSignature\" --connect-timeout 10 -m 10"
                     fi
 		    #Sensitive info like Authorization signature should not print
                     echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
