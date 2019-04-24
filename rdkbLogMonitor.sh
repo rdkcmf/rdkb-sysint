@@ -82,7 +82,7 @@ DeviceUP=0
 ## FW version from version.txt 
 getFWVersion()
 {
-    verStr=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+    verStr=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
     echo $verStr
 }
 
@@ -188,7 +188,7 @@ getTFTPServer()
 {
         if [ "$1" != "" ]
         then
-		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
+        logserver=`grep $1 $RDK_LOGGER_PATH/dcmlogservers.txt | cut -f2 -d"|"`
 		echo $logserver
 	fi
 }
@@ -625,7 +625,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
                 #other rdkbLogMonitor.sh functionality
 
-		DOCSIS_TIME_SYNC_NEEDED=`cat /etc/device.properties | grep DOCSIS_TIME_SYNC_NEEDED | cut -f2 -d=`
+        DOCSIS_TIME_SYNC_NEEDED=`grep DOCSIS_TIME_SYNC_NEEDED /etc/device.properties | cut -f2 -d=`
 		if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
 			loop=1
 			retry=1

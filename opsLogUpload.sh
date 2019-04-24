@@ -75,9 +75,9 @@ ARGS=$1
 getBuildType()
 {
    if [ "$UseCodeBig" = "1" ]; then
-		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
+        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
    else
-		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+        IMAGENAME=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
    fi
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
@@ -509,10 +509,10 @@ uploadOnRequest()
 	#rm -rf $LOG_UPLOAD_ON_REQUEST
 
 	# When curl fails we can rely on "failed string"
-	FAILED=`cat $UPLOADRESULT | grep "failed"`
+    FAILED=`grep "failed" $UPLOADRESULT`
 
 	# curl always throw error code with curl string in it
-	isCurlPresent=`cat $UPLOADRESULT | grep "curl"`
+    isCurlPresent=`grep "curl" $UPLOADRESULT`
 
 	# If curl never tries to upload result file will be blank
 	DIDTRY=`cat $UPLOADRESULT`

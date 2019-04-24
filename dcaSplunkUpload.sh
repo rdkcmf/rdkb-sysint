@@ -324,7 +324,7 @@ sed -i -e "s/ErouterMacAddress/$estbMac/g" $TELEMETRY_JSON_RESPONSE
 
 if [ ! -f $SLEEP_TIME_FILE ]; then
     if [ -f $DCMRESPONSE ]; then
-        cron=`cat $DCMRESPONSE | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
+        cron=`grep -i TelemetryProfile $DCMRESPONSE | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
     fi
 
     if [ -n "$cron" ]; then
