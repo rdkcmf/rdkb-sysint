@@ -64,6 +64,9 @@ TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 
 PEER_COMM_ID="/tmp/elxrretyt.swr"
 
+TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
+TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
+
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
     exit 127
@@ -404,7 +407,6 @@ done
             fi
 
             if [ "x$isAxb6Device" == "xno" ]; then
-               TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
                # wait for telemetry previous log to be copied to atom
                loop=1
                while [ $loop -eq 1 ]
