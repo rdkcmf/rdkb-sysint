@@ -528,11 +528,7 @@ uploadOnRequest()
 }
 
 get_Codebigconfig
-if [ "$UseCodeBig" = "1" ]; then
-      blog_dir="/tmp/loguploadonrequest/"
-else
-      blog_dir=$LOG_UPLOAD_ON_REQUEST
-fi
+blog_dir="/tmp/loguploadonrequest/"
 
 if [ "$ARGS" = "upload" ]
 then
