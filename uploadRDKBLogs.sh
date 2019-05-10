@@ -27,6 +27,24 @@ NVRAM2_SUPPORTED="no"
 . $RDK_LOGGER_PATH/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
+UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
+
+if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
+then
+    echo_t "processDCMResponse to get the logUploadSettings"
+    UPLOAD_LOGS=`processDCMResponse`
+fi
+
+echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+
+if [ "$UPLOAD_LOGS" = "true" ] || [ "$UPLOAD_LOGS" = "" ]
+then
+   echo_t "Log upload is enabled"
+else
+   echo_t "Log upload is disabled"
+   exit 1
+fi
+
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 DIRECT_BLOCK_TIME=86400
 DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_upl"
