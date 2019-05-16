@@ -29,7 +29,7 @@ fi
 
 if [ "$MODEL_NUM" == "CGM4140COM" ];then
 	factory_nvram -r
-	factoryPartnerId=`cat /tmp/factory_nvram.data |grep Customer | tr '[A-Z]' '[a-z]' | cut -d' ' -f2`
+    factoryPartnerId=`grep Customer /tmp/factory_nvram.data | tr '[A-Z]' '[a-z]' | cut -d' ' -f2`
 fi
 
 echo_t "Factory Partner_ID returned from the platform is: $factoryPartnerId" >> "$CONSOLE_LOG_FILE"

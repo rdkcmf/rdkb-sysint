@@ -82,7 +82,7 @@ SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | 
 
 getFWVersion()
 {
-	verStr=`cat /version.txt | grep ^imagename: | cut -d ":" -f 2`
+    verStr=`grep ^imagename: /version.txt | cut -d ":" -f 2`
 	echo $verStr
 }
 
@@ -91,9 +91,9 @@ getBuildType()
         # Currenlty this function not used. If used please ensure, calling get_Codebigconfig before this call
         # get_Codebigconfig currenlty called in HttpLogUpload 
 	if [ "$UseCodeBig" = "1" ]; then
-		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename: | cut -d ":" -f 2`
+        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
 	else
-		IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+        IMAGENAME=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
 	fi
 
    TEMPDEV=`echo $IMAGENAME | grep DEV`

@@ -76,7 +76,7 @@ getTFTPServer()
 {
         if [ "$1" != "" ]
         then
-		logserver=`cat $RDK_LOGGER_PATH/dcmlogservers.txt | grep $1 | cut -f2 -d"|"`
+        logserver=`grep $1 $RDK_LOGGER_PATH/dcmlogservers.txt | cut -f2 -d"|"`
 		echo $logserver
 	fi
 }

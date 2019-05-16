@@ -364,7 +364,7 @@ scheduleCron()
     cron=''
     scheduler_Check=`grep '"schedule":' $DCM_SETTINGS_CONF`
     if [ -n "$scheduler_Check" ]; then
-        cron=`cat $DCM_SETTINGS_CONF | grep -i TelemetryProfile | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
+        cron=`grep -i TelemetryProfile $DCM_SETTINGS_CONF | awk -F '"schedule":' '{print $NF}' | awk -F "," '{print $1}' | sed 's/://g' | sed 's/"//g' | sed -e 's/^[ ]//' | sed -e 's/^[ ]//'`
     fi
 
 	#During diagnostic mode need to apply the cron schedule value through this custom configuration
