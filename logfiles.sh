@@ -473,14 +473,6 @@ backupnvram2logs_on_reboot()
 	   cp /fss/gw/version.txt $LOG_SYNC_PATH
         fi
 
-	if [ "$BOX_TYPE" = "XB3" ]; then
-		RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
-		if [ "$RebootReason" = "RESET_ORIGIN_ATOM_WATCHDOG" ] || [ "$RebootReason" = "RESET_ORIGIN_ATOM" ]; then
-		       GetConfigFile $PEER_COMM_ID
-			scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
-			rm -rf $PEER_COMM_ID
-		fi
-	fi
 
 	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
