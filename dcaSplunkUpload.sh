@@ -109,7 +109,7 @@ if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
 else
       . /etc/dcm.properties
 fi
-
+TelemetryNewEndpointAvailable=0
 getTelemetryEndpoint() {
     DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
     TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
@@ -117,26 +117,27 @@ getTelemetryEndpoint() {
     if [ "x$TelemetryEndpoint" = "xtrue" ]; then
         TelemetryEndpointURL=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.URL  | grep value | awk '{print $5}'`
         if [ ! -z "$TelemetryEndpointURL" ]; then
-            echo "https://$TelemetryEndpointURL"
+            DCA_UPLOAD_URL="https://$TelemetryEndpointURL"
             echo_t "dca upload url from RFC is $TelemetryEndpointURL" >> $RTL_LOG_FILE
+            TelemetryNewEndpointAvailable=1
         fi
     else
         if [ -f "$DCMRESPONSE" ]; then    
             TelemetryEndpointURL=`grep '"uploadRepository:URL":"' $DCMRESPONSE | awk -F 'uploadRepository:URL":' '{print $NF}' | awk -F '",' '{print $1}' | sed 's/"//g' | sed 's/}//g'`
         
             if [ ! -z "$TelemetryEndpointURL" ]; then	    
-            	echo "$TelemetryEndpointURL"
+            	DCA_UPLOAD_URL="$TelemetryEndpointURL"
             	echo_t "dca upload url from dcmresponse is $TelemetryEndpointURL" >> $RTL_LOG_FILE
             fi
         fi
     fi
 
     if [ -z "$TelemetryEndpointURL" ]; then
-        echo "$DEFAULT_DCA_UPLOAD_URL"
+        DCA_UPLOAD_URL="$DEFAULT_DCA_UPLOAD_URL"
     fi
 }
 
-DCA_UPLOAD_URL=$(getTelemetryEndpoint)
+getTelemetryEndpoint
 
 if [ -z $DCA_UPLOAD_URL ]; then
     echo_t "dca upload url read from dcm.properties is NULL"
@@ -237,7 +238,11 @@ useCodebigRequest()
           return 1
       fi
 
-      SIGN_CMD="GetServiceUrl 9 "
+      if [ "$TelemetryNewEndpointAvailable" -eq "1" ]; then
+          SIGN_CMD="GetServiceUrl 10 "
+      else
+          SIGN_CMD="GetServiceUrl 9 "
+      fi
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
       rm -f $SIGN_FILE
