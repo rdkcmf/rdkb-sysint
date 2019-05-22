@@ -227,7 +227,7 @@ syncLogs_nvram2()
 
         fi
 
-	if [ "$BOX_TYPE" == "XB6" ] || [ "$BOX_TYPE" == "XF3" ];then
+	if [ "$BOX_TYPE" == "XB6" ] || [ "$BOX_TYPE" == "XF3" ] || [ "$BOX_TYPE" == "TCCBR" ];then
 		current_time=$(date +%s)
 		   if [ -f "$lastdmesgsync" ];then
 		   	lastsync_time=`cat $lastdmesgsync`
