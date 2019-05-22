@@ -204,6 +204,12 @@ syncLogs_nvram2()
 		mkdir -p $LOG_SYNC_PATH
 	fi
 
+	if [ "$MODEL_NUM" = "TG3482G" ] ; then
+	#Arris Proposed RDKB Generic Bug Fix from XB6
+	#cleanup any old temporary sed files, dont let them accumulate
+	rm -f $LOG_SYNC_PATH/sed*
+	fi
+
 	 # Sync ATOM side logs in /nvram2/logs/ folder
         if [ "$ATOM_SYNC" = "yes" ]
         then
