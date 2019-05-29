@@ -22,7 +22,7 @@
 
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
 
-BIN_PATH=/fss/gw/usr/ccsp 
+BIN_PATH=/fss/gw/usr/ccsp
 if mkdir $lockdir; then
   #success
   echo $$ > $lockdir/PID
@@ -38,13 +38,42 @@ rx=`echo $x | cut -d'|' -f1 | cut -d ' ' -f1`;
 tx=`echo $x | cut -d'|' -f2`;
 tm_0=`cat /tmp/tm_0`
 rx_0=`cat /tmp/rx_0`
-tx_0=`cat /tmp/tx_0` 
+tx_0=`cat /tmp/tx_0`
 [[ -z "$tm_0" ]] &&	tm_0="0"
 [[ -z "$rx_0" ]] &&	rx_0="0"
 [[ -z "$tx_0" ]] &&	tx_0="0"
 tm_d=$(($tm-$tm_0))
 
 if [ "$tm_d" -gt "300" ]; then
+	if [ "$BOX_TYPE" == "TCCBR" ];then
+		retry=0
+		while [ $retry -lt 3 ];
+		do
+			if [  "x`ifconfig brlan0`" == "x" ]
+			then
+				sleep 180
+			else
+				x=`ifconfig brlan0 | grep "RX bytes" | tr '(' '|' | tr ':' '|' | cut -d'|' -f2,4`
+				rx=`echo $x | cut -d'|' -f1 | cut -d ' ' -f1`;
+				tx=`echo $x | cut -d'|' -f2`;
+				tm_0=`cat /tmp/tm_0`
+				rx_0=`cat /tmp/rx_0`
+				tx_0=`cat /tmp/tx_0`
+				[[ -z "$tm_0" ]] &&	tm_0="0"
+				[[ -z "$rx_0" ]] &&	rx_0="0"
+				[[ -z "$tx_0" ]] &&	tx_0="0"
+				break
+			fi
+			retry=`expr $retry + 1`
+		done
+		if [ $retry -ge 3 ];
+		then
+			echo "Device not found: brlan0"
+			trap 'rm -r "$lockdir" >/dev/null 2>&1' 0
+			trap "exit 2" 1 2 3 13 15
+			exit 0
+		fi
+	fi
 	echo $tm > /tmp/tm_0;
 	echo $rx > /tmp/rx_0;
 	echo $tx > /tmp/tx_0;
@@ -53,7 +82,6 @@ if [ "$tm_d" -gt "300" ]; then
 	rx_d=`$BIN_PATH/Sub64 $rx $rx_0`
 	#tx_d=$(($tx-$tx_0))
 	tx_d=`$BIN_PATH/Sub64 $tx $tx_0`
-
         echo "$d $t:$rx|$tx|$rx_d|$tx_d " >> $LOG_PATH/RXTX100Log.txt
 
 
