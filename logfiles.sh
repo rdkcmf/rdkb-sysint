@@ -31,7 +31,7 @@ RSYNC_WAITING="/tmp/rsync_waiting"
 
 SCP_COMPLETE="/tmp/.scp_done"
 
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-logf.swr"
 
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
