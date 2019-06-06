@@ -60,7 +60,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
 SCP_COMPLETE="/tmp/.scp_done"
 
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-dca.swr"
 IDLE_TIMEOUT=30
 
 DEFAULT_IPV4="<#=#>EROUTER_IPV4<#=#>"

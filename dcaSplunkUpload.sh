@@ -44,7 +44,7 @@ HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
 
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-dcas.swr"
 
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"

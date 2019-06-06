@@ -50,7 +50,7 @@ TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 
 echo "`date` Starting execution of DCMCronreshedule.sh" >> $DCM_LOG_FILE
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-dcmc.swr"
 
 IDLE_TIMEOUT=30
 

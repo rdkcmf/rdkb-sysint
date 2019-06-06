@@ -62,7 +62,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-dcm.swr"
 
 TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
 TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"

@@ -538,7 +538,7 @@ if [ "$triggerType" == "remove_old_logbackup" ]; then
 fi
 
 TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/elxrretyt-logm.swr"
 PREVIOUS_LOG_DST="/tmp/nvram2_logs"
 PREVIOUS_LOG_SRC="/nvram2/logs"
 
