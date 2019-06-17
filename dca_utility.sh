@@ -672,6 +672,10 @@ else
             outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"AccountId\":\"$accountId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
        fi
 
+       if [ -f $TELEMETRY_PREVIOUS_LOG ]; then
+           outputJson="{\"PREVIOUS_LOG\":\"1\"},$outputJson"
+       fi
+
        remain="{\"<remaining_keys>\":\"<remaining_values>\"}"
        outputJson=`echo "$dcaOutputJson" | sed "s/$remain/$outputJson/"`
        
@@ -730,20 +734,20 @@ if [ $triggerType -eq 2 ]; then
 
 fi
 
-if [ -f $EXEC_COUNTER_FILE ]; then
-    dcaNexecCounter=`cat $EXEC_COUNTER_FILE`
-    dcaNexecCounter=`expr $dcaNexecCounter + 1`
-else
-    dcaNexecCounter=0;
-fi
-
 if [ -f $TELEMETRY_PREVIOUS_LOG ]; then
     echo_t "dca for previous log done" >> $RTL_LOG_FILE
     rm -f $TELEMETRY_PREVIOUS_LOG $SORTED_PATTERN_CONF_FILE
     rm -rf $TEMP_NVRAM_LOG_PATH
     touch $TELEMETRY_PREVIOUS_LOG_COMPLETE
+else
+    if [ -f $EXEC_COUNTER_FILE ]; then
+        dcaNexecCounter=`cat $EXEC_COUNTER_FILE`
+        dcaNexecCounter=`expr $dcaNexecCounter + 1`
+    else
+        dcaNexecCounter=0;
+    fi
+    echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
 fi
 
-echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
 # PID file cleanup
 pidCleanup
