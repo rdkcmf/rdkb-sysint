@@ -28,7 +28,6 @@ source $RDK_LOGGER_PATH/logfiles.sh
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
 fi
-
 # We will keep max line size as 2 so that we will not lose any log message
 
 
@@ -233,7 +232,14 @@ SERVER=`getTFTPServer $BUILD_TYPE`
 
 get_logbackup_cfg()
 {
+default_logbackup_enable="true"
 backupenable=`syscfg get logbackup_enable`
+backupenable_err=`echo $backupenable | grep "error" -i`
+if [ "$backupenable_err" != "" ]
+then
+	backupenable=$default_logbackup_enable
+fi
+
 #isNvram2Supported="no"
 #if [ -f /etc/device.properties ]
 #then
@@ -538,7 +544,6 @@ PREVIOUS_LOG_SRC="/nvram2/logs"
 
 IDLE_TIMEOUT=30
 
-
 if [ "$BOX_TYPE" = "XB3" ]; then
 	RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
         if [ "$RebootReason" = "RESET_ORIGIN_ATOM_WATCHDOG" ] || [ "$RebootReason" = "RESET_ORIGIN_ATOM" ]; then
@@ -546,6 +551,42 @@ if [ "$BOX_TYPE" = "XB3" ]; then
 	       scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
 	       rm -rf $PEER_COMM_ID
 	fi
+fi
+
+if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
+    file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
+    if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
+	#ARRISXB6-2821:
+	#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
+        #and time sync needed before logbackup.
+	#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
+        #having correct timestamp.
+	#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
+        #other rdkbLogMonitor.sh functionality
+
+	if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
+		loop=1
+		retry=1
+		while [ "$loop" = "1" ]
+		do
+			echo_t "Waiting for time synchronization between processors before logbackup"
+			TIME_SYNC_STATUS=`sysevent get TimeSync-status`
+			if [ "$TIME_SYNC_STATUS" == "synced" ]
+			then
+				echo_t "Time synced. Breaking loop"
+				break
+			elif [ "$retry" = "12" ]
+			then
+				echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
+				break
+			else
+				echo_t "Time not synced yet. Sleeping.. Retry:$retry"
+				retry=`expr $retry + 1`
+				sleep 10
+			fi
+		done
+	fi
+    fi
 fi
 
 # Trigger Telemetry run for previous boot log files
@@ -633,37 +674,6 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
 
-		#ARRISXB6-2821:
-		#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
-                #and time sync needed before logbackup.
-		#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
-                #having correct timestamp.
-		#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
-                #other rdkbLogMonitor.sh functionality
-
-        DOCSIS_TIME_SYNC_NEEDED=`grep DOCSIS_TIME_SYNC_NEEDED /etc/device.properties | cut -f2 -d=`
-		if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
-			loop=1
-			retry=1
-			while [ "$loop" = "1" ]
-			do
-				echo_t "Waiting for time synchronization between processors before logbackup"
-				TIME_SYNC_STATUS=`sysevent get TimeSync-status`
-				if [ "$TIME_SYNC_STATUS" == "synced" ]
-				then
-					echo_t "Time synced. Breaking loop"
-					break
-				elif [ "$retry" = "12" ]
-				then
-					echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
-					break
-				else
-					echo_t "Time not synced yet. Sleeping.. Retry:$retry"
-					retry=`expr $retry + 1`
-					sleep 10
-				fi
-			done
-		fi
 
 		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
 		#upload_nvram2_logs
