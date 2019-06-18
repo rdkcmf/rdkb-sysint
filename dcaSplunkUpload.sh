@@ -57,7 +57,7 @@ DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dca"
 
 SLEEP_TIME_FILE="/tmp/.rtl_sleep_time.txt"
 #MAX_LIMIT_RESEND=2
-# Max backlog queue set to 5, after which the file will be reset to empty - all data for upload lost
+# Max backlog queue set to 5, after which the resend file will discard subsequent entries
 MAX_CONN_QUEUE=5
 DIRECT_RETRY_COUNT=2
 
@@ -357,7 +357,7 @@ if [ "$inputArgs" = "logbackup_without_upload" ];then
       if [ ! -f $TELEMETRY_JSON_RESPONSE ] || [ "x$outputJson" = "x" ] ; then
                echo_t "dca: Unable to find Json message or Json is empty." >> $RTL_LOG_FILE
          if [ ! -f /etc/os-release ];then pidCleanup; fi
-         exit 0 
+         exit 0
       fi
       if [ -f $TELEMETRY_RESEND_FILE ]; then
             #If resend queue has already reached MAX_CONN_QUEUE entries then remove recent two
@@ -397,11 +397,6 @@ if [ -f $TELEMETRY_RESEND_FILE ] && [ "x$ignoreResendList" != "xtrue" ]; then
    done < $TELEMETRY_RESEND_FILE
    sleep 2
    rm -f $TELEMETRY_RESEND_FILE
-   if [ -f $TELEMETRY_TEMP_RESEND_FILE ]; then
-        if [ "`cat $TELEMETRY_TEMP_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
-               rm $TELEMETRY_TEMP_RESEND_FILE
-        fi
-   fi
 fi
 
 ##  3] Attempt to post current message. Check for status if failed add it to resend queue
@@ -427,10 +422,15 @@ if [ "x$conn_type_used" != "xFail" ]; then
     [ ! -f $TELEMETRY_TEMP_RESEND_FILE ] ||  mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
 else
    if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
-       cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
+       if [ "`cat $TELEMETRY_TEMP_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
+            echo_t "dca: resend queue size has already reached MAX_CONN_QUEUE. Not adding anymore entries" >> $RTL_LOG_FILE
+            mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
+       else
+            cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
+            echo_t "dca: Json message submit failed. Adding message to resend queue" >> $RTL_LOG_FILE
+       fi
        rm -f $TELEMETRY_TEMP_RESEND_FILE
     fi
-    echo_t "dca: Json message submit failed. Adding message to resend queue" >> $RTL_LOG_FILE
 fi
 rm -f $TELEMETRY_JSON_RESPONSE
 # PID file cleanup
