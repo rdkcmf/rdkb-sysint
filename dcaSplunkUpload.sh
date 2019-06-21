@@ -359,23 +359,19 @@ if [ "$inputArgs" = "logbackup_without_upload" ];then
          if [ ! -f /etc/os-release ];then pidCleanup; fi
          exit 0 
       fi
-      if [ -f $TELEMETRY_RESEND_FILE ]; then 
-          mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE 
+      if [ -f $TELEMETRY_RESEND_FILE ]; then
+            #If resend queue has already reached MAX_CONN_QUEUE entries then remove recent two
+            if [ "`cat $TELEMETRY_RESEND_FILE | wc -l`" -ge "$MAX_CONN_QUEUE" ]; then
+                echo_t "resend queue size at its max. removing recent two entries" >> $RTL_LOG_FILE
+                sed -i '1,2d' $TELEMETRY_RESEND_FILE
+            fi
+            mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE
       fi
       # ensure that Json is put at the top of the queue
       echo "$outputJson" > $TELEMETRY_RESEND_FILE
       if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
          cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
          rm -f $TELEMETRY_TEMP_RESEND_FILE
-      fi
-      # In case the file gets greater that Queue, truncate to max lenght
-      if [ -f $TELEMETRY_RESEND_FILE ]; then
-          if [ "`cat $TELEMETRY_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
-              mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE
-              no_of_json=$(( MAX_CONN_QUEUE -1 ))
-              cat $TELEMETRY_TEMP_RESEND_FILE | sed -ne '1,'"$no_of_json"' p' > $TELEMETRY_RESEND_FILE
-              rm -f $TELEMETRY_TEMP_RESEND_FILE
-          fi
       fi
       if [ ! -f /etc/os-release ];then pidCleanup; fi
       exit 0
