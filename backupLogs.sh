@@ -311,7 +311,7 @@ then
                       fileName=`ls $LOG_SYNC_BACK_UP_PATH | grep tgz`
                       echo_t "Back up to preserve location is enabled"
                       # Call PreserveLog which will move logs to preserve location
-                      preserveThisLog $fileName $LOG_SYNC_BACK_UP_PATH
+                      preserveThisLog $fileName $LOG_SYNC_BACK_UP_PATH $3
                    else
                       echo_t "Back up to preserve location is disabled"
                    fi

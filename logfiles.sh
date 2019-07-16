@@ -314,18 +314,22 @@ preserveThisLog()
 						echo $backupCount > /tmp/backupCount
 						#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
 					#	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-						if [ "$MODEL_NUM" = "TG3482G" ]; then
-							if [ "$backupCount" -eq "$logThreshold" ]; then
-								echo_t "Connectivity is still not back.. rebooting due to no connectivity"
-								syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
-								syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
-								syscfg commit
-								sleep 5
-								reboot
-							fi #if [ $backupCount -eq ..; 
-						fi #if [ "$model" = "TG3482G" ];
-					fi
-				else
+						if [ "$MODEL_NUM" = "TG3482G" ];then
+                                                        if [ $3 != "wan-stopped" ]; then
+							    if [ "$backupCount" -eq "$logThreshold" ]; then
+								    echo_t "Connectivity is still not back.. rebooting due to no connectivity"
+								    syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
+								    syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
+								    syscfg commit
+								    sleep 5
+								    reboot
+							    fi #if [ $backupCount -eq ..;
+                                                        else
+                                                                echo_t "The wan-stopped case, we shouldn't check for connectivity"
+                                                        fi
+                                                fi #if [ "$model" = "TG3482G" ];
+                                        fi
+                                else
 					echo_t "$path/$file not found at path $path"
 				fi #if [ -f "$path/$file" ] ; then 
 			fi #end of if [ $backupCount -lt ..
