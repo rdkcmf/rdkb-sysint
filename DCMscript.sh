@@ -66,6 +66,7 @@ PEER_COMM_ID="/tmp/elxrretyt.swr"
 
 TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
 TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
+MAX_PREV_LOG_COMPLETE_WAIT=12
 
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
@@ -428,17 +429,23 @@ done
 
             fi
 
-            # wait for telemetry previous log to be completed
+            # wait for telemetry previous log to be completed upto 2 mins . Avoid indefenite loops 
             loop=1
+            count=0
             while [ "$loop" = "1" ]
             do
                 if [ ! -f $TELEMETRY_PREVIOUS_LOG_COMPLETE ]; then
                      echo_t "waiting for previous log done file" >> $DCM_LOG_FILE
                      sleep 10
+                     if [ $count -ge $MAX_PREV_LOG_COMPLETE_WAIT ]; then 
+                         echo_t "Max wait for previous log done file reached. Proceeding with new config from xconf " >> $DCM_LOG_FILE
+                         loop=0
+                     fi
                 else
                    echo_t "Telemetry run for previous log done, so breaking loop" >> $DCM_LOG_FILE
                    loop=0
                 fi
+                count=`expr $count + 1`
             done
 
             GetConfigFile $PEER_COMM_ID
@@ -460,15 +467,21 @@ done
              
             # wait for telemetry previous log to be completed
             loop=1
+            count=0
             while [ "$loop" = "1" ]
             do
                 if [ ! -f $TELEMETRY_PREVIOUS_LOG_COMPLETE ]; then
                      echo_t "waiting for previous log done file" >> $DCM_LOG_FILE
                      sleep 10
+                     if [ $count -ge $MAX_PREV_LOG_COMPLETE_WAIT ]; then 
+                         echo_t "Max wait for previous log done file reached. Proceeding with new config from xconf " >> $DCM_LOG_FILE
+                         loop=0
+                     fi
                 else
                    echo_t "Telemetry run for previous log done, so breaking loop" >> $DCM_LOG_FILE
                    loop=0
                 fi
+                count=`expr $count + 1`
             done
             sh /lib/rdk/dca_utility.sh 1 &
         fi
