@@ -20,7 +20,9 @@
 
 . /etc/include.properties
 . /etc/device.properties
-
+if [ -f /etc/telemetry2_0.properties ]; then
+    . /etc/telemetry2_0.properties
+fi
 
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
@@ -62,6 +64,45 @@ SCP_COMPLETE="/tmp/.scp_done"
 
 PEER_COMM_ID="/tmp/elxrretyt-dca.swr"
 IDLE_TIMEOUT=30
+
+## For simple T2.0 migration consider only below steps for T2 Enable mode
+T2_ENABLE=`syscfg get T2Enable`
+echo_t "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ." >> $RTL_LOG_FILE
+echo_t "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ." >> $T2_0_LOGFILE
+
+if [ ! -f $T2_0_BIN ]; then
+    echo_t  "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!" >> $RTL_LOG_FILE
+    T2_ENABLE="false"
+fi
+
+if [ "x$T2_ENABLE" == "xtrue" ]; then
+    t2Pid=`pidof $T2_0_APP`
+    triggerType=$1
+    echo_t "Entering T2_0_APP mode - Trigger type is $triggerType" >> $T2_0_LOGFILE
+    echo_t "Entering T2_0_APP mode - Trigger type is $triggerType" >> $RTL_LOG_FILE
+    if [ ! -z "$t2Pid" ]; then
+        if [ $triggerType -eq 2 ]; then
+            echo_t "forced DCA execution before log upload/reboot. Signalling $T2_0_APP with level SIGUSR1 !!!" >> $T2_0_LOGFILE
+            kill -10 $t2Pid
+            sleep 120
+            echo_t "Clearing markers from $TELEMETRY_PATH" >> $T2_0_LOGFILE
+            rm -rf $TELEMETRY_PATH_TEMP
+            mkdir -p $TELEMETRY_PATH_TEMP
+        fi
+
+        if [ $triggerType -eq 1 ]; then
+            echo_t "Trigger from maintenance window" >> $T2_0_LOGFILE
+            echo_t "Send signal $T2_0_APP to restart for config fetch " >> $T2_0_LOGFILE
+            kill -9 $t2Pid
+            ${T2_0_BIN}
+        fi
+    else
+            echo_t "Pid for $T2_0_APP is $t2Pid . No active $T2_0_APP instances found " >> $T2_0_LOGFILE
+    fi
+
+    echo_t "Exiting ..." >> $T2_0_LOGFILE
+    exit 0
+fi
 
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron

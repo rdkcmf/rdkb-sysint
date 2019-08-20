@@ -21,6 +21,9 @@
 
 . /etc/include.properties
 . /etc/device.properties
+if [ -f /etc/telemetry2_0.properties ]; then
+    . /etc/telemetry2_0.properties
+fi
 
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
@@ -362,6 +365,61 @@ do
          loop=0
     fi
 done
+
+
+TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
+
+t2Log() {
+    timestamp=`date +%Y-%b-%d_%H-%M-%S`
+    echo "$timestamp $*" >> $T2_0_LOGFILE
+}
+
+# Check for RFC Telemetry.Enable settings
+# Internal syscfg database used by RFC parameter -  Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.Enable
+T2_ENABLE=`syscfg get T2Enable`
+
+t2Log "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ."
+
+if [ ! -f $T2_0_BIN ]; then
+    t2Log "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!"
+    T2_ENABLE="false"
+fi
+
+if [ "x$T2_ENABLE" == "xtrue" ]; then
+    t2Pid=`pidof $T2_0_APP`
+    if [ -z "$t2Pid" ]; then
+        echo "${T2_BIN} is present, XCONF config fetch and parse will be handled by T2 implementation" >> $DCM_LOG_FILE
+        t2Log "Clearing markers from $TELEMETRY_PATH"
+        rm -rf $TELEMETRY_PATH
+        mkdir -p $TELEMETRY_PATH
+        mkdir -p $TELEMETRY_PATH_TEMP
+        t2Log "Starting $T2_0_BIN daemon."
+        ${T2_0_BIN}
+    else
+         mkdir -p $TELEMETRY_PATH_TEMP
+         t2Log "telemetry daemon is already running .. Trigger from maintenance window."
+         t2Log "Send signal $T2_0_APP to restart for config fetch "
+         kill -9 $t2Pid
+         ${T2_0_BIN}
+    fi
+    ## Clear any dca_utility.sh cron entries if present from T1.1 previous execution
+    tempfile="/tmp/tempfile.txt"
+    rm -rf $tempfile  # Delete temp file if existing
+    crontab -l -c $CRON_SPOOL > $tempfile
+    # Check whether any cron jobs are existing or not
+    existing_cron_check=`cat $tempfile | tail -n 1`
+    if [ -n "$existing_cron_check" ]; then
+        rtl_cron_check=`grep -c 'dca_utility.sh' $tempfile`
+        if [ $rtl_cron_check -ne 0 ]; then
+            # delete entry
+            sed -i '/dca_utility/d' $tempfile
+            # Set new cron job from the file
+            crontab $tempfile -c $CRON_SPOOL
+        fi
+    fi
+    rm -rf $tempfile 
+    exit 0
+fi
 
     ret=1
     if [ "$DEVICE_TYPE" != "mediaclient" ] && [ "$estbIp" == "$default_IP" ] ; then
