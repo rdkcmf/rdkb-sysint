@@ -32,6 +32,13 @@ fi
 if [ -f $RFC_SERVICE_LOCK ]; then
     echo_t "RFC: Service in progress. New instance not allowed. Lock file $RFC_SERVICE_LOCK is locked!"  >> $RFC_LOG_FILE
 else
+#TCCBR is yet to migrate to complete systemd. because of this script is getting
+#triggered early from cosa_start_rem.sh,can result in some parameters not updated
+#adding the delay here as done in systemd unit file in other platforms. need to remove
+#once CBR migrate to complete systemd.
+     if [ "x$BOX_TYPE" == "xTCCBR" ]; then
+	sleep 300
+     fi	
     sh /lib/rdk/RFCbase.sh &
 fi
 
