@@ -149,12 +149,16 @@ Uptime()
 ## Get Model No of the box
 getModel()
 {
+  if [ $BOX_TYPE = "XF3" ]; then
+     modelName=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2 | cut -d "_" -f 1`
+  else
      modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | awk '{print $5}'`
      if [ "$modelName" = "" ]
      then
             modelName=`echo $MODEL_NUM`
      fi
-     echo "$modelName"
+  fi
+  echo "$modelName"
 }
 
 getFWVersion()
