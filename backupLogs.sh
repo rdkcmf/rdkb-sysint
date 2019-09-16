@@ -35,7 +35,17 @@ else
     pid=`cat $LOG_UPLOAD_PID`
     if [ -d /proc/$pid ];then
           echo_t "backupLogs.sh already running..."
-          exit 0
+          if [ "$1" = "true" ] || [ "$1" = "" ] ; then
+              echo_t "backupLogs.sh wait time started..."
+              while [ -d /proc/$pid ] ; do 
+                  sleep 10
+              done
+              echo_t "backupLogs.sh wait time ended..."
+              echo $$ > $LOG_UPLOAD_PID
+          else
+               echo_t "backupLogs.sh other instance exited..."
+               exit 0
+          fi
     else
           echo $$ > $LOG_UPLOAD_PID
     fi
