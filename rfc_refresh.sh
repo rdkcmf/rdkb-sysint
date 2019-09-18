@@ -47,6 +47,8 @@ REFRESH=$1
 #Create lock file to prevent multiple instances of this script
 touch /tmp/.rfcLock
 
+isForwardSSHEnabled=`syscfg show | grep ForwardSSH |awk -F '=' '{print $2}'`
+
 if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
    #Flush SSH_FILTER chain
    rfclog "Refreshing SSH_FILTER rules"
@@ -60,12 +62,16 @@ if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
    do
        case $line in
            *\:*\:* ) ## IPv6 IP
-             $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
-             rfclog "SSH IPv6 Address : $line"
+             if $isForwardSSHEnabled;then
+                 $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
+                 rfclog "SSH IPv6 Address : $line"
+             fi
              ;;
            *\.*\.* ) ## IPv4 IP
-             $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
-             rfclog "SSH IPv4 Address : $line"
+             if $isForwardSSHEnabled;then
+                 $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
+                 rfclog "SSH IPv4 Address : $line"
+             fi
              ;;
        esac
    done < $SSH_WHITELIST_FILE
@@ -80,12 +86,16 @@ if [ "x$REFRESH" = "xSSH_REFRESH" ]; then
              fi
              case $line in
                *\:*\:* ) ## IPv6 IP
-                 $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
-                 rfclog "SSH IPv6 Address : $line"
+                 if $isForwardSSHEnabled;then
+                     $IPV6_BIN -A SSH_FILTER -s $line -j ACCEPT
+                     rfclog "SSH IPv6 Address : $line"
+                 fi
                  ;;
                *\.*\.* ) ## IPv4 IP
-                 $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
-                 rfclog "SSH IPv4 Address : $line"
+                 if $isForwardSSHEnabled;then
+                     $IPV4_BIN -A SSH_FILTER -s $line -j ACCEPT
+                     rfclog "SSH IPv4 Address : $line" 
+                 fi
                  ;;
              esac
     done < $PROD_SSH_WHITELIST_FILE
