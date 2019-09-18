@@ -537,12 +537,7 @@ if [ "$triggerType" == "remove_old_logbackup" ]; then
 	exit
 fi
 
-TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
 PEER_COMM_ID="/tmp/elxrretyt-logm.swr"
-PREVIOUS_LOG_DST="/tmp/nvram2_logs"
-PREVIOUS_LOG_SRC="/nvram2/logs"
-
-IDLE_TIMEOUT=30
 
 if [ "$BOX_TYPE" = "XB3" ]; then
 	RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
@@ -551,78 +546,6 @@ if [ "$BOX_TYPE" = "XB3" ]; then
 	       scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
 	       rm -rf $PEER_COMM_ID
 	fi
-fi
-
-if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
-    file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
-    if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
-	#ARRISXB6-2821:
-	#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
-        #and time sync needed before logbackup.
-	#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
-        #having correct timestamp.
-	#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
-        #other rdkbLogMonitor.sh functionality
-
-	if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
-		loop=1
-		retry=1
-		while [ "$loop" = "1" ]
-		do
-			echo_t "Waiting for time synchronization between processors before logbackup"
-			TIME_SYNC_STATUS=`sysevent get TimeSync-status`
-			if [ "$TIME_SYNC_STATUS" == "synced" ]
-			then
-				echo_t "Time synced. Breaking loop"
-				break
-			elif [ "$retry" = "12" ]
-			then
-				echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
-				break
-			else
-				echo_t "Time not synced yet. Sleeping.. Retry:$retry"
-				retry=`expr $retry + 1`
-				sleep 10
-			fi
-		done
-	fi
-    fi
-fi
-
-# Trigger Telemetry run for previous boot log files
-echo_t "Telemetry run for previous boot log files" >> $LOG_PATH/dcmscript.log
-
-isAxb6Device="no"
-if [ "$MODEL_NUM" == "TG3482G" ]; then
-   isNvram2Mounted=`grep nvram2 /proc/mounts`
-   if [ "$isNvram2Mounted" == "" -a -d "/nvram/logs" ]; then
-      isAxb6Device="yes"
-   fi
-fi
-
-if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" -a "x$isAxb6Device" == "xno" ]; then
-   if [ ! -f /usr/bin/GetConfigFile ]; then
-       echo "Error: GetConfigFile Not Found"
-       exit 127
-   fi
-
-   GetConfigFile $PEER_COMM_ID
-   ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "rm -rf $PREVIOUS_LOG_DST" > /dev/null 2>&1
-   rm -f $PEER_COMM_ID
-
-   GetConfigFile $PEER_COMM_ID
-   scp -i $PEER_COMM_ID -r $PREVIOUS_LOG_SRC root@$ATOM_INTERFACE_IP:$PREVIOUS_LOG_DST > /dev/null 2>&1
-   rm -f $PEER_COMM_ID
-
-   GetConfigFile $PEER_COMM_ID
-   ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/touch $TELEMETRY_PREVIOUS_LOG" > /dev/null 2>&1
-   rm -f $PEER_COMM_ID
-
-   # After scp logs to atom previous log file should be created
-   touch $TELEMETRY_PREVIOUS_LOG
-else
-   touch $TELEMETRY_PREVIOUS_LOG
-   sh /lib/rdk/dca_utility.sh 1
 fi
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
@@ -729,7 +652,6 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 		fi
 	fi
 fi
-
 
 bootup_upload &
 

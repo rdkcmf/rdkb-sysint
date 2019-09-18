@@ -63,13 +63,6 @@ SCP_COMPLETE="/tmp/.scp_done"
 PEER_COMM_ID="/tmp/elxrretyt-dca.swr"
 IDLE_TIMEOUT=30
 
-DEFAULT_IPV4="<#=#>EROUTER_IPV4<#=#>"
-DEFAULT_IPV6="<#=#>EROUTER_IPV6<#=#>"
-TELEMETRY_PREVIOUS_LOG="/tmp/.telemetry_previous_log"
-TELEMETRY_PREVIOUS_LOG_COMPLETE="/tmp/.telemetry_previous_log_done"
-TEMP_NVRAM_LOG_PATH="/tmp/nvram2_logs/"
-NVRAM_LOG_PATH="/nvram/logs/"
-
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     CRON_SPOOL=/tmp/cron
     if [ ! -f /usr/bin/GetConfigFile ];then
@@ -135,29 +128,7 @@ fi
 mkdir -p $LOG_PATH
 touch $RTL_LOG_FILE
 
-previousLogPath=""
-if [ -f $TELEMETRY_PREVIOUS_LOG ]; then
-
-   isAxb6Device="no"
-   if [ "$MODEL_NUM" == "TG3482G" ];then
-      isNvram2Mounted=`grep nvram2 /proc/mounts`
-      if [ "$isNvram2Mounted" == "" -a -d "/nvram/logs" ];then
-         isAxb6Device="yes"
-      fi
-   fi
-
-   if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" -a "x$isAxb6Device" == "xno" ]; then
-      previousLogPath="$TEMP_NVRAM_LOG_PATH"
-   elif [ "x$isAxb6Device" = "xyes" ]; then
-      previousLogPath="$NVRAM_LOG_PATH"
-   else
-      previousLogPath="$LOG_SYNC_PATH"
-   fi
-
-   echo_t "Telemetry run for previous log path : $previousLogPath" >> $RTL_LOG_FILE
-fi
-
-if [ ! -f /tmp/.dca_bootup -a ! -f $TELEMETRY_PREVIOUS_LOG ]; then
+if [ ! -f /tmp/.dca_bootup ]; then
    echo_t "First dca execution after bootup. Clearing all markers." >> $RTL_LOG_FILE
    touch /tmp/.dca_bootup
    rm -rf $TELEMETRY_PATH
@@ -531,7 +502,7 @@ if [ $triggerType -eq 3 ] ; then
 fi
 
 # Regenerate config only during boot-up and when there is an update
-if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 -a ! -f $TELEMETRY_PREVIOUS_LOG ] ; then
+if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
 # Start crond daemon for yocto builds
     pidof crond
     if [ $? -ne 0 ]; then
@@ -612,8 +583,7 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ]; then
 else
     # echo_t "Using telemetry pattern stored in : $SORTED_PATTERN_CONF_FILE.!!!" >> $RTL_LOG_FILE
     defaultOutputJSON="{\"searchResult\":[{\"<remaining_keys>\":\"<remaining_values>\"}]}"
-    echo "nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE $previousLogPath" >> $RTL_LOG_FILE
-    dcaOutputJson=`nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE $previousLogPath 2>> $RTL_LOG_FILE`
+    dcaOutputJson=`nice -n 19 $DCA_BINARY $SORTED_PATTERN_CONF_FILE 2>> $RTL_LOG_FILE`
     if [ -z "$dcaOutputJson" ];
     then
       dcaOutputJson=$defaultOutputJSON
@@ -653,16 +623,6 @@ else
        erouterIpv4=$(getErouterIpv4)
        erouterIpv6=$(getErouterIpv6)
 
-       
-       if [ "$triggerType" = "1" ]; then
-          if [ "$erouterIpv4" = "null" ]; then
-              erouterIpv4="$DEFAULT_IPV4"
-          fi
-          if [ "$erouterIpv6" = "null" ]; then
-              erouterIpv6="$DEFAULT_IPV6"
-          fi
-       fi
-
        cur_time=`date "+%Y-%m-%d %H:%M:%S"`
      
        if $singleEntry ; then
@@ -688,18 +648,13 @@ else
            # Trigger inotify event on ARM to upload message to splunk
            GetConfigFile $PEER_COMM_ID
            if [ $triggerType -eq 2 ]; then
-                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
-                    echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
+               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+               echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
-               if [ -f $TELEMETRY_PREVIOUS_LOG -a $triggerType -eq 1 ];then
-                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'previousLog' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
-                    echo_t "notify ARM for dca running is for previous log" >> $RTL_LOG_FILE
-	       else
-               	    if [ "$bootupTelemetryBackup" = "true" -a $triggerType -eq 1 ];then
-               	         ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'bootupBackup' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
-               	    else
-               	         ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
-               	    fi
+               if [ "$bootupTelemetryBackup" = "true" -a $triggerType -eq 1 ];then
+                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'bootupBackup' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+               else
+                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
                fi
            fi
            rm -f $PEER_COMM_ID
@@ -707,12 +662,7 @@ else
            if [ $triggerType -eq 2 ]; then
                touch $TELEMETRY_EXEC_COMPLETE
            fi
-           if [ $triggerType -eq 1 -a -f $TELEMETRY_PREVIOUS_LOG ];
-           then
-              sh /lib/rdk/dcaSplunkUpload.sh logbackup_without_upload &
-           else
-              sh /lib/rdk/dcaSplunkUpload.sh &
-           fi
+           sh /lib/rdk/dcaSplunkUpload.sh &
        fi
 fi
 
@@ -734,20 +684,13 @@ if [ $triggerType -eq 2 ]; then
 
 fi
 
-if [ -f $TELEMETRY_PREVIOUS_LOG ]; then
-    echo_t "dca for previous log done" >> $RTL_LOG_FILE
-    rm -f $TELEMETRY_PREVIOUS_LOG $SORTED_PATTERN_CONF_FILE
-    rm -rf $TEMP_NVRAM_LOG_PATH
-    touch $TELEMETRY_PREVIOUS_LOG_COMPLETE
+if [ -f $EXEC_COUNTER_FILE ]; then
+    dcaNexecCounter=`cat $EXEC_COUNTER_FILE`
+    dcaNexecCounter=`expr $dcaNexecCounter + 1`
 else
-    if [ -f $EXEC_COUNTER_FILE ]; then
-        dcaNexecCounter=`cat $EXEC_COUNTER_FILE`
-        dcaNexecCounter=`expr $dcaNexecCounter + 1`
-    else
-        dcaNexecCounter=0;
-    fi
-    echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
+    dcaNexecCounter=0;
 fi
 
+echo "$dcaNexecCounter" > $EXEC_COUNTER_FILE
 # PID file cleanup
 pidCleanup
