@@ -272,36 +272,10 @@ useCodebigRequest()
     return 1
 }
 
-# Function to get erouter0 ipv4 address
-getErouterIpv4()
-{
-    erouter_ipv4=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep value | awk '{print $5}'`
-    if [ "$erouter_ipv4" != "" ];then
-        echo $erouter_ipv4
-    else
-        echo "null"
-    fi
-}
-
-# Function to get erouter0 ipv6 address
-getErouterIpv6()
-{
-    erouter_ipv6=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IPv6 | grep value | awk '{print $5}'`
-    if [ "$erouter_ipv6" != "" ];then
-        echo $erouter_ipv6
-    else
-        echo "null"
-    fi
-}
-
 timestamp=`date +%Y-%b-%d_%H-%M-%S`
 #main app
 estbMac=`getErouterMacAddress`
 cur_time=`date "+%Y-%m-%d %H:%M:%S"`
-erouteripv4=`getErouterIpv4`
-erouteripv6=`getErouterIpv6`
-DEFAULT_IPV4="<#=#>EROUTER_IPV4<#=#>"
-DEFAULT_IPV6="<#=#>EROUTER_IPV6<#=#>"
 
 # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
 # Otherwise we will not specify the ip address family in curl options
@@ -389,7 +363,6 @@ if [ -f $TELEMETRY_RESEND_FILE ] && [ "x$ignoreResendList" != "xtrue" ]; then
     rm -f $TELEMETRY_TEMP_RESEND_FILE
     while read resend
     do
-        resend=`echo $resend | sed "s/$DEFAULT_IPV4/$erouteripv4/" | sed "s/$DEFAULT_IPV6/$erouteripv6/"`
         echo_t "dca resend : $resend" >> $RTL_LOG_FILE 
         $first_conn "$resend" "resend" || $sec_conn "$resend" "resend" ||  conn_type_used="Fail" 
 
