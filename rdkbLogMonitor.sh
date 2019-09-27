@@ -315,8 +315,10 @@ bootup_remove_old_backupfiles()
 	fi
 }
 
-bootup_upload()
+bootup_tarlogs()
 {
+	echo_t "RDK_LOGGER: bootup_tarlogs"
+
 	#Remove old backup log files	
 	bootup_remove_old_backupfiles
 
@@ -365,8 +367,18 @@ bootup_upload()
 	       rm -rf $LOG_SYNC_PATH*core*
 	       rm -rf $LOG_SYNC_PATH$PcdLogFile
 	       rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
+	       echo_t "RDK_LOGGER: tar activation logs from bootup_tarlogs ${MAC}_Logs_${dt}.tgz"
             fi
+	fi
+}	
 
+bootup_upload()
+{
+
+	echo_t "RDK_LOGGER: bootup_upload"
+
+	if [ -e "$UPLOAD_ON_REBOOT" ]
+	then
 
             if [ "$LOGBACKUP_ENABLE" == "true" ]; then
                #Sync log files immediately after reboot
@@ -514,6 +526,7 @@ bootup_upload()
 
 	cd $curDir
 }	
+
 #ARRISXB6-5184 : Remove hidden files coming up in /rdklogs/logs and /nvram/logs
 remove_hidden_files()
 {
@@ -693,6 +706,8 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	fi
 fi
 
+# rdkb-24823 create tar file, then do upload in the background,
+bootup_tarlogs
 bootup_upload &
 
 UPLOAD_LOGS=`processDCMResponse`
