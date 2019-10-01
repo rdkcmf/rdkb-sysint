@@ -69,6 +69,11 @@ PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
+SECURE_SYSCFG=`syscfg get UpdateNvram`
+SYS_DB_FILE="/nvram/syscfg.db"
+if [ "$SECURE_SYSCFG" = "false" ]; then
+      SYS_DB_FILE="/opt/secure/data/syscfg.db"
+fi
 
 
 ARGS=$1
@@ -428,7 +433,7 @@ HTTPLogUploadOnRequest()
 
 uploadOnRequest()
 {
-	SYS_CFG_FILE="syscfg.db"
+        SYS_CFG_FILE="syscfg.db"
 	BBHM_CFG_FILE="bbhm_cur_cfg.xml"
 	WIRELESS_CFG_FILE="wireless"
            
@@ -484,7 +489,7 @@ uploadOnRequest()
 	fi
 
 	if [ "$BOX_TYPE" = "XB6" ]; then
-		cp /nvram/$SYS_CFG_FILE $dest$SYS_CFG_FILE
+		cp $SYS_DB_FILE $dest$SYS_CFG_FILE
                 cp /nvram/$BBHM_CFG_FILE $dest$BBHM_CFG_FILE
         sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dest$WIRELESS_CFG_FILE
         fi
