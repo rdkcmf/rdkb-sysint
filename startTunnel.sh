@@ -86,6 +86,11 @@ case $oper in
                        fi
                    fi
                 fi
+	     elif [ "$MODEL_NUM" = "TG3482G" ];then
+	    	  CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+       		  if [ ! "$CM_IP" ]; then
+          		CM_IP=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+       		  fi 
              else
                 # OTHER PLATFORMS
                 CM_IP=`getCMIPAddress`
