@@ -381,21 +381,23 @@ dropbearRecovery()
    rm -rf /tmp/.dropbear/*
 }
 
+T2_ENABLE=`syscfg get T2Enable`
 # Safe wait for IP acquisition
-loop=1
-counter=0
-while [ $loop -eq 1 ]
-do
-    estbIp=`getErouterIPAddress`   # This needs to be changed to wait for erouter IP address
-    if [ "X$estbIp" == "X" ]; then
-         echo_t "waiting for IP" >> $DCM_LOG_FILE
-         sleep 2
-         let counter++
-    else
-         loop=0
-    fi
-done
-
+if [ “x$T2_enable” == “xfalse” ]; then
+    loop=1
+    counter=0
+    while [ $loop -eq 1 ]
+    do
+        estbIp=`getErouterIPAddress`   # This needs to be changed to wait for erouter IP address
+        if [ "X$estbIp" == "X" ]; then
+             echo_t "waiting for IP" >> $DCM_LOG_FILE
+             sleep 2
+             let counter++
+        else
+             loop=0
+        fi
+    done
+fi
 
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
 
@@ -406,7 +408,6 @@ t2Log() {
 
 # Check for RFC Telemetry.Enable settings
 # Internal syscfg database used by RFC parameter -  Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.Enable
-T2_ENABLE=`syscfg get T2Enable`
 
 t2Log "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ."
 
