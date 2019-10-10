@@ -547,8 +547,9 @@ fi
 
 PEER_COMM_ID="/tmp/elxrretyt-logm.swr"
 
+RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
+
 if [ "$BOX_TYPE" = "XB3" ]; then
-	RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
         if [ "$RebootReason" = "RESET_ORIGIN_ATOM_WATCHDOG" ] || [ "$RebootReason" = "RESET_ORIGIN_ATOM" ]; then
 	       GetConfigFile $PEER_COMM_ID
 	       scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
@@ -602,7 +603,8 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	fi
 
 	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
-	if [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ]; then
+	#TCCBR-4275 to handle factory reset case.
+	if ( [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ] ) || ( [ "$RebootReason" == "factory-reset" ] ); then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
 
 		#ARRISXB6-2821:
