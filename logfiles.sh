@@ -21,7 +21,13 @@ RDK_LOGGER_PATH="/rdklogger"
 
 source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh 
-source /etc/logFiles.properties
+if [ -f /etc/logFiles.properties ]; then
+    source /etc/logFiles.properties
+fi
+
+if [ -f /etc/telemetry2_0.properties ]; then
+    . /etc/telemetry2_0.properties
+fi
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 PATTERN_FILE="/tmp/pattern_file"
@@ -120,7 +126,16 @@ createSysDescr()
 flush_atom_logs()
 {
     GetConfigFile $PEER_COMM_ID
-    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+    T2_ENABLE=`syscfg get T2Enable` 
+    if [ ! -f $T2_0_BIN ]; then                                                 
+    	echo_t  "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!"
+    	T2_ENABLE="false"                                                                       
+    fi
+    if [ "x$T2_ENABLE" == "xtrue" ]; then  
+        sh /lib/rdk/dca_utility.sh 2 &
+    else
+        ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+    fi
  	local loop=0
 	while :
 	do

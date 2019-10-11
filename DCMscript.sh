@@ -403,7 +403,7 @@ TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
 
 t2Log() {
     timestamp=`date +%Y-%b-%d_%H-%M-%S`
-    echo "$timestamp $*" >> $T2_0_LOGFILE
+    echo "$0 : $timestamp $*" >> $T2_0_LOGFILE
 }
 
 # Check for RFC Telemetry.Enable settings
@@ -429,8 +429,9 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
     else
          mkdir -p $TELEMETRY_PATH_TEMP
          t2Log "telemetry daemon is already running .. Trigger from maintenance window."
-         t2Log "Send signal $T2_0_APP to restart for config fetch "
-         kill -9 $t2Pid
+         t2Log "Send signal 15 $T2_0_APP to restart for config fetch "
+         kill -15 $t2Pid
+         sleep 30
          ${T2_0_BIN}
     fi
     ## Clear any dca_utility.sh cron entries if present from T1.1 previous execution
@@ -449,6 +450,12 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
         fi
     fi
     rm -rf $tempfile 
+
+    isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+    if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
+        echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
+        sh /etc/firmwareSched.sh &
+    fi
     exit 0
 fi
 
