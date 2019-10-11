@@ -31,6 +31,7 @@ if [ -f /etc/mount-utils/getConfigFile.sh ];then
      . /etc/mount-utils/getConfigFile.sh
 fi
 source /etc/log_timestamp.sh
+
 source /lib/rdk/getpartnerid.sh
 source /lib/rdk/getaccountid.sh
 EROUTER_IF=erouter0
@@ -39,6 +40,7 @@ DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
 
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
+
 TELEMETRY_PROFILE_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
 LOG_SYNC_PATH="/nvram2/logs/"
 
@@ -46,6 +48,7 @@ RTL_LOG_FILE="$LOG_PATH/dcmProcessing.log"
 RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
 MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
 TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
+
 EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 
 # Persist this files for telemetry operation
@@ -59,9 +62,11 @@ DCA_BINARY="/usr/bin/dca"
 
 TELEMETRY_INOTIFY_FOLDER=/telemetry
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
+TELEMETRY_T2_INOTIFY_EVENT="/tmp/t2events/eventType.cmd"
 TELEMETRY_EXEC_COMPLETE="/tmp/.dca_done"
-SCP_COMPLETE="/tmp/.scp_done"
 
+
+SCP_COMPLETE="/tmp/.scp_done"
 PEER_COMM_ID="/tmp/elxrretyt-dca.swr"
 IDLE_TIMEOUT=30
 
@@ -84,25 +89,34 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
     echo_t "Entering T2_0_APP mode - Trigger type is $triggerType" >> $RTL_LOG_FILE
     if [ ! -z "$t2Pid" ]; then
         if [ $triggerType -eq 2 ]; then
-            echo_t "forced DCA execution before log upload/reboot. Signalling $T2_0_APP with level SIGUSR1 !!!" >> $T2_0_LOGFILE
+            echo_t "$0 : forced DCA execution before log upload/reboot. Signalling $T2_0_APP with level SIGUSR1 !!!" >> $T2_0_LOGFILE
             kill -10 $t2Pid
             sleep 120
-            echo_t "Clearing markers from $TELEMETRY_PATH" >> $T2_0_LOGFILE
-            rm -rf $TELEMETRY_PATH_TEMP
-            mkdir -p $TELEMETRY_PATH_TEMP
+            if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then 
+            	echo_t "$0 : exec utils remotely for clearing markers" >> $T2_0_LOGFILE
+            	GetConfigFile $PEER_COMM_ID
+            	ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "echo 'clearSeekValues' > $TELEMETRY_T2_INOTIFY_EVENT"  > /dev/null 2>&1
+		sleep 1
+		rm -f $PEER_COMM_ID
+            else 
+                echo_t "$0 : Clearing markers from $TELEMETRY_PATH" >> $T2_0_LOGFILE
+            	rm -rf $TELEMETRY_PATH_TEMP
+            	mkdir -p $TELEMETRY_PATH_TEMP
+            fi
         fi
 
         if [ $triggerType -eq 1 ]; then
-            echo_t "Trigger from maintenance window" >> $T2_0_LOGFILE
-            echo_t "Send signal $T2_0_APP to restart for config fetch " >> $T2_0_LOGFILE
-            kill -9 $t2Pid
+            echo_t "$0 : Trigger from maintenance window" >> $T2_0_LOGFILE
+            echo_t "$0 : Send signal $T2_0_APP to restart for config fetch " >> $T2_0_LOGFILE
+            kill -15 $t2Pid
+            sleep 30
             ${T2_0_BIN}
         fi
     else
             echo_t "Pid for $T2_0_APP is $t2Pid . No active $T2_0_APP instances found " >> $T2_0_LOGFILE
     fi
 
-    echo_t "Exiting ..." >> $T2_0_LOGFILE
+    echo_t "$0 : Exiting ..." >> $T2_0_LOGFILE
     exit 0
 fi
 
