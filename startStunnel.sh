@@ -1,9 +1,13 @@
+#!/bin/sh
+
+export TERM=xterm
+
 usage()
 {
-  echo "USAGE:  startSTunnel.sh <ip_ver> <localip> <jumpserverip> <jumpserverport>"
+  echo "USAGE:  startSTunnel.sh <ip_ver> <localip> <jumpserverip> <jumpserverport> <remoteTerminalRows> <remoteTerminalColumns>"
 }
 
-if [ $# -lt 4 ]; then
+if [ $# -lt 6 ]; then
    usage
    exit 1
 fi
@@ -20,8 +24,10 @@ IP_VER=$1
 LOCAL_IP=$2
 JUMP_SERVER=$3
 JUMP_PORT=$4
+ROWS=$5
+COLUMNS=$6
 
-#echo "got command $IP_VER $LOCAL_IP $JUMP_SERVER $JUMP_PORT" > /tmp/webpa_command
+#echo "got command $IP_VER $LOCAL_IP $JUMP_SERVER $JUMP_PORT $ROWS $COLUMNS" > /tmp/webpa_command
 
 # there is no harm in using the same port as jump server as 
 # interfaces are different and it was gnerated randmol anyway
@@ -62,9 +68,9 @@ rm -f $D_FILE
 
 if [ $IP_VER -eq 4 ] 
 then
-    /usr/bin/socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:127.0.0.1:$JUMP_PORT
+    /usr/bin/socat -w rows=$ROWS columns=$COLUMNS exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:127.0.0.1:$JUMP_PORT
 else
-    /usr/bin/socat exec:'bash -li',pty,stderr,setsid,sigint,sane tcp6:[::1]:$JUMP_PORT
+    /usr/bin/socat -w rows=$ROWS columns=$COLUMNS exec:'bash -li',pty,stderr,setsid,sigint,sane tcp6:[::1]:$JUMP_PORT
 fi
 
 stunnel_pid=`cat $STUNNEL_PID_FILE`
