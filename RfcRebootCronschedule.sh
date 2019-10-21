@@ -4,7 +4,7 @@ source /etc/log_timestamp.sh
 
 CRONTAB_DIR="/var/spool/cron/crontabs/"
 CRONTAB_FILE=$CRONTAB_DIR"root"
-CRONFILE_BK="/tmp/cron_tab.txt"
+CRONFILE_BK="/tmp/cron_tab$$.txt"
 LOG_FILE="/rdklogs/logs/dcmrfc.log"
 FW_START="/nvram/.FirmwareUpgradeStartTime"
 FW_END="/nvram/.FirmwareUpgradeEndTime"
