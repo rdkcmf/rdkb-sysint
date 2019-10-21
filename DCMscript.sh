@@ -437,7 +437,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
          kill -15 $t2Pid
     fi
     ## Clear any dca_utility.sh cron entries if present from T1.1 previous execution
-    tempfile="/tmp/tempfile.txt"
+    tempfile="/tmp/tempfile$$.txt"
     rm -rf $tempfile  # Delete temp file if existing
     crontab -l -c $CRON_SPOOL > $tempfile
     # Check whether any cron jobs are existing or not

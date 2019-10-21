@@ -55,7 +55,7 @@ EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 # Regenerate this only when there is a change identified from XCONF update
 SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_sorted_file.conf"
 
-current_cron_file="$PERSISTENT_PATH/cron_file.txt"
+current_cron_file="$PERSISTENT_PATH/cron_file$$.txt"
 
 #Performance oriented binaries
 DCA_BINARY="/usr/bin/dca"
@@ -440,7 +440,7 @@ scheduleCron()
 	crontab -l -c $CRON_SPOOL > $current_cron_file
 	# Check whether any cron jobs are existing or not
 	existing_cron_check=`cat $current_cron_file | tail -n 1`
-	tempfile="$PERSISTENT_PATH/tempfile.txt"
+	tempfile="$PERSISTENT_PATH/tempfile$$.txt"
 	rm -rf $tempfile  # Delete temp file if existing
 	if [ -n "$existing_cron_check" ]; then
 		rtl_cron_check=`grep -c 'dca_utility.sh' $current_cron_file`
