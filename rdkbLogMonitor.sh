@@ -61,7 +61,6 @@ LOGBACKUP_INTERVAL=30
 loop=1
 
 minute_count=0
-model_num=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
 #tmp disable the flag now 
 #UPLOAD_ON_REBOOT="/nvram/uploadonreboot"
 
@@ -562,7 +561,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	#ARRISXB6-3045 - This is speific to Axb6. If nvram2 supported hardware found, all syncing should switch to nvram2/logs.
 	#While switching from nvram to nvram2, old logs should be backed-up, uploaded and cleared from old sync path.
 #	model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
-	if [ "$MODEL_NUM" == "TG3482G" ];then
+	if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ];then
 		isNvram2Mounted=`grep nvram2 /proc/mounts`
 		if [ -d "/nvram2" ];then
 			if [ "$isNvram2Mounted" != "" ];then
@@ -821,7 +820,7 @@ do
 			   syncLogs
 			fi
 			#ARRISXB6-5184
-			if [ "$model_num" == "TG3482G" ] ; then
+			if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ; then
 			    remove_hidden_files "/rdklogs/logs"
 			    remove_hidden_files "/nvram/logs"
 			    remove_hidden_files "/nvram2/logs"
