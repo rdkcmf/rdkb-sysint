@@ -23,11 +23,11 @@ source /etc/log_timestamp.sh
 
 CONSOLE_LOG_FILE="/rdklogs/logs/Consolelog.txt.0"
 
-if [ "$MODEL_NUM" == "TG3482G" ];then
+if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ];then
 	factoryPartnerId=`arris_rpc_client arm nvm_get cust_id`
 fi
 
-if [ "$MODEL_NUM" == "CGM4140COM" ];then
+if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ];then
 	factory_nvram -r
     factoryPartnerId=`grep Customer /tmp/factory_nvram.data | tr '[A-Z]' '[a-z]' | cut -d' ' -f2`
 fi

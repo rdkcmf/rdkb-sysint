@@ -56,8 +56,8 @@ case $oper in
                 if [ -z "$CM_IP" ]; then
                     CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
                 fi
-             elif [ "$BOX_TYPE" = "TCCBR" ] || [ "$MODEL_NUM" = "CGM4140COM" ]; then
-                # TCH XB6 and TCH CBR
+             elif [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
+                # TCH XB6, XB7 and TCH CBR
                 # getting the IPV4 address for CM
                 if [ -f "/nvram/ETHWAN_ENABLE" ];then
                    CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`

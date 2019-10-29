@@ -44,7 +44,7 @@ do
    
    #Keeps appending to the existing file 
    nice -n 19 journalctl -k --since "${difference_time} sec ago" >> ${DMESG_FILE}
-   if [ "$BOX_TYPE" = "XB6" -a "$MODEL_NUM" = "TG3482G" ] || [ "$BOX_TYPE" = "XF3" ] || [ "$BOX_TYPE" = "TCCBR" ];then
+   if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$BOX_TYPE" = "XF3" ] || [ "$BOX_TYPE" = "TCCBR" ];then
 	   #ARRISXB6-7973: Complete journalctl logs to /rdklogs/logs/atom_journal_logs.txt.0
            uptime_in_secs="`awk '{print $1}' /proc/uptime | cut -d '.' -f1`"
            if [ $uptime_in_secs -ge 240 ]  && [ $BootupLog_is_updated -eq 0 ]; then
@@ -53,7 +53,7 @@ do
            fi
    fi
    # ARRISXB6-8252   sleep for 60 sec until we populate journalctl
-   if [ "$BOX_TYPE" = "XB6" ] && [ "$MODEL_NUM" = "TG3482G" ];then
+   if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ];then
      dmesgsyncinterval=60
    else
      dmesgsyncinterval=`syscfg get dmesglogsync_interval`
