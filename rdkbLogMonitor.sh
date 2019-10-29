@@ -745,9 +745,11 @@ do
 			
 			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
 			FILE_NAME=`ls | grep "tgz"`
-#This event is set to "yes" whenever wan goes down. So, we should not move tar to /tmp in that case.
+			# This event is set to "yes" whenever wan goes down. 
+			# So, we should not move tar to /tmp in that case.
 			wan_event=`sysevent get wan_event_log_upload`
-			if [ "$FILE_NAME" != "" ] && [ "$wan_event" != "yes" ]; then
+			wan_status=`sysevent get wan-status`
+			if [ "$FILE_NAME" != "" ] && [ "$wan_event" != "yes" ] && [ "$wan_status" != "stopped" ]; then
 				mkdir $TMP_LOG_UPLOAD_PATH
 				mv $FILE_NAME $TMP_LOG_UPLOAD_PATH
 			fi
