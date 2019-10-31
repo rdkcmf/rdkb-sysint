@@ -587,6 +587,10 @@ if [ "$BOX_TYPE" = "XB3" ]; then
 	       scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
 	       rm -rf $PEER_COMM_ID
 	fi
+        if [ "$RebootReason" = "HOST-OOPS-REBOOT" ]; then
+	       cp $RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE0  $LOG_SYNC_PATH$RAM_OOPS_FILE0_HOST
+	       cp $RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE1  $LOG_SYNC_PATH$RAM_OOPS_FILE1_HOST
+        fi
 fi
 
 if [ "$LOGBACKUP_ENABLE" == "true" ]; then		
