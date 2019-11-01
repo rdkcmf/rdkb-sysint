@@ -360,9 +360,14 @@ then
 	if [ "$IS_BCI" != "yes" ]; then
 		echo_t "Trigger RebootPendingNotification in background"
 		Trigger_RebootPendingNotify &
-		echo_t "sleep for $REBOOT_PENDING_DELAY sec to send reboot pending notification"
-		sleep $REBOOT_PENDING_DELAY
+		echo_t "sleep for 1 sec to send reboot pending notification"
+		sleep 1
 	fi
+	# kill parodus with SIGUSR1
+	echo_t "Properly shutdown parodus by sending SIGUSR1 kill signal"
+	killall -s SIGUSR1 parodus
+	sleep 1
+
 	rebootFunc
 fi
 
