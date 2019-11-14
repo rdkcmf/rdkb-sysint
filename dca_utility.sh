@@ -673,10 +673,6 @@ else
             outputJson="$outputJson,{\"Profile\":\"RDKB\"},{\"mac\":\"$estbMac\"},{\"erouterIpv4\":\"$erouterIpv4\"},{\"erouterIpv6\":\"$erouterIpv6\"},{\"PartnerId\":\"$partnerId\"},{\"AccountId\":\"$accountId\"},{\"Version\":\"$firmwareVersion\"},{\"Time\":\"$cur_time\"}"
        fi
 
-       if [ -f $TELEMETRY_PREVIOUS_LOG ]; then
-           outputJson="{\"PREVIOUS_LOG\":\"1\"},$outputJson"
-       fi
-
        remain="{\"<remaining_keys>\":\"<remaining_values>\"}"
        outputJson=`echo "$dcaOutputJson" | sed "s/$remain/$outputJson/"`
        
