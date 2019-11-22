@@ -702,6 +702,8 @@ else
        remain="{\"<remaining_keys>\":\"<remaining_values>\"}"
        outputJson=`echo "$dcaOutputJson" | sed "s/$remain/$outputJson/"`
        
+       outputJson=`echo "$outputJson" | sed -r 's/(\":\")\s*/\1/g'`
+
        echo $outputJson >> $RTL_LOG_FILE
        echo "$outputJson" > $TELEMETRY_JSON_RESPONSE
        sleep 2
