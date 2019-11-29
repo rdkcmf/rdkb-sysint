@@ -18,6 +18,8 @@
 # limitations under the License.
 ################################################################################
 . /etc/include.properties
+source /etc/log_timestamp.sh
+
 ps_names="CcspCMAgentSsp CcspPandMSsp CcspHomeSecurity CcspMoCA CcspTandDSsp CcspXdnsSsp CcspEthAgent CcspLMLite PsmSsp notify_comp"
 top_op=$(top -b -n -1 | tr -s ' ' | sed -r 's/S ([^0-9])/S\1/'  | sed 's/^ \s*//' | cut -d ' ' -f 7-)
 page_size=4
@@ -64,6 +66,7 @@ do
     getCPU $ps_name
     getMem $pid
     
-    cpu_mem_info="${cpu_mem_info}\n${ps_name}_cpu:$cpu\n${ps_name}_mem:$mem"
+    cpu_mem_info="${cpu_mem_info}${ps_name}_cpu:$cpu\n${ps_name}_mem:$mem\n"
 done
+echo_t "CPU and MEM INFO" >> $LOG_FILE
 echo -e "$cpu_mem_info" >> $LOG_FILE
