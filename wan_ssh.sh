@@ -110,7 +110,7 @@ start_wan_ssh_service()
 			check_dropbear_v4=`ps w| grep dropbear | grep -E "$check_WAN_IP4" | grep -E "$PORT"`
 		fi
 		if [ "$check_WAN_IP6" != "" ] ; then
-			check_dropbear_v6=`ps w| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
+			check_dropbear_v6=`ps ww| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
 		fi
 
 		check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
@@ -168,7 +168,7 @@ stop_wan_ssh_service()
                         check_dropbear_v4=`ps w| grep dropbear | grep -E "$check_WAN_IP4" | grep -E "$PORT"`
                 fi
                 if [ "$check_WAN_IP6" != "" ] ; then
-                        check_dropbear_v6=`ps w| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
+                        check_dropbear_v6=`ps ww| grep dropbear | grep -E "$check_WAN_IP6" | grep -E "$PORT"`
                 fi
 
                 check_v4_rule=`iptables-save | grep -E "$WAN_IF -p tcp -m tcp --dport $PORT -j SSH_FILTER"`
