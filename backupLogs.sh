@@ -339,6 +339,16 @@ else
 	else
 		backupLogsonReboot
 	fi	
+        
+	if [ "$BOX_TYPE" = "XF3" ] || [ "$BOX_TYPE" = "TCCBR" ] ; then
+		echo "Taking backup of /data/nvram and /data/nvram_bkup " >> "$LOG_SYNC_BACK_UP_PATH"Consolelog.txt.0
+		cp /data/nvram /data/wifi_config_nvram
+		cp /data/nvram_bak /data/wifi_config_nvram_bak
+		echo "Logging ssid info and /data/ file information to Consolelog file" >> "$LOG_SYNC_BACK_UP_PATH"Consolelog.txt.0
+		nvram show | grep ssid >> "$LOG_SYNC_BACK_UP_PATH"Consolelog.txt.0
+		ls -lh /data/ >> "$LOG_SYNC_BACK_UP_PATH"Consolelog.txt.0
+		
+	fi        
 fi
 #sleep 3
 
@@ -367,7 +377,6 @@ then
 	echo_t "Properly shutdown parodus by sending SIGUSR1 kill signal"
 	killall -s SIGUSR1 parodus
 	sleep 1
-
 	rebootFunc
 fi
 
