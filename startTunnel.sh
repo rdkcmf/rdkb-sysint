@@ -50,51 +50,50 @@ case $oper in
              exit 1
              ;;
            start)
-             if [ $BOX_TYPE = "XF3" ]; then
-                # PACE XF3 and PACE CFG3
-                CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
-                if [ -z "$CM_IP" ]; then
-                    CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-                fi
-             elif [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
-                # TCH XB6, XB7 and TCH CBR
-                # getting the IPV4 address for CM
-                if [ -f "/nvram/ETHWAN_ENABLE" ];then
-                   CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-                   IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
-                   Check=$(ip_to_hex $IpCheckVal)
-                   # getting the IPV6 address for CM
-                   CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
-                   if [ -z "$CM_IP" ]; then
-                       CM_IP=$CM_IPV4
-                   fi
-                else
-                   CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-                   IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
-                   Check=$(ip_to_hex $IpCheckVal)
-                   # Get Gobal scope IPv6 address from interface privbr
-                   CM_IP=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1` 
-                   # If Gobal scope IPv6 address is not present
-                   if [ -z "$CM_IP" ]; then
-                       # Get Link local scope IPv6 address from interface privbr
-                       CM_IP=`ifconfig privbr | grep $Check | awk '/inet6/{print $3}' | cut -d '/' -f1`
-                       # If Link local scope IPv6 address is present
-                       if [ ! -z "$CM_IP" ]; then
-                           CM_IP="$CM_IP%privbr"
-                       else
-                           CM_IP=$CM_IPV4
-                       fi
-                   fi
-                fi
-	     elif [ "$MODEL_NUM" = "TG3482G" ];then
-	    	  CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
-       		  if [ ! "$CM_IP" ]; then
-          		CM_IP=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
-       		  fi 
-             else
-                # OTHER PLATFORMS
-                CM_IP=`getCMIPAddress`
-             fi
+
+	     if [ -f "/nvram/ETHWAN_ENABLE" ];then
+		CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+		IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
+		Check=$(ip_to_hex $IpCheckVal)
+		# getting the IPV6 address for CM
+		CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+		if [ -z "$CM_IP" ]; then
+			CM_IP=$CM_IPV4
+		fi
+	     else
+		if [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
+			CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+			IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
+			Check=$(ip_to_hex $IpCheckVal)
+			# Get Gobal scope IPv6 address from interface privbr
+			CM_IP=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1` 
+			# If Gobal scope IPv6 address is not present
+			if [ -z "$CM_IP" ]; then
+				# Get Link local scope IPv6 address from interface privbr
+				CM_IP=`ifconfig privbr | grep $Check | awk '/inet6/{print $3}' | cut -d '/' -f1`
+				# If Link local scope IPv6 address is present
+				if [ ! -z "$CM_IP" ]; then
+					CM_IP="$CM_IP%privbr"
+				else
+					CM_IP=$CM_IPV4
+				fi
+			fi
+		elif [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ; then
+			#XB6 Arris Device Class devices need to utilize pseudo interface wan0 since CM is on another processor
+			CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+			if [ ! "$CM_IP" ]; then
+				CM_IP=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+			fi
+		elif [ $BOX_TYPE = "XF3" ]; then
+			# PACE XF3 and PACE CFG3
+			CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+			if [ -z "$CM_IP" ]; then
+				CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+			fi
+		else
+			CM_IP=`getCMIPAddress`
+		fi #if [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
+	     fi #if [ -f "/nvram/ETHWAN_ENABLE" ];then
              # Replace CM_IP with value
              args=`echo $* | sed "s/CM_IP/$CM_IP/g"`
              if [ ! -f /usr/bin/GetConfigFile ];then

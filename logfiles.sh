@@ -243,7 +243,7 @@ syncLogs_nvram2()
 		mkdir -p $LOG_SYNC_PATH
 	fi
 
-	#Arris Proposed RDKB Generic Bug Fix
+	#Arris Proposed RDKB Generic Bug Fix from XB6
 	#cleanup any old temporary sed files, dont let them accumulate
 	rm -f $LOG_SYNC_PATH/sed*
 
