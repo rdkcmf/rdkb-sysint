@@ -110,6 +110,9 @@ else
       . /etc/dcm.properties
 fi
 TelemetryNewEndpointAvailable=0
+
+mTlsDCMUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsDCMUpload.Enable | grep value | awk '{print $5}'`
+
 getTelemetryEndpoint() {
     DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
     TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
@@ -135,6 +138,14 @@ getTelemetryEndpoint() {
     if [ -z "$TelemetryEndpointURL" ]; then
         DCA_UPLOAD_URL="$DEFAULT_DCA_UPLOAD_URL"
     fi
+
+    if [ "$mTlsDCMUpload" = "true" ]; then
+       DCA_UPLOAD_URL=`echo $DCA_UPLOAD_URL | sed 's/$/\/secure/'`
+       echo "MTLS Telemetry Logupload URL:$DCA_UPLOAD_URL" >> $RTL_LOG_FILE
+    else
+       echo "DCA Log Upload Telemetry URL:$DCA_UPLOAD_URL" >> $RTL_LOG_FILE
+    fi
+
 }
 
 getTelemetryEndpoint
@@ -191,10 +202,27 @@ useDirectRequest()
            return 1
        fi
       echo_t "dca$2: Using Direct commnication"
-      CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+
+      if [ "$mTlsDCMUpload" == "true" ]; then
+        echo "Log Upload requires Mutual Authentication" >> $RTL_LOG_FILE
+	    if [ -d /etc/ssl/certs ]; then
+                if [ ! -f /usr/bin/GetConfigFile ];then
+                    echo "Error: GetConfigFile Not Found"
+                    exit 127
+                fi
+                ID="/tmp/geyoxnweddys"
+                GetConfigFile $ID
+            fi
+        CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+        HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+        ret=$?
+      else
+        CURL_CMD="curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+        HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+        ret=$?
+      fi
+      rm -rf $ID
       echo_t "CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE
-      HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
-      ret=$?
 
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
@@ -217,6 +245,7 @@ useDirectRequest()
     else
         echo_t "dca$2: Splunk Direct Connection curl error - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
     fi
+
     direct_retry=$(( direct_retry += 1 ))
     if [ "$direct_retry" -ge "$DIRECT_RETRY_COUNT" ]; then
        # .lastdirectfail will not be created for only direct connection 
