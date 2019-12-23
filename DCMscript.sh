@@ -80,6 +80,7 @@ HTTP_HEADERS='Content-Type: application/json'
 RETRY_DELAY=60
 ## RETRY COUNT
 RETRY_COUNT=3
+MAX_SSH_RETRY=3
 
 echo_t "Starting execution of DCMscript.sh" >> $DCM_LOG_FILE
 
@@ -107,6 +108,35 @@ conn_str="Direct"
 first_conn=useDirectRequest
 sec_conn=useCodebigRequest
 CodebigAvailable=0
+
+sshCmdOnAtom() {
+
+    command=$1
+    GetConfigFile $PEER_COMM_ID
+    count=0
+    isCmdExecFail="true"
+    while [ $count -lt $MAX_SSH_RETRY ]
+    do
+
+        ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "echo $command > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo_t "$count : SSH failure to ATOM for $command.Retrying..." >> $RTL_LOG_FILE
+            sleep 10
+        else
+            count=$MAX_SSH_RETRY
+            isCmdExecFail="false"
+        fi
+        count=$((count + 1))
+    done
+    rm -f $PEER_COMM_ID
+
+    if [ "x$isCmdExecFail" == "xtrue" ]; then
+        echo_t "Failed to exec command $command on atom " >> $RTL_LOG_FILE
+    fi
+}
+
+
 
 # This override doesn't happen during device bootup
 if [ -f $DCMRESPONSE ]; then
@@ -335,14 +365,14 @@ dropbearRecovery()
 {
    dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
-       echo "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
+       echo_t "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
        DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
        DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
        if [ ! -d '/tmp/.dropbear' ]; then
-           echo "wan_ssh.sh: need to create dropbear dir !!! " >> $DCM_LOG_FILE
+           echo_t "wan_ssh.sh: need to create dropbear dir !!! " >> $DCM_LOG_FILE
            mkdir -p /tmp/.dropbear
        fi
-       echo "wan_ssh.sh: need to create dropbear files !!! " >> $DCM_LOG_FILE
+       echo_t "wan_ssh.sh: need to create dropbear files !!! " >> $DCM_LOG_FILE
        getConfigFile $DROPBEAR_PARAMS_1
        getConfigFile $DROPBEAR_PARAMS_2
        dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ARM_INTERFACE_IP:22 &
@@ -458,10 +488,10 @@ fi
             if [ $? -ne 0 ]; then
                 scp -i $PEER_COMM_ID $DCMRESPONSE root@$ATOM_INTERFACE_IP:$PERSISTENT_PATH > /dev/null 2>&1
             fi
+            rm -f $PEER_COMM_ID
             echo "Signal atom to pick the XCONF config data $DCMRESPONSE and schedule telemetry !!! " >> $DCM_LOG_FILE
             ## Trigger an inotify event on ATOM 
-            ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'xconf_update' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
-            rm -f $PEER_COMM_ID
+            sshCmdOnAtom 'xconf_update'
         else
             
 			isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
