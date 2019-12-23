@@ -65,6 +65,8 @@ SCP_COMPLETE="/tmp/.scp_done"
 PEER_COMM_ID="/tmp/elxrretyt-dca.swr"
 IDLE_TIMEOUT=30
 
+MAX_SSH_RETRY=3
+
 ## For simple T2.0 migration consider only below steps for T2 Enable mode
 T2_ENABLE=`syscfg get T2Enable`
 echo_t "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ." >> $RTL_LOG_FILE
@@ -117,6 +119,33 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     
 fi
 
+sshCmdOnArm(){
+
+    command=$1
+    GetConfigFile $PEER_COMM_ID
+    count=0
+    isCmdExecFail="true"
+    while [ $count -lt $MAX_SSH_RETRY ]
+    do
+        ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "echo $command > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo_t "$count : SSH command execution failure to ARM for $command. Retrying..." >> $RTL_LOG_FILE
+            sleep 10
+        else
+            count=$MAX_SSH_RETRY
+            isCmdExecFail="false"
+        fi
+        count=$((count + 1))
+    done
+    rm -f $PEER_COMM_ID
+
+    if [ "x$isCmdExecFail" == "xtrue" ]; then
+        echo_t "Failed to exec command $command on arm with $MAX_SSH_RETRY retries" >> $RTL_LOG_FILE
+    fi
+
+}
+
 
 # Retain source for future enabling. Defaulting to disable for now
 snmpCheck=false
@@ -124,10 +153,7 @@ snmpCheck=false
 dcaCleanup()
 {
     if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
-        $CONFIGPARAMGEN jx $PEER_COMM_DAT $PEER_COMM_ID
-        ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyTelemetryCleanup' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
-        echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
-        rm -f $PEER_COMM_ID
+        sshCmdOnArm 'notifyTelemetryCleanup'
     else
         touch $TELEMETRY_EXEC_COMPLETE
     fi
@@ -438,10 +464,10 @@ dropbearRecovery()
        DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
        DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
        if [ ! -d '/tmp/.dropbear' ]; then
-          echo "wan_ssh.sh: need to create dropbear dir !!! " >> $RTL_LOG_FILE
+          echo_t "wan_ssh.sh: need to create dropbear dir !!! " >> $RTL_LOG_FILE
           mkdir -p /tmp/.dropbear
        fi
-       echo "wan_ssh.sh: need to create dropbear files !!! " >> $RTL_LOG_FILE
+       echo_t "wan_ssh.sh: need to create dropbear files !!! " >> $RTL_LOG_FILE
        getConfigFile $DROPBEAR_PARAMS_1
        getConfigFile $DROPBEAR_PARAMS_2
        dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ATOM_INTERFACE_IP:22 &
@@ -683,18 +709,16 @@ else
        if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
            echo "Notify ARM to pick the updated JSON message in $TELEMETRY_JSON_RESPONSE and upload to splunk" >> $RTL_LOG_FILE
            # Trigger inotify event on ARM to upload message to splunk
-           GetConfigFile $PEER_COMM_ID
            if [ $triggerType -eq 2 ]; then
-               ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'notifyFlushLogs' > $TELEMETRY_INOTIFY_EVENT"  > /dev/null 2>&1
+               sshCmdOnArm 'notifyFlushLogs'
                echo_t "notify ARM for dca execution completion" >> $RTL_LOG_FILE
            else
                if [ "$bootupTelemetryBackup" = "true" -a $triggerType -eq 1 ];then
-                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'bootupBackup' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+                    sshCmdOnArm 'bootupBackup'
                else
-                    ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ARM_INTERFACE_IP "/bin/echo 'splunkUpload' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
+                    sshCmdOnArm 'splunkUpload'
                fi
            fi
-           rm -f $PEER_COMM_ID
        else
            if [ $triggerType -eq 2 ]; then
                touch $TELEMETRY_EXEC_COMPLETE
