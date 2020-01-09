@@ -18,6 +18,15 @@
 # limitations under the License.
 ##########################################################################
 
+T2_MSG_CLIENT=/usr/bin/telemetry2_0_client
+
+t2ValNotify() {
+    if [ -f $T2_MSG_CLIENT ]; then
+        marker=$1
+        shift
+        $T2_MSG_CLIENT "$marker" "$*"
+    fi
+}
 
 uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
 echo "before running log_mem_cpu_info_atom.sh.sh printing top output" >> /rdklogs/logs/CPUInfoPeer.txt.0
@@ -86,12 +95,14 @@ TMPFS_THRESHOLD=85
 	    echo "RDKB_USED_MEM_ATOM : Used mem is $usedMemSys at timestamp $timestamp"
 	    echo "USED_MEM_ATOM:$usedMemSys"
 	    echo "FREE_MEM_ATOM :Free mem is $freeMemSys at timestamp $timestamp"
+            t2ValNotify "USED_MEM_ATOM_split" "$usedMemSys"
 
 	    LOAD_AVG=`uptime | awk -F'[a-z]:' '{ print $2}' | sed 's/^ *//g' | sed 's/,//g' | sed 's/ /:/g'`
 	    echo " RDKB_LOAD_AVERAGE_ATOM : Load Average is $LOAD_AVG at timestamp $timestamp"
 	    LOAD_AVG_15=`echo $LOAD_AVG | cut -f3 -d:`
 	    echo_t "LOAD_AVERAGE_ATOM:$LOAD_AVG_15"
-	    
+	    t2ValNotify "LOAD_AVG_ATOM_split" "$LOAD_AVG_15"
+
 	    #Record the start statistics
 
 		STARTSTAT=$(getstat)
@@ -115,6 +126,8 @@ TMPFS_THRESHOLD=85
 		timestamp=`getDate`
 		echo "RDKB_CPU_USAGE_ATOM : CPU usage is $Curr_CPULoad at timestamp $timestamp"
 		echo_t "USED_CPU_ATOM:$Curr_CPULoad"
+                t2ValNotify "USED_CPU_ATOM_split" "$Curr_CPULoad"
+
 		count=$((count + 1))
 
 		echo_t "Count = $count"
