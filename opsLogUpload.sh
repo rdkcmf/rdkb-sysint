@@ -477,7 +477,7 @@ uploadOnRequest()
 				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"
-					protected_rsync $blog_dir$timeRequested
+					sync_atom_log_files $blog_dir$timeRequested
 #nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_UPLOAD_ON_REQUEST$timeRequested/ > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
