@@ -557,6 +557,21 @@ if [ "$triggerType" == "remove_old_logbackup" ]; then
 	exit
 fi
 
+########################################################
+#               RDKB-26588 && TRDKB-355 - Mitigation   #
+#         To Ensure only one instance is running       #
+########################################################
+RDKLOG_LOCK_DIR="/tmp/locking_logmonitor"
+
+if mkdir $RDKLOG_LOCK_DIR
+then
+    echo "Got the first instance running"
+else
+    echo "Already a instance is running; No 2nd instance"
+    exit
+fi
+########################################################
+
 PEER_COMM_ID="/tmp/elxrretyt-logm.swr"
 
 RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
@@ -884,4 +899,11 @@ do
 	fi
               	
 done
+
+########################################################
+#               RDKB-26588 && TRDKB-355 - Mitigation   #
+#         To Ensure only one instance is running       #
+########################################################
+rm -rf $RDKLOG_LOCK_DIR
+########################################################
 

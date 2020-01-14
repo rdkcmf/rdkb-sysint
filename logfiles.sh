@@ -31,9 +31,8 @@ fi
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 PATTERN_FILE="/tmp/pattern_file"
-
-RSYNC_RUNNING="/tmp/rsync_running"
-RSYNC_WAITING="/tmp/rsync_waiting"
+SCP_RUNNING="/tmp/scp_running"
+SCP_WAITING="/tmp/scp_waiting"
 
 SCP_COMPLETE="/tmp/.scp_done"
 
@@ -160,64 +159,68 @@ flush_atom_logs()
 	
 }
 
-protected_rsync()
+#To sync logs from atom side :
+#If there is no scp running then it should do the file transfer.
+# If some process try to execute when another scp operation is in progress,
+# it will wait for 60 sec, then it will forcefully kill the scp process if it still exists.
+sync_atom_log_files()
 {
+    destination=$1
+    SCP_PID=`pidof scp`
+    GetConfigFile $PEER_COMM_ID
 
-	destination=$1
-	RSYNC_PID=`pidof rsync`
-	GetConfigFile $PEER_COMM_ID
-    if [ "$RSYNC_PID" != "" ] && [ -f $RSYNC_RUNNING ] && [ ! -f $RSYNC_WAITING ]; then
-		i=0;
-		timeout=1;
-		echo_t "Already rsync running"
-		touch $RSYNC_WAITING
-		while [ $i -le 60 ]; do
-			RSYNC_PID=`pidof rsync`
-			if [ "$RSYNC_PID" == "" ]; then
-				timeout=0
-				echo_t "rsync running over"
-				break
-			fi
-			i=$((i + 1))
-			sleep 1
-		done
+    if [ "$SCP_PID" != "" ] && [ -f $SCP_RUNNING ] && [ ! -f $SCP_WAITING ]; then
+        i=0;
+        timeout=1;
+        echo_t "Already scp running pid=$SCP_PID"
+        touch $SCP_WAITING
+        while [ $i -le 60 ]; do
+            SCP_PID=`pidof scp`
+            if [ "$SCP_PID" == "" ]; then
+                timeout=0
+                echo_t "existing scp process finished"
+                break
+            fi
+            i=$((i + 1))
+            sleep 1
+        done
 
-		if [ $timeout -eq 1 ]; then
-			echo_t "killing all rsync"
-			killall rsync
-		fi
+        if [ $timeout -eq 1 ]; then
+            echo_t "killing all scp"
+            killall scp
+        fi
 
-		if [ -f $RSYNC_RUNNING ]; then
-			rm $RSYNC_RUNNING
-		fi
-		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
-		sync_res=$?
-		if [ "$sync_res" = "0" ]
-		then
-			echo "Sync from ATOM complete"
-		else
-			echo "Sync from ATOM failed , return code is $sync_res"
-		fi
+        if [ -f $SCP_RUNNING ]; then
+            rm $SCP_RUNNING
+        fi
+        nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        sync_res=$?
+        if [ "$sync_res" = "0" ]; then
+            echo "Sync from ATOM complete"
+        else
+            echo "Sync from ATOM failed , return code is $sync_res"
+        fi
 
-		if [ -f $RSYNC_WAITING ]; then
-			rm $RSYNC_WAITING
-		fi
-
-	elif [ "$RSYNC_PID" == "" ]; then
-		touch $RSYNC_RUNNING
-		nice -n 20 rsync -e "ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID" root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
-		sync_res=$?
-		if [ "$sync_res" = "0" ]
-		then
-			echo "Sync from ATOM complete"
-		else
-			echo "Sync from ATOM failed , return code is $sync_res"
-		fi
-		rm $RSYNC_RUNNING
-	fi
-        rm -f $PEER_COMM_ID
-
+        if [ -f $SCP_WAITING ]; then
+            rm $SCP_WAITING
+        fi
+    elif [ "$SCP_PID" == "" ]; then
+        touch $SCP_RUNNING
+        nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        sync_res=$?
+        if [ "$sync_res" = "0" ]; then
+            echo "Sync from ATOM complete"
+        else
+            echo "Sync from ATOM failed , return code is $sync_res"
+        fi
+        rm $SCP_RUNNING
+    fi
+    rm -f $PEER_COMM_ID
 }
+
+
+
+
 
 syncLogs_nvram2()
 {
@@ -249,7 +252,7 @@ syncLogs_nvram2()
 				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					protected_rsync $LOG_PATH
+					sync_atom_log_files $LOG_PATH
 #nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
@@ -675,7 +678,7 @@ backupAllLogs()
 				if [ "$CHECK_PING_RES" != "100" ]
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					protected_rsync $LOG_PATH
+					sync_atom_log_files $LOG_PATH
 #nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
 					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
 					echo_t "Call dca for log processing and then flush ATOM logs"
