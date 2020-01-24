@@ -214,6 +214,8 @@ useDirectRequest()
       fi
     if [ "$ret" -eq 0 ]; then
         echo_t "dca$2: Direct Connection Failure - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
+    else
+        echo_t "dca$2: Splunk Direct Connection curl error - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
     fi
     direct_retry=$(( direct_retry += 1 ))
     if [ "$direct_retry" -ge "$DIRECT_RETRY_COUNT" ]; then
@@ -267,6 +269,8 @@ useCodebigRequest()
       fi
       if [ "$curlret" -eq 0 ]; then
           echo_t "dca$2: Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
+      else
+          echo_t "dca$2: Splunk Codebig Connection curl error - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
       fi
       sleep 10
     return 1
