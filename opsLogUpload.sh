@@ -35,6 +35,7 @@ RDK_LOGGER_PATH="/rdklogger"
 source $RDK_LOGGER_PATH/logfiles.sh
 source /lib/rdk/utils.sh
 source /lib/rdk/t2Shared_api.sh
+source /etc/device.properties
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
 fi
@@ -98,10 +99,10 @@ PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
-SECURE_SYSCFG=`syscfg get UpdateNvram`
+if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$MODEL_NUM" = "TG4482A" ]; then
 SYS_DB_FILE="/nvram/syscfg.db"
-if [ "$SECURE_SYSCFG" = "false" ]; then
-      SYS_DB_FILE="/opt/secure/data/syscfg.db"
+else
+SYS_DB_FILE="/opt/secure/data/syscfg.db"
 fi
 
 

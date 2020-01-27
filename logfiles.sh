@@ -19,8 +19,9 @@
 ##########################################################################
 RDK_LOGGER_PATH="/rdklogger"
 
+source /etc/device.properties
 source /etc/utopia/service.d/log_capture_path.sh
-source /lib/rdk/utils.sh 
+source /lib/rdk/utils.sh
 if [ -f /etc/logFiles.properties ]; then
     source /etc/logFiles.properties
 fi
@@ -70,12 +71,12 @@ FLUSH_LOG_PATH="/rdklogger/flush_logs.sh"
 SYS_CFG_FILE="syscfg.db"
 BBHM_CFG_FILE="bbhm_cur_cfg.xml"
 WIRELESS_CFG_FILE="wireless"
-SECURE_SYSCFG=`syscfg get UpdateNvram`
-SYS_DB_FILE="/nvram/syscfg.db"
-if [ "$SECURE_SYSCFG" = "false" ]; then
-      SYS_DB_FILE="/opt/secure/data/syscfg.db"
-fi
 
+if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$MODEL_NUM" = "TG4482A" ]; then
+SYS_DB_FILE="/nvram/syscfg.db"
+else
+SYS_DB_FILE="/opt/secure/data/syscfg.db"
+fi
 
 moveFile()
 {        
@@ -613,7 +614,7 @@ backupnvram2logs_on_reboot()
         fi
 
          if [ "$BOX_TYPE" = "XB6" ]; then
-        	cp /nvram/$SYS_CFG_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
+        	cp $SYS_DB_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
         	cp /nvram/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
         	cp /nvram/config/$WIRELESS_CFG_FILE $LOG_SYNC_PATH$WIRELESS_CFG_FILE
        		sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $LOG_SYNC_PATH$WIRELESS_CFG_FILE
@@ -719,7 +720,7 @@ backupAllLogs()
 	done
 	cp /version.txt $dt
 	if [ "$BOX_TYPE" = "XB6" ]; then
-		cp /nvram/$SYS_CFG_FILE $dt$SYS_CFG_FILE
+		cp $SYS_DB_FILE $dt$SYS_CFG_FILE
         cp /nvram/$BBHM_CFG_FILE $dt$BBHM_CFG_FILE
         cp /nvram/config/$WIRELESS_CFG_FILE $dt$WIRELESS_CFG_FILE
         sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dt$WIRELESS_CFG_FILE
