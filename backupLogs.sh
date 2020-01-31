@@ -374,9 +374,14 @@ then
 		echo_t "sleep for 1 sec to send reboot pending notification"
 		sleep 1
 	fi
-	# kill parodus with SIGUSR1
-	echo_t "Properly shutdown parodus by sending SIGUSR1 kill signal"
-	killall -s SIGUSR1 parodus
+	# kill parodus with SIGTERM
+	if [ -f /lib/systemd/system/parodus.service ]; then
+		echo_t "Shutdown parodus"
+		systemctl stop parodus.service
+	else
+		echo_t "Properly shutdown parodus by sending SIGTERM kill signal"
+		killall -s SIGTERM parodus
+	fi
 	sleep 1
 	rebootFunc
 fi
