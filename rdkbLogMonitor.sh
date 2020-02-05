@@ -25,6 +25,7 @@ boot_up_log_synced="false"
 #source /etc/utopia/service.d/log_capture_path.sh
 source $RDK_LOGGER_PATH/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
+source /lib/rdk/t2Shared_api.sh
 
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
@@ -78,6 +79,8 @@ DeviceUP=0
 #---------------------------------
 # Function declarations
 #---------------------------------
+
+
 
 ## FW version from version.txt 
 getFWVersion()
@@ -751,6 +754,7 @@ do
 	        #for rdkb-4260
 	        if [ -f "$SW_UPGRADE_REBOOT" ]; then
 	           echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
+		   t2CountNotify "SYS_INFO_SW_upgrade_reboot"
 	           #deleting reboot_due_to_sw_upgrade file
 	           echo_t "Deleting file /nvram/reboot_due_to_sw_upgrade"
 	           rm -rf /nvram/reboot_due_to_sw_upgrade

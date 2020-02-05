@@ -20,6 +20,8 @@
 
 source /etc/device.properties
 source /etc/log_timestamp.sh
+source /lib/rdk/t2Shared_api.sh
+
 
 CONSOLE_LOG_FILE="/rdklogs/logs/Consolelog.txt.0"
 
@@ -33,6 +35,9 @@ if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ];then
 fi
 
 echo_t "Factory Partner_ID returned from the platform is: $factoryPartnerId" >> "$CONSOLE_LOG_FILE"
+t2ValNotify "factoryPartnerid_split" "$factoryPartnerId"
+
 
 rdkb_partner_id=`syscfg get PartnerID`
 echo_t "RDKB Partner_ID returned from the syscfg.db is: $rdkb_partner_id" >> "$CONSOLE_LOG_FILE"
+t2ValNotify "syscfg_partner_split" "$rdkb_partner_id"

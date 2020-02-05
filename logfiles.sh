@@ -28,6 +28,9 @@ fi
 if [ -f /etc/telemetry2_0.properties ]; then
     . /etc/telemetry2_0.properties
 fi
+
+source /lib/rdk/t2Shared_api.sh
+
 #. $RDK_LOGGER_PATH/commonUtils.sh
 MAINTENANCE_WINDOW="/tmp/maint_upload"
 PATTERN_FILE="/tmp/pattern_file"
@@ -72,6 +75,7 @@ SYS_DB_FILE="/nvram/syscfg.db"
 if [ "$SECURE_SYSCFG" = "false" ]; then
       SYS_DB_FILE="/opt/secure/data/syscfg.db"
 fi
+
 
 moveFile()
 {        
@@ -389,6 +393,7 @@ checkConnectivityAndReboot()
 
 	if [ $rebootNeeded -eq 1 ] ; then
 		echo_t "Connectivity is still not back.. rebooting due to no connectivity"
+		t2CountNotify "SYS_ERROR_NoConnectivity_reboot"
 		syscfg set X_RDKCENTRAL-COM_LastRebootReason "no-connectivity"
 		syscfg set X_RDKCENTRAL-COM_LastRebootCounter 1
 		syscfg commit
