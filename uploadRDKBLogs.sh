@@ -21,6 +21,9 @@
 
 #source /etc/utopia/service.d/log_env_var.sh
 #source /etc/utopia/service.d/log_capture_path.sh
+
+source /lib/rdk/t2Shared_api.sh
+
 RDK_LOGGER_PATH="/rdklogger"
 
 NVRAM2_SUPPORTED="no"
@@ -99,6 +102,7 @@ fi
 UploadPath=$6
 
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
+
 
 getFWVersion()
 {
@@ -464,7 +468,10 @@ HttpLogUpload()
             URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
         fi
 
-        $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; preserveThisLog $UploadFile $UploadPath; continue ; }
+        $first_conn || $sec_conn \
+            || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; \
+            t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED" \
+            preserveThisLog $UploadFile $UploadPath; continue ; }
 
         # If 200, executing second curl command with the public key.
         if [ "$http_code" = "200" ];then
@@ -682,6 +689,7 @@ HttpLogUpload()
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
 	    preserveThisLog $UploadFile $UploadPath
+	    t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
 
             fi
 

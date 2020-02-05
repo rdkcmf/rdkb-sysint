@@ -21,6 +21,7 @@
 # zhicheng_qiu@cable.comcast.com
 
 source /fss/gw/etc/utopia/service.d/log_env_var.sh
+source /lib/rdk/t2Shared_api.sh
 
 BIN_PATH=/fss/gw/usr/ccsp
 if mkdir $lockdir; then
@@ -29,6 +30,7 @@ if mkdir $lockdir; then
 else
   exit 6
 fi
+
 
 t="RDKB_DataConsumption"
 tm=`date "+%s"`
@@ -83,6 +85,7 @@ if [ "$tm_d" -gt "300" ]; then
 	#tx_d=$(($tx-$tx_0))
 	tx_d=`$BIN_PATH/Sub64 $tx $tx_0`
         echo "$d $t:$rx|$tx|$rx_d|$tx_d " >> $LOG_PATH/RXTX100Log.txt
+	t2ValNotify "dataconsump_split" "$rx|$tx|$rx_d|$tx_d "
 
 
 	t="RDKB_WiFiClientDrop"
