@@ -293,7 +293,7 @@ then
 
     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" 
     backup_log_pidCleanup
-    return 0
+    exit 0
 else
   Crashed_Process_Is=$2
 fi
