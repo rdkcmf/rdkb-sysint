@@ -45,7 +45,7 @@ fi
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 DIRECT_BLOCK_TIME=86400
 DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dcm"
-
+DCM_FILE_DOWNLOADED="/tmp/dcmFileDownloaded"
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/lib
 
@@ -260,6 +260,7 @@ useDirectRequest()
       esac
       if [ $http_code -eq 200 ]; then
            echo_t "Direct connection success - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+           touch $DCM_FILE_DOWNLOADED
            return 0
       elif [ $http_code -eq 404 ]; then 
            echo "`Timestamp` Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
@@ -310,6 +311,8 @@ useCodebigRequest()
         esac
        if [ "$http_code" -eq 200 ]; then
            echo_t "Codebig connection success - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
+           touch $DCM_FILE_DOWNLOADED
+
            return 0
        elif [ "$http_code" -eq 404 ]; then
            echo_t "DCM Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
