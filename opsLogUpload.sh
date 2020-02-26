@@ -56,6 +56,7 @@ conn_str="Direct"
 first_conn=useDirectRequest
 sec_conn=useCodebigRequest
 CodebigAvailable=0
+mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
@@ -69,6 +70,7 @@ PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
+CA_CERT="/nvram/cacert.pem"
 SECURE_SYSCFG=`syscfg get UpdateNvram`
 SYS_DB_FILE="/nvram/syscfg.db"
 if [ "$SECURE_SYSCFG" = "false" ]; then
@@ -165,8 +167,18 @@ useDirectRequest()
     while [ "$retries" -lt "3" ]
     do
         echo_t "Trying Direct Communication"
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
 
+      if [ "$mTlsLogUpload" == "true" ] && [ -d /etc/ssl/certs ]; then
+          if [ ! -f /usr/bin/GetConfigFile ];then
+              echo "Error: GetConfigFile Not Found"
+              exit 127
+          fi
+          ID="/tmp/uydrgopwxyem"
+          GetConfigFile $ID
+        CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+      else
+          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
+      fi
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
@@ -174,7 +186,7 @@ useDirectRequest()
 
         echo_t "Trial $retries for DIRECT ..."
         #Sensitive info like Authorization signature should not print
-        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
         HTTP_CODE=`ret= eval $CURL_CMD`
 
         if [ "x$HTTP_CODE" != "x" ];
@@ -186,6 +198,11 @@ useDirectRequest()
                  echo_t "Direct Communication - ret:$ret, http_code:$http_code"
                  if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
 			echo $http_code > $UPLOADRESULT
+                        if [ -f "$ID" ];then
+                            rm -rf "$ID"
+                        else
+                            echo "Getconfig file fails"
+                        fi
                         return 0
                  fi
                  echo "failed" > $UPLOADRESULT
@@ -195,6 +212,11 @@ useDirectRequest()
             echo_t "Direct Communication Failure Attempt:$retries  - ret:$ret, http_code:$http_code"
         fi
         retries=`expr $retries + 1`
+        if [ -f "$ID" ];then
+            rm -rf "$ID"
+        else
+            echo "Getconfig file fails"
+        fi
         sleep 30
     done
    echo "Retries for Direct connection exceeded " 
@@ -281,6 +303,23 @@ HTTPLogUploadOnRequest()
     [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
 
     UploadFile=`ls | grep "tgz"`
+    echo_t "files to be uploaded is : $UploadFile"
+    url=`grep 'LogUploadSettings:UploadRepository:URL' /tmp/DCMresponse.txt`
+    if [ "$url" != "" ]; then
+        httplink=`echo $url | cut -d '"' -f4`
+        if [ -z "$httplink" ]; then
+            echo "`/bin/timestamp` 'LogUploadSettings:UploadRepository:URL' is not found in DCMSettings.conf, upload_httplink is '$UploadHttpLink'"
+        else
+            echo "LogUploadSettings $httplink"
+            UploadHttpLink=$httplink
+        fi
+    fi
+    S3_URL=$UploadHttpLink
+    
+    if [ "$mTlsLogUpload" == "true" ]; then
+        S3_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
+        echo "Log Upload requires Mutual Authentication:$S3_URL"
+    fi
 
     S3_MD5SUM=""
     echo "RFC_EncryptCloudUpload_Enable:$encryptionEnable"

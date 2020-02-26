@@ -55,12 +55,13 @@ first_conn=useDirectRequest
 sec_conn=useCodebigRequest
 CodebigAvailable=0
 
+mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
 if [ $# -ne 4 ]; then 
-     #echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
-     echo "USAGE: $0 $1 $2 $3 $4"
+     echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
+     #echo "USAGE: $0 $1 $2 $3 $4"
 fi
 
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
@@ -252,19 +253,34 @@ useDirectRequest()
     do
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
-            CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
-            echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+      if [ "$mTlsLogUpload" == "true" ] && [ -d /etc/ssl/certs ]; then
+          if [ ! -f /usr/bin/GetConfigFile ];then
+              echo "Error: GetConfigFile Not Found"
+              exit 127
+          fi
+          ID="/tmp/uydrgopwxyem"
+          GetConfigFile $ID
+        CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+      else
+        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+      fi
         if [ $retries -ne 0 ]
         then
             echo_t "CURL_CMD:$CURL_CMD"
             HTTP_CODE=`ret= eval $CURL_CMD`
-
             if [ "x$HTTP_CODE" != "x" ]; then
                 http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
                 echo_t "Direct Communication - ret:$ret, http_code:$http_code"
                 if [ "$http_code" != "" ];then
                     echo_t "Direct connection HttpCode received is : $http_code"
                     if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
+                        if [ -f "$ID" ];then
+                            rm -rf "$ID"
+                        else
+                            echo "Getconfig file fails" 
+                        fi
                         return 0
                     fi
                 fi
@@ -275,6 +291,11 @@ useDirectRequest()
         fi
                
         retries=`expr $retries + 1`
+        if [ -f "$ID" ];then
+            rm -rf "$ID"
+        else
+            echo "Getconfig file fails" 
+        fi
         sleep 30
     done
     echo "Retries for Direct connection exceeded " 
@@ -405,7 +426,17 @@ HttpLogUpload()
        fi
    fi
    echo_t "files to be uploaded is : $UploadFile"
-
+   url=`grep 'LogUploadSettings:UploadRepository:URL' /tmp/DCMresponse.txt`
+   if [ "$url" != "" ]; then
+       httplink=`echo $url | cut -d '"' -f4`
+       if [ -z "$httplink" ]; then
+           echo "`/bin/timestamp` 'LogUploadSettings:UploadRepository:URL' is not found in DCMSettings.conf, upload_httplink is '$UploadHttpLink'"
+       else
+           echo "LogUploadSettings $httplink"
+           UploadHttpLink=$httplink
+       fi
+   fi
+   
     S3_URL=$UploadHttpLink
     file_list=$UploadFile
 
@@ -418,6 +449,10 @@ HttpLogUpload()
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
+        if [ "$mTlsLogUpload" == "true" ]; then
+          S3_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
+          echo "Log Upload requires Mutual Authentication:$S3_URL"
+        fi
         echo_t "S3 URL is : $S3_URL"
 
         S3_MD5SUM=""
