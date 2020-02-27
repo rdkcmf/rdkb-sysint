@@ -21,7 +21,6 @@
 source /etc/log_timestamp.sh
 
 ps_names="CcspCMAgentSsp CcspPandMSsp CcspHomeSecurity CcspMoCA CcspTandDSsp CcspXdnsSsp CcspEthAgent CcspLMLite PsmSsp notify_comp"
-top_op=$(top -b -n -1 | tr -s ' ' | sed -r 's/S ([^0-9])/S\1/'  | sed 's/^ \s*//' | cut -d ' ' -f 7-)
 page_size=4
 cpu=0
 mem=0
@@ -29,7 +28,14 @@ LOG_FILE="$LOG_PATH/CPUInfo.txt.0"
 
 getCPU()
 {
-    cpu=$(echo "$top_op" | grep $1 | cut -d ' ' -f 1 | sed s/%//)
+    prev_cpu_time=`awk '/^cpu / {t=0; for(i=2;i<=NF;i++) t+=$i} END {print t}' </proc/stat`
+    prev_proc_time=`awk '{p=0; for(i=14;i<=17;i++) p+=$i} END {print p}' </proc/$1/stat`
+    sleep 1
+    cur_cpu_time=`awk '/^cpu / {t=0; for(i=2;i<=NF;i++) t+=$i} END {print t}' </proc/stat`
+    cur_proc_time=`awk '{p=0; for(i=14;i<=17;i++) p+=$i} END {print p}' </proc/$1/stat`
+    total_cpu_diff=$(( $cur_cpu_time - $prev_cpu_time ))
+    total_proc_diff=$(( $cur_proc_time - $prev_proc_time ))
+    cpu=$(( $total_proc_diff*100 / $total_cpu_diff ))
 }
 
 getMem()
@@ -63,7 +69,7 @@ do
     pid=$(pidof $ps_name)
     cpu=0
     mem=0
-    getCPU $ps_name
+    getCPU $pid
     getMem $pid
     
     cpu_mem_info="${cpu_mem_info}${ps_name}_cpu:$cpu\n${ps_name}_mem:$mem\n"
