@@ -19,6 +19,7 @@
 ##########################################################################
 
 RDK_LOGGER_PATH="/rdklogger"
+boot_up_log_synced="false"
 
 #source /etc/utopia/service.d/log_env_var.sh
 #source /etc/utopia/service.d/log_capture_path.sh
@@ -436,15 +437,17 @@ bootup_upload()
 	   then
 	       echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
 	       fileToUpload=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+
 	   fi
 
 	   echo_t "File to be uploaded is $fileToUpload ...."
 	   #RDKB-7196: Randomize log upload within 30 minutes
 	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
-
+		boot_up_log_synced="true"
 	   if [ "$fileToUpload" != "" ]
 	   then
-              random_sleep
+	   	
+            random_sleep
 	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $TMP_LOG_UPLOAD_PATH
 	   else 
 	      echo_t "No log file found in logbackupreboot folder"
@@ -726,7 +729,6 @@ bootup_tarlogs
 bootup_upload &
 
 UPLOAD_LOGS=`processDCMResponse`
-
 while [ "$loop" = "1" ]
 do
 
@@ -779,12 +781,12 @@ do
 			# So, we should not move tar to /tmp in that case.
 			wan_event=`sysevent get wan_event_log_upload`
 			wan_status=`sysevent get wan-status`
-			if [ "$FILE_NAME" != "" ] && [ "$wan_event" != "yes" ] && [ "$wan_status" != "stopped" ]; then
+			if [ "$FILE_NAME" != "" ] && [ "$boot_up_log_synced" = "false" ]; then
 				mkdir $TMP_LOG_UPLOAD_PATH
 				mv $FILE_NAME $TMP_LOG_UPLOAD_PATH
 			fi
 			cd -
-
+			boot_up_log_synced="true"
 			if [ "$LOGBACKUP_ENABLE" == "true" ]; then	
 				createSysDescr
 				syncLogs_nvram2

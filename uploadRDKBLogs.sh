@@ -522,6 +522,10 @@ HttpLogUpload()
                 if [ "$UploadPath" = "$PRESERVE_LOG_PATH" ] ; then
                    adjustPreserveCount
                 fi
+
+	     else
+		echo_t "LOGS UPLOAD FAILED, RETURN CODE: $http_code"
+        	preserveThisLog $UploadFile $UploadPath
             fi
 
         #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key.
@@ -632,13 +636,16 @@ HttpLogUpload()
                     if [ "$UploadPath" = "$PRESERVE_LOG_PATH" ] ; then
                       adjustPreserveCount
                     fi
-                fi
+		 else
+			echo_t "LOG UPLOAD FAILED, RETURN CODE: $http_code"
+                	preserveThisLog $UploadFile $UploadPath
+		 fi
             fi
         else
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+	    preserveThisLog $UploadFile $UploadPath
 
-            rm -rf $UploadFile
             fi
 
         echo_t $result

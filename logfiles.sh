@@ -418,6 +418,8 @@ preserveThisLog()
 					if [ ! -f "$PRESERVE_LOG_PATH/$file" ]; then #Avoid duplicate copy
 						echo_t  "$path/$file log upload failed..preserve this log for further analysis"
 						cp $path/$file $PRESERVE_LOG_PATH
+						echo "Deleting the tar file after copying to $PRESERVE_LOG_PATH"
+						rm -rf $path/$file
 						backupCount=`expr $backupCount + 1`
 						echo $backupCount > /tmp/backupCount
 						#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
@@ -426,6 +428,9 @@ preserveThisLog()
 				else
 					echo_t "$path/$file not found at path $path"
 				fi #if [ -f "$path/$file" ] ; then 
+			else
+				echo "backupCount reached the logThreshold value , deleting the tar file"
+				rm -rf $path/$file
 			fi #end of if [ $backupCount -lt ..
 			#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
 			if [ "$model" = "TG3482G" ]; then
@@ -438,6 +443,9 @@ preserveThisLog()
                                 fi
 			fi #if [ "$model" = "TG3482G" ];
 		fi #if [ ! -d $PRESERVE_LOG_PATH ] ; then
+	else
+		echo "Deleting the tar file since logBackupEnable is disabled"
+		rm -rf $path/$file
 	fi #if [ "$logBackupEnable" = "true" ];then
 }
 
