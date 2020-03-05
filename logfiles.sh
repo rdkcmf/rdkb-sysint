@@ -193,7 +193,13 @@ sync_atom_log_files()
         if [ -f $SCP_RUNNING ]; then
             rm $SCP_RUNNING
         fi
-        nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        #facing issues with nice value in rbus mode thereby not considering nice value in rbus mode
+        if [ -e /nvram/rbus ]
+        then
+            scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        else
+            nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        fi
         sync_res=$?
         if [ "$sync_res" = "0" ]; then
             echo "Sync from ATOM complete"
@@ -206,7 +212,13 @@ sync_atom_log_files()
         fi
     elif [ "$SCP_PID" == "" ]; then
         touch $SCP_RUNNING
-        nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        #facing issues with nice value in rbus mode thereby not considering nice value in rbus mode
+        if [ -e /nvram/rbus ]
+        then
+            scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        else
+            nice -n 20 scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
+        fi
         sync_res=$?
         if [ "$sync_res" = "0" ]; then
             echo "Sync from ATOM complete"
@@ -249,9 +261,8 @@ syncLogs_nvram2()
 			then
 				if [ "$CHECK_PING_RES" != "100" ]
 				then
-					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
-					sync_atom_log_files $LOG_PATH
-#nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
+					echo_t "Ping to ATOM ip success, syncing ATOM side logs"
+                                        sync_atom_log_files $LOG_PATH
 				else
 					echo_t "Ping to ATOM ip falied, not syncing ATOM side logs"
 				fi
