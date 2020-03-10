@@ -25,6 +25,8 @@ else
 	LOG_FOLDER="/var/tmp"
 fi
 
+source /lib/rdk/t2Shared_api.sh
+
 . /etc/device.properties
 
 CONSOLEFILE="$LOG_FOLDER/logs/Consolelog.txt.0"
@@ -52,6 +54,7 @@ if [ "$partner_id" == "" ] || [ "$syscfg_err" != "" ];then
 			partner_id=`echo $PARTNER_ID`
 				if [ "$partner_id" == "" ];then
 					echo_time "partner_id is not available from syscfg.db or tr181 param or device.properties, defaulting to comcast..">>$CONSOLEFILE
+					t2CountNotify "SYS_ERROR_PartnerId_missing_sycfg"
 					echo "comcast"
 				else
 					echo_time "partner_id is not available from syscfg.db or tr181 param, value retrieved from device.properties : $partner_id">>$CONSOLEFILE

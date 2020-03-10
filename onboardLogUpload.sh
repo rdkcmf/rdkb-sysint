@@ -25,15 +25,14 @@
 #
 #
 
-if [ -f /etc/utopia/service.d/log_env_var.sh ];then
-	source /etc/utopia/service.d/log_env_var.sh
-fi
 source  /etc/log_timestamp.sh
 
 if [ -f /etc/ONBOARD_LOGGING_ENABLE ]; then
     ONBOARDLOGS_NVRAM_BACKUP_PATH="/nvram2/onboardlogs/"
     ONBOARDLOGS_TMP_BACKUP_PATH="/tmp/onboardlogs/"
 fi
+
+source /lib/rdk/t2Shared_api.sh
 
 ARGS=$1
 UploadFile=$2
@@ -284,6 +283,7 @@ uploadOnboardLogs()
         # Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ "$http_code" = "200" ];then
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	     t2CountNotify "LOGS_UPLOADED"
         fi
     else
         echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"

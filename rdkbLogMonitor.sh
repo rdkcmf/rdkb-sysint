@@ -274,6 +274,7 @@ upload_nvram2_logs()
 			while [ "$loop" = "1" ]
 			do
 		    	     echo_t "Waiting for stack to come up completely to upload logs..."
+			     t2CountNotify "SYS_INFO_WaitingFor_Stack_Init"
 		      	     sleep 30
 			     WEBSERVER_STARTED=`sysevent get webserver`
 		 	     if [ "$WEBSERVER_STARTED" == "started" ]
@@ -411,12 +412,14 @@ bootup_upload()
 	   fi
 	       
 	   echo_t "File to be uploaded is $fileToUpload ...."
+	   t2CountNotify "SYS_ERROR_LogFile_truncated"
 
 	   HAS_WAN_IP=""
 	   
 	   while [ "$loop" = "1" ]
 	   do
 	      echo_t "Waiting for stack to come up completely to upload logs..."
+	      t2CountNotify "SYS_INFO_WaitingFor_Stack_Init"
 	      sleep 30
 	      WEBSERVER_STARTED=`sysevent get webserver`
 	      if [ "$WEBSERVER_STARTED" == "started" ]
@@ -441,6 +444,7 @@ bootup_upload()
 	   fi
 
 	   echo_t "File to be uploaded is $fileToUpload ...."
+	   t2CountNotify "SYS_ERROR_LogFile_truncated"
 	   #RDKB-7196: Randomize log upload within 30 minutes
 	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
 		boot_up_log_synced="true"
@@ -494,6 +498,7 @@ bootup_upload()
 	fi
 
 	echo_t "File to be uploaded is $UploadFile ...."
+	t2CountNotify "SYS_ERROR_LogFile_truncated"
 
 	if [ "$UploadFile" != "" ]
 	then
@@ -506,6 +511,7 @@ bootup_upload()
 			while [ "$loop" = "1" ]
 			do
 		    	     echo_t "Waiting for stack to come up completely to upload logs..."
+			     t2CountNotify "SYS_INFO_WaitingFor_Stack_Init"
 		      	     sleep 30
 			     WEBSERVER_STARTED=`sysevent get webserver`
 		 	     if [ "$WEBSERVER_STARTED" == "started" ]
@@ -742,6 +748,7 @@ do
 	           DeviceUP=1
 	        else
 	           echo_t "RDKB_REBOOT: Device is up after reboot"
+		   t2CountNotify "SYS_INFO_bootup"
 	           DeviceUP=1
 	        fi
 	    fi
