@@ -303,9 +303,13 @@ syncLogs_nvram2()
 
 		offset=`sed -n '1p' $LOG_SYNC_PATH$file` # getting the offset
 		#echo "offset = $offset for file $LOG_PATH$file"
-
-		tail -n +$offset $LOG_PATH$file >> $LOG_SYNC_PATH$file # appeding the logs to nvram2
-
+                #PART of ARRISXB6-11061, to have numeral and null check for offset
+                echo "$offset"|grep "^[0-9]*$" > /dev/null
+                offsetnumeralornot="$?"
+                if [ ! -z $offset ] && [ $offsetnumeralornot == 0 ]; then
+                   tail -n +$offset $LOG_PATH$file >> $LOG_SYNC_PATH$file # appeding the logs to nvram2
+                fi
+                #change for ARRISXB6-11061 ends here
 		offset=`wc -l $LOG_SYNC_PATH$file | cut -d " " -f1`
 		#echo "new offset = $offset for file $LOG_PATH$file"
 		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
