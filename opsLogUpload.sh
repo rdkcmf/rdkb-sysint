@@ -528,7 +528,7 @@ uploadOnRequest()
 
 	if [ "$BOX_TYPE" = "XB6" ]; then
 		cp $SYS_DB_FILE $dest$SYS_CFG_FILE
-                cp /nvram/$BBHM_CFG_FILE $dest$BBHM_CFG_FILE
+                cp /tmp/$BBHM_CFG_FILE $dest$BBHM_CFG_FILE
         sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $dest$WIRELESS_CFG_FILE
         fi
 	if [ -f /tmp/backup_onboardlogs ]; then

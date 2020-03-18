@@ -550,7 +550,7 @@ backupnvram2logs()
         fi
         if [ "$BOX_TYPE" = "XB6" ]; then
         	cp $SYS_DB_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
-        	cp /nvram/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
+        	cp /tmp/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
         	cp /nvram/config/$WIRELESS_CFG_FILE $LOG_SYNC_PATH$WIRELESS_CFG_FILE
         	sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $LOG_SYNC_PATH$WIRELESS_CFG_FILE
         fi
