@@ -49,13 +49,14 @@ else
 fi
 
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
-DIRECT_BLOCK_TIME=86400
-DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_upl"
+CODEBIG_BLOCK_TIME=1800
+CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_upl"
+
+DIRECT_MAX_ATTEMPTS=3
+CODEBIG_MAX_ATTEMPTS=3
 
 UseCodeBig=0
 conn_str="Direct"
-first_conn=useDirectRequest
-sec_conn=useCodebigRequest
 CodebigAvailable=0
 
 mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
@@ -114,7 +115,7 @@ getBuildType()
 {
         # Currenlty this function not used. If used please ensure, calling get_Codebigconfig before this call
         # get_Codebigconfig currenlty called in HttpLogUpload 
-	if [ "$UseCodeBig" = "1" ]; then
+	if [ "$UseCodeBig" -eq "1" ]; then
         IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
 	else
         IMAGENAME=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
@@ -197,17 +198,17 @@ retryUpload()
 		
 }
 
-IsDirectBlocked()
+IsCodebigBlocked()
 {
     ret=0
-    if [ -f $DIRECT_BLOCK_FILENAME ]; then
-        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
-        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
-            echo "Last direct failed blocking is still valid, preventing direct"
+    if [ -f $CODEBIG_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $CODEBIG_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$CODEBIG_BLOCK_TIME" ]; then
+            echo "Last Codebig failed blocking is still valid, preventing Codebig"
             ret=1
         else
-            echo "Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct"
-            rm -f $DIRECT_BLOCK_FILENAME
+            echo "Last Codebig failed blocking has expired, removing $CODEBIG_BLOCK_FILENAME, allowing Codebig"
+            rm -f $CODEBIG_BLOCK_FILENAME
             ret=0
         fi
     fi
@@ -222,17 +223,15 @@ get_Codebigconfig()
       CodebigAvailable=1
    fi
 
-   if [ "$CodebigAvailable" = "1" ]; then
-       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+   if [ "$CodebigAvailable" -eq "1" ]; then
+      CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
-   if [ "$CodebigAvailable" = "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
       UseCodeBig=1 
       conn_str="Codebig"
-      first_conn=useCodebigRequest
-      sec_conn=useDirectRequest
    fi
 
-   if [ "$CodebigAvailable" = "1" ]; then
+   if [ "$CodebigAvailable" -eq "1" ]; then
       echo_t "Using $conn_str connection as the Primary"
    else
       echo_t "Only $conn_str connection is available"
@@ -243,17 +242,12 @@ get_Codebigconfig()
 # Direct connection Download function
 useDirectRequest()
 {
-    # Direct connection will not be tried if .lastdirectfail exists
-    IsDirectBlocked
-    if [ "$?" = "1" ]; then
-           return 1
-    fi
     # Direct Communication
-    # Performing 3 tries for successful curl command execution.
+    # Performing DIRECT_MAX_ATTEMPTS tries for successful curl command execution.
     # $http_code --> Response code retrieved from HTTP_CODE file path.
     echo_t "Trying Direct Communication"
     retries=0
-    while [ "$retries" -lt "3" ]
+    while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
@@ -270,28 +264,25 @@ useDirectRequest()
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
         echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
       fi
-        if [ $retries -ne 0 ]
-        then
-            echo_t "CURL_CMD:$CURL_CMD"
-            HTTP_CODE=`ret= eval $CURL_CMD`
-            if [ "x$HTTP_CODE" != "x" ]; then
-                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-                echo_t "Direct Communication - ret:$ret, http_code:$http_code"
-                if [ "$http_code" != "" ];then
-                    echo_t "Direct connection HttpCode received is : $http_code"
-                    if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
-                        if [ -f "$ID" ];then
-                            rm -rf "$ID"
-                        else
-                            echo "Getconfig file fails" 
-                        fi
-                        return 0
+        echo_t "CURL_CMD:$CURL_CMD"
+        HTTP_CODE=`ret= eval $CURL_CMD`
+        if [ "x$HTTP_CODE" != "x" ]; then
+            http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+            if [ "$http_code" != "" ];then
+                echo_t "Direct connection HttpCode received is : $http_code"
+                if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
+                    if [ -f "$ID" ];then
+                        rm -rf "$ID"
+                    else
+                        echo "Getconfig file fails" 
                     fi
+                    return 0
                 fi
-            else
-                http_code=0
-                echo_t "Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
             fi
+        else
+            http_code=0
+            echo_t "Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
         fi
                
         retries=`expr $retries + 1`
@@ -303,7 +294,6 @@ useDirectRequest()
         sleep 30
     done
     echo "Retries for Direct connection exceeded " 
-    [ "$CodebigAvailable" != "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
     return 1
 }
 
@@ -315,6 +305,12 @@ useCodebigRequest()
         echo "Log Upload : Only direct connection Available" 
         return 1
     fi
+
+    IsCodebigBlocked
+    if [ "$?" = "1" ]; then
+           return 1
+    fi
+
     echo_t "Trying Codebig Communication"
 
 
@@ -323,7 +319,7 @@ useCodebigRequest()
     fi
 
     retries=0
-    while [ "$retries" -lt "3" ]
+    while [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]
     do
         SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
         eval $SIGN_CMD > $SIGN_FILE
@@ -355,34 +351,37 @@ useCodebigRequest()
         # $http_code --> Response code retrieved from HTTP_CODE file path.
 
         echo_t "Trial $retries for CODEBIG..."
-        # nice value can be normal as the first trial failed
-        if [ $retries -ne 0 ]
+        #Sensitive info like Authorization signature should not print
+        echo "Curl Command built: $CURL_CMD_FOR_ECHO"
+        HTTP_CODE=`ret= eval $CURL_CMD`
+
+        if [ "x$HTTP_CODE" != "x" ];
         then
-            #Sensitive info like Authorization signature should not print
-            echo "Curl Command built: $CURL_CMD_FOR_ECHO"
-            HTTP_CODE=`ret= eval $CURL_CMD`
+            http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+            echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
 
-            if [ "x$HTTP_CODE" != "x" ];
-            then
-                http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-                echo_t "Codebig Communication - ret:$ret, http_code:$http_code"
-
-                if [ "$http_code" != "" ];then
-                    echo_t "Codebig connection HttpCode received is : $http_code"
-                    if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
-                        return 0
-                    fi
+            if [ "$http_code" != "" ];then
+                echo_t "Codebig connection HttpCode received is : $http_code"
+                if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
+                    return 0
                 fi
-            else
-                http_code=0
-                echo_t "Codebig Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
             fi
+        else
+            http_code=0
+            echo_t "Codebig Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
         fi
 
+        if [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]; then
+            if [ "$retries" -eq "0" ]; then
+                sleep 10
+            else
+                sleep 30
+            fi
+        fi
         retries=`expr $retries + 1`
-        sleep 30
     done
-    echo "Retries for Codebig connection exceeded " 
+    echo "Retries for Codebig connection exceeded "
+    [ -f $CODEBIG_BLOCK_FILENAME ] || touch $CODEBIG_BLOCK_FILENAME
     return 1
 }
 
@@ -468,10 +467,21 @@ HttpLogUpload()
             URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
         fi
 
-        $first_conn || $sec_conn \
-            || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; \
-            t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED" \
-            preserveThisLog $UploadFile $UploadPath; continue ; }
+        if [ "$UseCodeBig" -eq "1" ]; then
+           useCodebigRequest
+           ret=$?
+        else
+           useDirectRequest
+           ret=$?
+        fi
+
+        if [ "$ret" -ne "0" ]; then
+            echo_t "INVALID RETURN CODE: $http_code"
+            echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+            t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
+            preserveThisLog $UploadFile $UploadPath
+            continue
+        fi
 
         # If 200, executing second curl command with the public key.
         if [ "$http_code" = "200" ];then

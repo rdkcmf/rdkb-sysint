@@ -43,11 +43,15 @@ if [ -f /etc/mount-utils/getConfigFile.sh ];then
      . /etc/mount-utils/getConfigFile.sh
 fi
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
-DIRECT_BLOCK_TIME=86400
-DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_dcm"
+CODEBIG_BLOCK_TIME=1800
+CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcm"
+FORCE_DIRECT_ONCE="/tmp/.forcedirectonce_dcm"
 DCM_FILE_DOWNLOADED="/tmp/dcmFileDownloaded"
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/lib
+
+DIRECT_MAX_ATTEMPTS=3
+CODEBIG_MAX_ATTEMPTS=3
 
 if [ -z $LOG_PATH ]; then
     LOG_PATH="$PERSISTENT_PATH/logs"
@@ -79,8 +83,6 @@ IDLE_TIMEOUT=30
 HTTP_HEADERS='Content-Type: application/json'
 ## RETRY DELAY in secs
 RETRY_DELAY=60
-## RETRY COUNT
-RETRY_COUNT=3
 MAX_SSH_RETRY=3
 
 echo_t "Starting execution of DCMscript.sh" >> $DCM_LOG_FILE
@@ -106,9 +108,8 @@ echo_t "CHECK_ON_REBOOT: $checkon_reboot" >> $DCM_LOG_FILE
 rm -f $TELEMETRY_TEMP_RESEND_FILE
 
 conn_str="Direct"
-first_conn=useDirectRequest
-sec_conn=useCodebigRequest
 CodebigAvailable=0
+UseCodeBig=0
 
 sshCmdOnAtom() {
 
@@ -191,17 +192,17 @@ getVODId()
     echo "15660"
 }
 
-IsDirectBlocked()
+IsCodebigBlocked()
 {
     ret=0
-    if [ -f $DIRECT_BLOCK_FILENAME ]; then
-        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
-        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
-            echo "DCM: Last direct failed blocking is still valid, preventing direct" >>  $DCM_LOG_FILE
+    if [ -f $CODEBIG_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $CODEBIG_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$CODEBIG_BLOCK_TIME" ]; then
+            echo "DCM: Last Codebig failed blocking is still valid, preventing Codebig" >>  $DCM_LOG_FILE
             ret=1
         else
-            echo "DCM: Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" >> $DCM_LOG_FILE
-            rm -f $DIRECT_BLOCK_FILENAME
+            echo "DCM: Last Codebig failed blocking has expired, removing $CODEBIG_BLOCK_FILENAME, allowing Codebig" >> $DCM_LOG_FILE
+            rm -f $CODEBIG_BLOCK_FILENAME
             ret=0
         fi
     fi
@@ -217,15 +218,17 @@ get_Codebigconfig()
    fi
 
    if [ "$CodebigAvailable" -eq "1" ]; then
-       CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
+      CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
-   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+   if [ -f $FORCE_DIRECT_ONCE ]; then
+      rm -f $FORCE_DIRECT_ONCE
+      echo_t "Xconf dcm : Last Codebig attempt failed, forcing direct once" >> $DCM_LOG_FILE
+   elif [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+      UseCodeBig=1
       conn_str="Codebig"
-      first_conn=useCodebigRequest
-      sec_conn=useDirectRequest
    fi
 
-   if [ "$CodebigAvailable" -eq 1 ]; then
+   if [ "$CodebigAvailable" -eq "1" ]; then
       echo_t "Xconf dcm : Using $conn_str connection as the Primary" >> $DCM_LOG_FILE
    else
       echo_t "Xconf dcm : Only $conn_str connection is available" >> $DCM_LOG_FILE
@@ -235,44 +238,38 @@ get_Codebigconfig()
 # Direct connection Download function
 useDirectRequest()
 {
-    # Direct connection will not be tried if .lastdirectfail exists
-    IsDirectBlocked
-    if [ "$?" -eq "1" ]; then
-       return 1
-    fi
-    
    tmpHttpResponse="/tmp/dcmResponse$$.txt"
    count=0
-   while [ "$count" -lt "$RETRY_COUNT" ] ; do    
-      echo_t " DCM connection type DIRECT"
+   while [ "$count" -lt "$DIRECT_MAX_ATTEMPTS" ] ; do    
+       echo_t " DCM connection type DIRECT"
       CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
-      echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
-      HTTP_CODE=`result= eval $CURL_CMD`
-      ret=$?
+       echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+       HTTP_CODE=`result= eval $CURL_CMD`
+       ret=$?
 
-      sleep 2
-      http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
-      [ "x$http_code" != "x" ] || http_code=0
-      echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
+       sleep 2
+       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
+       [ "x$http_code" != "x" ] || http_code=0
+       echo_t "ret = $ret http_code: $http_code" >> $DCM_LOG_FILE
 
-    # log security failure
-      case $ret in
-        35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-           echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
-           ;;
-      esac
-      if [ $http_code -eq 200 ]; then
+       # log security failure
+       case $ret in
+         35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+            echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+            ;;
+       esac
+       if [ $http_code -eq 200 ]; then
            echo_t "Direct connection success - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
            rm -f $PERSISTENT_PATH/DCMresponse.txt*
            mv $tmpHttpResponse $FILENAME
            touch $DCM_FILE_DOWNLOADED
            return 0
-      elif [ $http_code -eq 404 ]; then 
+       elif [ $http_code -eq 404 ]; then 
            echo "`Timestamp` Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
            rm -f $tmpHttpResponse
            bypass_conn=1
            return 0  # Do not return 1, if retry for next conn type is not to be done
-      else 
+       else 
            if [ "$ret" -eq 0 ]; then
                echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
            fi 
@@ -282,7 +279,6 @@ useDirectRequest()
       sleep $RETRY_DELAY
     done
     echo_t "DCM :Retries for Direct connection exceeded " >> $DCM_LOG_FILE
-    [ "$CodebigAvailable" -ne "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
     return 1
 }
 
@@ -295,8 +291,13 @@ useCodebigRequest()
        return 1
    fi
    tmpHttpResponse="/tmp/dcmResponse$$.txt"
+
+   IsCodebigBlocked
+   if [ "$?" -eq "1" ]; then
+      return 1
+   fi
    count=0
-   while [ "$count" -lt "$RETRY_COUNT" ] ; do    
+   while [ "$count" -lt "$CODEBIG_MAX_ATTEMPTS" ] ; do    
       SIGN_CMD="GetServiceUrl 3 \"$JSONSTR\""
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
@@ -319,6 +320,7 @@ useCodebigRequest()
        if [ "$http_code" -eq 200 ]; then
            echo_t "Codebig connection success - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
            touch $DCM_FILE_DOWNLOADED
+
            rm -f $PERSISTENT_PATH/DCMresponse.txt*
            mv $tmpHttpResponse $FILENAME
            return 0
@@ -328,15 +330,23 @@ useCodebigRequest()
            rm -f $tmpHttpResponse
            return 0  # Do not return 1, if retry for next conn type is not to be done
        else 
-             if [ "$curlret" -eq 0 ]; then
-                echo_t "DCM Codebig Connection Failure Attempt:$count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
-             fi
+           if [ "$curlret" -eq 0 ]; then
+              echo_t "DCM Codebig Connection Failure Attempt:$count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
+           fi
        fi
        rm -f $tmpHttpResponse
+       if [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]; then
+            if [ "$retries" -eq "0" ]; then
+                sleep 10
+            else
+                sleep 30
+            fi
+       fi
        count=$((count + 1))
-       sleep $RETRY_DELAY
     done
     echo_t "Retries for Codebig connection exceeded " >> $DCM_LOG_FILE
+    [ -f $CODEBIG_BLOCK_FILENAME ] || touch $CODEBIG_BLOCK_FILENAME
+    touch $FORCE_DIRECT_ONCE
     return 1
 }
 
@@ -365,7 +375,20 @@ sendHttpRequestToServer()
     #Replace the current protocol with https
     HTTPS_URL=`echo $URL | sed "s/$PROTO/https/g"`
     bypass_conn=0
-    $first_conn || $sec_conn || { echo_t "Failed:  Unable to do Connection" >> $DCM_LOG_FILE ; return 1 ; } 
+
+    if [ "$UseCodeBig" -eq "1" ]; then
+       useCodebigRequest
+       ret=$?
+    else
+       useDirectRequest
+       ret=$?
+    fi
+
+    if [ "$ret" -ne "0" ]; then
+        echo_t "Failed:  Unable to do Connection" >> $DCM_LOG_FILE
+        return 1
+    fi
+
     if [ "$bypass_conn" -eq 1 ]; then
        return 1
     fi
@@ -395,7 +418,7 @@ dropbearRecovery()
 
 T2_ENABLE=`syscfg get T2Enable`
 # Safe wait for IP acquisition
-if [ “x$T2_ENABLE” == “xfalse” ]; then
+if [ “x$T2_enable” == “xfalse” ]; then
     loop=1
     counter=0
     while [ $loop -eq 1 ]
