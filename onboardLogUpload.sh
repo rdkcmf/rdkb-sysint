@@ -48,16 +48,17 @@ fi
 
 UseCodeBig=0
 conn_str="Direct"
-first_conn=useDirectRequest
-sec_conn=useCodebigRequest
 CodebigAvailable=0
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
-DIRECT_BLOCK_TIME=86400
-DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_olu"
+CODEBIG_BLOCK_TIME=1800
+CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_olu"
 WAN_INTERFACE="erouter0"
 UploadHttpLink=$3
+
+DIRECT_MAX_ATTEMPTS=3
+CODEBIG_MAX_ATTEMPTS=3
 
 if [ "$UploadHttpLink" == "" ]
 then
@@ -72,34 +73,32 @@ get_Codebigconfig()
       CodebigAvailable=1
    fi
 
-   if [ "$CodebigAvailable" = "1" ]; then
+   if [ "$CodebigAvailable" -eq "1" ]; then
        CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
-   if [ "$CodebigAvailable" = "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
+   if [ "$CodebigAvailable" -eq "1" ] && [ "x$CodeBigEnable" != "x" ] ; then
       UseCodeBig=1 
       conn_str="Codebig"
-      first_conn=useCodebigRequest
-      sec_conn=useDirectRequest
    fi
 
-   if [ "$CodebigAvailable" = "1" ]; then
+   if [ "$CodebigAvailable" -eq "1" ]; then
       echo_t "Using $conn_str connection as the Primary"
    else
       echo_t "Only $conn_str connection is available"
    fi
 }
 
-IsDirectBlocked()
+IsCodebigBlocked()
 {
     ret=0
-    if [ -f $DIRECT_BLOCK_FILENAME ]; then
-        modtime=$(($(date +%s) - $(date +%s -r $DIRECT_BLOCK_FILENAME)))
-        if [ "$modtime" -le "$DIRECT_BLOCK_TIME" ]; then
-            echo "Last direct failed blocking is still valid, preventing direct" 
+    if [ -f $CODEBIG_BLOCK_FILENAME ]; then
+        modtime=$(($(date +%s) - $(date +%s -r $CODEBIG_BLOCK_FILENAME)))
+        if [ "$modtime" -le "$CODEBIG_BLOCK_TIME" ]; then
+            echo "Last Codebig failed blocking is still valid, preventing Codebig" 
             ret=1
         else
-            echo "Last direct failed blocking has expired, removing $DIRECT_BLOCK_FILENAME, allowing direct" 
-            rm -f $DIRECT_BLOCK_FILENAME
+            echo "Last Codebig failed blocking has expired, removing $CODEBIG_BLOCK_FILENAME, allowing Codebig" 
+            rm -f $CODEBIG_BLOCK_FILENAME
             ret=0
         fi
     fi
@@ -110,12 +109,8 @@ IsDirectBlocked()
 useDirectRequest()
 {
     # Direct connection will not be tried if .lastdirectfail exists
-    IsDirectBlocked
-    if [ "$?" = "1" ]; then
-       return 1
-    fi
     retries=0
-    while [ "$retries" -lt "3" ]
+    while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
         echo_t "Trying Direct Communication"
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
@@ -151,7 +146,6 @@ useDirectRequest()
         sleep 30
     done
    echo "Retries for Direct connection exceeded " 
-   [ "$CodebigAvailable" != "1" ] || [ -f $DIRECT_BLOCK_FILENAME ] || touch $DIRECT_BLOCK_FILENAME
     return 1
 }
 
@@ -159,18 +153,22 @@ useDirectRequest()
 useCodebigRequest()
 {
     # Do not try Codebig if CodebigAvailable != 1 (GetServiceUrl not there)
-    if [ "$CodebigAvailable" = "0" ] ; then
+    if [ "$CodebigAvailable" -eq "0" ] ; then
         echo "OpsLog Upload : Only direct connection Available"
         return 1
     fi
 
+    IsCodebigBlocked
+    if [ "$?" = "1" ]; then
+       return 1
+    fi
 
     if [ "$S3_MD5SUM" != "" ]; then
         uploadfile_md5="&md5=$S3_MD5SUM"
     fi
 
     retries=0
-    while [ "$retries" -lt "3" ]
+    while [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]
     do
          echo_t "Trying Codebig Communication"
          SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
@@ -217,10 +215,17 @@ useCodebigRequest()
              echo_t "Codebig Communication Failure Attempts:$retries - ret:$ret, http_code:$http_code"
         fi
 
+        if [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]; then
+            if [ "$retries" -eq "0" ]; then
+                sleep 10
+            else
+                sleep 30
+            fi
+        fi
         retries=`expr $retries + 1`
-        sleep 30
     done
     echo "Retries for Codebig connection exceeded "
+    [ -f $CODEBIG_BLOCK_FILENAME ] || touch $CODEBIG_BLOCK_FILENAME
     return 1
 }
 
@@ -241,7 +246,17 @@ uploadOnboardLogs()
         URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
     fi
 
-    $first_conn || $sec_conn || { echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code" ; }
+    if [ "$UseCodeBig" -eq "1" ]; then
+       useCodebigRequest
+       ret=$?
+    else
+       useDirectRequest
+       ret=$?
+    fi
+
+    if [ "$ret" -ne "0" ]; then
+         echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+    fi
 
     # If 200, executing second curl command with the public key.
     if [ "$http_code" = "200" ];then
