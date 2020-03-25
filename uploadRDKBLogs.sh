@@ -59,10 +59,11 @@ mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
-if [ $# -ne 4 ]; then 
+if [ $# -lt 4 ]; then 
      echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
      #echo "USAGE: $0 $1 $2 $3 $4"
 fi
+echo_t "The parameters are - arg1:$1 arg2:$2 arg3:$3 arg4:$4 arg5:$5 arg6:$6"
 
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
