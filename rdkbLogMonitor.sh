@@ -89,7 +89,7 @@ getFWVersion()
 ## Identifies whether it is a VBN or PROD build
 getBuildType()
 {
-   IMAGENAME=`cat /fss/gw/version.txt | grep ^imagename= | cut -d "=" -f 2`
+   IMAGENAME=`sed -n 's/imagename[:|=]//p' /fss/gw/version.txt`
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then
