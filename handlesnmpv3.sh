@@ -21,7 +21,12 @@
 #get wan status event
 WAN_STATUS=`sysevent get wan-status`
 SNMPV3=`syscfg get V3Support`
+SYSTEMCTL=/bin/systemctl
 
 if [ "$WAN_STATUS" = "started" ] && [ "$SNMPV3" = "true" ]; then
-    systemctl restart snmpd.service
+    if [ -f $SYSTEMCTL ]; then
+        systemctl restart snmpd.service
+    else 
+        echo "Unable to restart snmpd.service. /bin/systemctl file not found." >> /rdklogs/logs/ArmConsolelog.txt.0
+    fi
 fi
