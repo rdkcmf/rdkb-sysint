@@ -64,6 +64,7 @@ TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
+FWDL_FLAG="/tmp/.fwdl_flag"
 
 PEER_COMM_ID="/tmp/elxrretyt-dcm.swr"
 
@@ -453,9 +454,15 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
     rm -rf $tempfile 
 
     isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
-    if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
-        echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
-        sh /etc/firmwareSched.sh &
+    if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
+	# bypassing firmwareSched.sh once on boot up because it is called from xconf
+	if [ ! -f $FWDL_FLAG ]; then
+	    touch $FWDL_FLAG
+            echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
+	else
+            echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
+            sh /etc/firmwareSched.sh &
+	fi
     fi
     exit 0
 fi
@@ -487,9 +494,15 @@ fi
             dropbearRecovery
 
             isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
-            if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
-               echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time"
-               sh /etc/firmwareSched.sh &
+            if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
+		# bypassing firmwareSched.sh once on boot up because it is called from xconf
+		if [ ! -f $FWDL_FLAG ]; then
+		    touch $FWDL_FLAG
+                    echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
+		else
+		    echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
+                    sh /etc/firmwareSched.sh &
+		fi
             fi
             
             GetConfigFile $PEER_COMM_ID
@@ -503,11 +516,17 @@ fi
             sshCmdOnAtom 'xconf_update'
         else
             
-			isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
-  		    if [ "$isPeriodicFirmwareEnabled" == "true" ]; then
-			   echo "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time"
+		    isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+		    if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
+			# bypassing firmwareSched.sh once on boot up because it is called from xconf
+			if [ ! -f $FWDL_FLAG ]; then
+			   touch $FWDL_FLAG
+                           echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
+			else
+			   echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
 			   sh /etc/firmwareSched.sh &
 			fi
+		    fi
              
             sh /lib/rdk/dca_utility.sh 1 &
         fi
