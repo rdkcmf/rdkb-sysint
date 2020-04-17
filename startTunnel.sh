@@ -80,7 +80,7 @@ case $oper in
 			fi
 		elif [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ; then
 			#XB6 Arris Device Class devices need to utilize pseudo interface wan0 since CM is on another processor
-			CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+			CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1 | head -n1`
 			if [ ! "$CM_IP" ]; then
 				CM_IP=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
 			fi
