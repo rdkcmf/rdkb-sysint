@@ -319,6 +319,8 @@ bootup_remove_old_backupfiles()
 
 bootup_tarlogs()
 {
+	#dt may be epoc time at the time of sourceing.So defining again here.
+	dt=`date "+%m-%d-%y-%I-%M%p"`
 	echo_t "RDK_LOGGER: bootup_tarlogs"
 
 	#Remove old backup log files	
@@ -637,43 +639,45 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
             rm /nvram/pcie_error_reboot_counter
         fi
 	fi
+	
+	#ARRISXB6-2821:
+        #DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
+        #and time sync needed before logbackup.
+        #Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
+        #having correct timestamp.
+        #Will use default time if time not synchronized even after 2 mini of bootup to unblock 
+        #other rdkbLogMonitor.sh functionality
 
-	file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
+	#TCCBR-4723 To handle all log upload with epoc time cases. Brought this block of code just 
+	#above to the prevoius condition for making all cases to wait for timesync before log upload.
+
+        if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
+		if [ "`sysevent get TimeSync-status`" != "synced" ];then
+			loop=1
+                        retry=1
+                        while [ "$loop" = "1" ]
+                        do
+                                echo_t "Waiting for time synchronization between processors before logbackup"
+                                TIME_SYNC_STATUS=`sysevent get TimeSync-status`
+                                if [ "$TIME_SYNC_STATUS" == "synced" ]
+                                then
+                                        echo_t "Time synced. Breaking loop"
+                                        break
+                                elif [ "$retry" = "12" ]
+                                then
+                                        echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
+                                        break
+                                else
+                                        echo_t "Time not synced yet. Sleeping.. Retry:$retry"
+                                        retry=`expr $retry + 1`
+                                        sleep 10
+                                fi
+                        done
+		fi
+        fi
 	#TCCBR-4275 to handle factory reset case.
 	if ( [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ] ) || ( [ "$RebootReason" == "factory-reset" ] ); then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
-
-		#ARRISXB6-2821:
-		#DOCSIS_TIME_SYNC_NEEDED=yes for devices where DOCSIS and RDKB are in different processors 
-                #and time sync needed before logbackup.
-		#Checking TimeSync-status before doing backupnvram2logs_on_reboot to ensure uploaded tgz file 
-                #having correct timestamp.
-		#Will use default time if time not synchronized even after 2 mini of bootup to unblock 
-                #other rdkbLogMonitor.sh functionality
-
-        DOCSIS_TIME_SYNC_NEEDED=`grep DOCSIS_TIME_SYNC_NEEDED /etc/device.properties | cut -f2 -d=`
-		if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
-			loop=1
-			retry=1
-			while [ "$loop" = "1" ]
-			do
-				echo_t "Waiting for time synchronization between processors before logbackup"
-				TIME_SYNC_STATUS=`sysevent get TimeSync-status`
-				if [ "$TIME_SYNC_STATUS" == "synced" ]
-				then
-					echo_t "Time synced. Breaking loop"
-					break
-				elif [ "$retry" = "12" ]
-				then
-					echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
-					break
-				else
-					echo_t "Time not synced yet. Sleeping.. Retry:$retry"
-					retry=`expr $retry + 1`
-					sleep 10
-				fi
-			done
-		fi
 
 		#HUB4 uses NTP for syncing time. It doesnt have DOCSIS time sync, Hence waiting for NTP time sync.
 		if [ "$BOX_TYPE" == "HUB4" ]; then
