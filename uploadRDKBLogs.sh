@@ -462,7 +462,7 @@ HttpLogUpload()
             URLENCODE_STRING="--data-urlencode \"md5=$S3_MD5SUM\""
         fi
 
-        $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; t2CountNotify "LOGUPLOAD_FAILED" ; preserveThisLog $UploadFile $UploadPath; continue ; }
+        $first_conn || $sec_conn || { echo_t "INVALID RETURN CODE: $http_code" ; echo_t "LOG UPLOAD UNSUCCESSFUL TO S3" ; preserveThisLog $UploadFile $UploadPath; continue ; }
 
         # If 200, executing second curl command with the public key.
         if [ "$http_code" = "200" ];then
@@ -548,7 +548,6 @@ HttpLogUpload()
             # Response after executing curl with the public key is 200, then file uploaded successfully.
             if [ "$http_code" = "200" ];then
                 echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-		t2CountNotify "LOGS_UPLOADED"
                 rm -rf $UploadFile
 		if [ -f "$PRESERVE_LOG_PATH/$UploadFile" ] && [ "$UploadPath" != "$PRESERVE_LOG_PATH" ]; then #Remove from backup.
 		   rm -rf "$PRESERVE_LOG_PATH/$UploadFile"
@@ -662,7 +661,6 @@ HttpLogUpload()
                 #Logs upload successful when the return code is 200 after the second curl execution.
                 if [ "$http_code" = "200" ];then
                     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-		    t2CountNotify "LOGS_UPLOADED"
                     result=0
                     rm -rf $UploadFile
                     if [ -f "$PRESERVE_LOG_PATH/$UploadFile" ] && [ "$UploadPath" != "$PRESERVE_LOG_PATH" ]; then #Remove from backup.
@@ -682,7 +680,6 @@ HttpLogUpload()
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
 	    preserveThisLog $UploadFile $UploadPath
-	    t2CountNotify "LOGUPLOAD_FAILED"
 
             fi
 
