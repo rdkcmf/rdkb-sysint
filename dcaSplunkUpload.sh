@@ -35,12 +35,9 @@ TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_RESEND_FILE="$PERSISTENT_PATH/.resend.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 
-TELEMETRY_PROFILE_DEFAULT_PATH="/tmp/DCMSettings.conf"
-TELEMETRY_PROFILE_RESEND_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
-
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
 
-HTTP_FILENAME="$TELEMETRY_PATH/dca_httpresult.txt"
+HTTP_FILENAME="/tmp/dca_httpret$$.txt"
 
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 
@@ -92,16 +89,6 @@ mkdir -p $TELEMETRY_PATH
 
 # Processing Input Args
 inputArgs=$1
-
-# dca_utility.sh does  not uses TELEMETRY_PROFILE_RESEND_PATH, to hardwired to TELEMETRY_PROFILE_DEFAULT_PATH
-[ "x$sendInformation" != "x"  ] || sendInformation=1
-if [ "$sendInformation" -ne 1 ] ; then
-   TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_RESEND_PATH
-else
-   TELEMETRY_PROFILE_PATH=$TELEMETRY_PROFILE_DEFAULT_PATH
-fi
-	
-echo "Telemetry Profile File Being Used : $TELEMETRY_PROFILE_PATH" >> $RTL_LOG_FILE
 	
 #Adding support for opt override for dcm.properties file
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
@@ -227,6 +214,8 @@ useDirectRequest()
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
 
+      rm -f $HTTP_FILENAME
+
       echo_t "dca $2 : Direct Connection HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
     # log security failure
       case $ret in
@@ -284,6 +273,8 @@ useCodebigRequest()
       curlret=$?
       http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
       [ "x$http_code" != "x" ] || http_code=0
+    
+      rm -f $HTTP_FILENAME
       # log security failure
       echo_t "dca $2 : Codebig Connection HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
       case $curlret in

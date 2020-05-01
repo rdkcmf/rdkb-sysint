@@ -240,10 +240,12 @@ useDirectRequest()
     if [ "$?" -eq "1" ]; then
        return 1
     fi
+    
+   tmpHttpResponse="/tmp/dcmResponse$$.txt"
    count=0
    while [ "$count" -lt "$RETRY_COUNT" ] ; do    
       echo_t " DCM connection type DIRECT"
-      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" '$HTTPS_URL$JSONSTR'"
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
       echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
       HTTP_CODE=`result= eval $CURL_CMD`
       ret=$?
@@ -261,18 +263,21 @@ useDirectRequest()
       esac
       if [ $http_code -eq 200 ]; then
            echo_t "Direct connection success - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+           rm -f $PERSISTENT_PATH/DCMresponse.txt*
+           mv $tmpHttpResponse $FILENAME
            touch $DCM_FILE_DOWNLOADED
            return 0
       elif [ $http_code -eq 404 ]; then 
            echo "`Timestamp` Direct connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
+           rm -f $tmpHttpResponse
            bypass_conn=1
            return 0  # Do not return 1, if retry for next conn type is not to be done
       else 
            if [ "$ret" -eq 0 ]; then
                echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
            fi 
-           rm -rf $DCMRESPONSE
       fi
+      rm -f $tmpHttpResponse
       count=$((count + 1))
       sleep $RETRY_DELAY
     done
@@ -289,13 +294,14 @@ useCodebigRequest()
        echo "DCM : Only direct connection Available" >> $DCM_LOG_FILE
        return 1
    fi
+   tmpHttpResponse="/tmp/dcmResponse$$.txt"
    count=0
    while [ "$count" -lt "$RETRY_COUNT" ] ; do    
       SIGN_CMD="GetServiceUrl 3 \"$JSONSTR\""
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
       rm -f $SIGN_FILE
-      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$FILENAME\" \"$CB_SIGNED_REQUEST\""
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" \"$CB_SIGNED_REQUEST\""
       echo_t " DCM connection type CODEBIG at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $DCM_LOG_FILE
       echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*#<hidden>#p'`" >> $DCM_LOG_FILE
       HTTP_CODE=`result= eval $CURL_CMD`
@@ -313,18 +319,20 @@ useCodebigRequest()
        if [ "$http_code" -eq 200 ]; then
            echo_t "Codebig connection success - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
            touch $DCM_FILE_DOWNLOADED
-
+           rm -f $PERSISTENT_PATH/DCMresponse.txt*
+           mv $tmpHttpResponse $FILENAME
            return 0
        elif [ "$http_code" -eq 404 ]; then
            echo_t "DCM Codebig connection Received HTTP $http_code Response from Xconf Server. Retry logic not needed" >> $DCM_LOG_FILE
            bypass_conn=1
+           rm -f $tmpHttpResponse
            return 0  # Do not return 1, if retry for next conn type is not to be done
        else 
              if [ "$curlret" -eq 0 ]; then
                 echo_t "DCM Codebig Connection Failure Attempt:$count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
              fi
-              rm -rf $DCMRESPONSE
        fi
+       rm -f $tmpHttpResponse
        count=$((count + 1))
        sleep $RETRY_DELAY
     done
@@ -387,7 +395,7 @@ dropbearRecovery()
 
 T2_ENABLE=`syscfg get T2Enable`
 # Safe wait for IP acquisition
-if [ “x$T2_enable” == “xfalse” ]; then
+if [ “x$T2_ENABLE” == “xfalse” ]; then
     loop=1
     counter=0
     while [ $loop -eq 1 ]
@@ -485,7 +493,6 @@ fi
 
     if [ $ret -ne 0 ]; then
         echo_t "Processing response failed." >> $DCM_LOG_FILE
-        rm -rf $FILENAME 
         echo_t "count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
         exit 1
     fi
