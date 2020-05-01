@@ -39,15 +39,14 @@ DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
 
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
+# Path to store log file seek values
 TELEMETRY_PATH_TEMP="$TELEMETRY_PATH/tmp"
 
-TELEMETRY_PROFILE_PATH="$PERSISTENT_PATH/.DCMSettings.conf"
+TELEMETRY_PROFILE_PATH="/tmp/.DCMSettings.conf"
 LOG_SYNC_PATH="/nvram2/logs/"
 
 RTL_LOG_FILE="$LOG_PATH/dcmProcessing.log"
 RTL_DELTA_LOG_FILE="$RAMDISK_PATH/.rtl_temp.log"
-MAP_PATTERN_CONF_FILE="$TELEMETRY_PATH/dcafile.conf"
-TEMP_PATTERN_CONF_FILE="$TELEMETRY_PATH/temp_dcafile.conf"
 
 EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 
@@ -55,7 +54,7 @@ EXEC_COUNTER_FILE="/tmp/.dcaCounter.txt"
 # Regenerate this only when there is a change identified from XCONF update
 SORTED_PATTERN_CONF_FILE="$TELEMETRY_PATH/dca_sorted_file.conf"
 
-current_cron_file="$PERSISTENT_PATH/cron_file$$.txt"
+current_cron_file="/tmp/cron_file$$.txt"
 
 #Performance oriented binaries
 DCA_BINARY="/usr/bin/dca"
@@ -157,10 +156,6 @@ sshCmdOnArm(){
     fi
 
 }
-
-
-# Retain source for future enabling. Defaulting to disable for now
-snmpCheck=false
 
 dcaCleanup()
 {
@@ -312,28 +307,6 @@ getErouterIpv6()
     fi
 }
 
-getSNMPUpdates() {
-     snmpMIB=$1
-     TotalCount=0
-     export MIBS=ALL
-     export MIBDIRS=/mnt/nfs/bin/target-snmp/share/snmp/mibs:/usr/share/snmp/mibs
-     export PATH=$PATH:/mnt/nfs/bin/target-snmp/bin
-     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mnt/nfs/bin/target-snmp/lib:/mnt/nfs/usr/lib
-     snmpCommunityVal=`head -n 1 /tmp/snmpd.conf | awk '{print $4}'`
-     tuneString=`snmpwalk  -OQv -v 2c -c $snmpCommunityVal 127.0.0.1 $snmpMIB`
-     for count in $tuneString
-     do
-         count=`echo $count | tr -d ' '`
-         if [ $(isNum $count) -eq 0 ]; then
-            TotalCount=`expr $TotalCount + $count`
-         else
-            TotalCount=$count
-         fi
-     done
-     
-     echo $TotalCount
-}
-
 ## Reatining for future support when net-snmp tools will be enabled in XB3s
 getControllerId(){    
     ChannelMapId=''
@@ -375,32 +348,34 @@ getRFStatus(){
 
 processJsonResponse()
 {
+	# /nvram/DCMresponse.txt
     FILENAME=$1
     #Condider getting the filename as an argument instead of using global file name
     if [ -f "$FILENAME" ]; then
+    	# Use tmp files for inline stream editing
+        tmpConfigFile="/tmp/dcm$$.txt"
+        cp $FILENAME $tmpConfigFile
         # Start pre-processing the original file
-        sed -i 's/,"urn:/\n"urn:/g' $FILENAME # Updating the file by replacing all ',"urn:' with '\n"urn:'
-        sed -i 's/^{//g' $FILENAME # Delete first character from file '{'
-        sed -i 's/}$//g' $FILENAME # Delete first character from file '}'
-        echo "" >> $FILENAME         # Adding a new line to the file
-        # Start pre-processing the original file
-
-        OUTFILE=$DCM_SETTINGS_CONF
-        OUTFILEOPT="$PERSISTENT_PATH/.DCMSettings.conf"
+        sed -i 's/,"urn:/\n"urn:/g' $tmpConfigFile # Updating the file by replacing all ',"urn:' with '\n"urn:'
+        sed -i 's/^{//g' $tmpConfigFile # Delete first character from file '{'
+        sed -i 's/}$//g' $tmpConfigFile # Delete first character from file '}'
+        echo "" >> $tmpConfigFile         # Adding a new line to the file
+        # End pre-processing the original file
+        mv $tmpConfigFile $FILENAME        
         #rm -f $OUTFILE #delete old file
-        cat /dev/null > $OUTFILE #empty old file
-        cat /dev/null > $OUTFILEOPT
+        cat /dev/null > $DCM_SETTINGS_CONF #empty old file
+        cat /dev/null > $TELEMETRY_PROFILE_PATH
         while read line
         do
             # Special processing for telemetry
             profile_Check=`echo "$line" | grep -ci 'TelemetryProfile'`
             if [ $profile_Check -ne 0 ];then
                 #echo "$line"
-                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' >> $OUTFILE
+                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' >> $DCM_SETTINGS_CONF
 
-                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' | sed -e 's/uploadRepository:URL.*","//g'  >> $OUTFILEOPT
+                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' | sed -e 's/uploadRepository:URL.*","//g'  >> $TELEMETRY_PROFILE_PATH
             else
-                echo "$line" | sed 's/":/=/g' | sed 's/"//g' >> $OUTFILE
+                echo "$line" | sed 's/":/=/g' | sed 's/"//g' >> $DCM_SETTINGS_CONF
             fi
         done < $FILENAME
     else
@@ -496,16 +471,6 @@ clearTelemetryConfig()
         rm -f $RTL_DELTA_LOG_FILE
     fi
 
-    if [ -f $MAP_PATTERN_CONF_FILE ]; then
-        echo_t "dca: MAP_PATTERN_CONF_FILE : $MAP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-        rm -f $MAP_PATTERN_CONF_FILE
-    fi
-
-    if [ -f $TEMP_PATTERN_CONF_FILE ]; then
-        echo_t "dca: TEMP_PATTERN_CONF_FILE : $TEMP_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
-        rm -f $TEMP_PATTERN_CONF_FILE
-    fi
-
     if [ -f $SORTED_PATTERN_CONF_FILE ]; then
         echo_t "dca: SORTED_PATTERN_CONF_FILE : $SORTED_PATTERN_CONF_FILE" >> $RTL_LOG_FILE
         rm -f $SORTED_PATTERN_CONF_FILE
@@ -531,6 +496,9 @@ generateTelemetryConfig()
     echo_t "dca: Generating telemetry config file." >> $RTL_LOG_FILE
     input_file=$1
     output_file=$2
+    TEMP_PATTERN_CONF_FILE="/tmp/temp_dcafile.conf"
+    MAP_PATTERN_CONF_FILE="/tmp/temp_mapfile.conf"
+    
     touch $TEMP_PATTERN_CONF_FILE
     if [ -f $input_file ]; then
       grep -i 'TelemetryProfile' $input_file | sed 's/=\[/\n/g' | sed 's/},/}\n/g' | sed 's/],.*?/\n/g'| sed -e 's/^[ ]//' > $TEMP_PATTERN_CONF_FILE
@@ -568,6 +536,9 @@ generateTelemetryConfig()
         fi
         awk -F '<#=#>' '{print $3,$0}' $MAP_PATTERN_CONF_FILE | sort -n | cut -d ' ' -f 2- > $output_file 
     fi
+    
+    rm -f $MAP_PATTERN_CONF_FILE
+    rm -f $TEMP_PATTERN_CONF_FILE
 
 }
 
@@ -670,28 +641,6 @@ else
 
     singleEntry=true
 
-    # Get the snmp and performance values when enabled 
-    # Need to check only when SNMP is enabled in future
-    if [ "$snmpCheck" == "true" ] ; then
-      while read line
-      do
-        pattern=`echo "$line" | awk -F '<#=#>' '{print $1}'`
-        filename=`echo "$line" | awk -F '<#=#>' '{print $2}'`
-        if [ $filename == "snmp" ] || [ $filename == "SNMP" ]; then
-            retvalue=$(getSNMPUpdates $pattern)
-            header=`grep "$pattern<#=#>$filename" $MAP_PATTERN_CONF_FILE | head -n 1 | awk -F '<#=#>' '{print $1}'`
-            if $singleEntry ; then
-               tuneData="{\"$header\":\"$retvalue\"}"
-               outputJson="$outputJson$tuneData"
-               singleEntry=false
-            else
-               tuneData=",{\"$header\":\"$retvalue\"}"
-               outputJson="$outputJson$tuneData" 
-            fi                
-        fi
-       done < $SORTED_PATTERN_CONF_FILE
-     fi
-     
 
        ## This interface is not accessible from ATOM, replace value from ARM
        estbMac=$(getEstbMac)
@@ -743,10 +692,6 @@ fi
 
 if [ -f $RTL_DELTA_LOG_FILE ]; then
     rm -f $RTL_DELTA_LOG_FILE
-fi
-
-if [ -f $TEMP_PATTERN_CONF_FILE ]; then
-    rm -f $TEMP_PATTERN_CONF_FILE
 fi
 
 if [ $triggerType -eq 2 ]; then
