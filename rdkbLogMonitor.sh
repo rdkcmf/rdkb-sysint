@@ -23,7 +23,7 @@ boot_up_log_synced="false"
 
 #source /etc/utopia/service.d/log_env_var.sh
 #source /etc/utopia/service.d/log_capture_path.sh
-source $RDK_LOGGER_PATH/utils.sh
+source /lib/rdk/utils.sh
 source $RDK_LOGGER_PATH/logfiles.sh
 source /lib/rdk/t2Shared_api.sh
 

@@ -22,7 +22,7 @@ RDK_LOGGER_PATH="/rdklogger"
 
 NVRAM2_SUPPORTED="no"
 source $RDK_LOGGER_PATH/logfiles.sh
-source $RDK_LOGGER_PATH/utils.sh
+source /lib/rdk/utils.sh
 
 LOG_UPLOAD_PID="/tmp/.log_upload.pid"
 REBOOT_PENDING_DELAY=2

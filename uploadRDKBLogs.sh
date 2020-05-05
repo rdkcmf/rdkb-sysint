@@ -27,7 +27,7 @@ source /lib/rdk/t2Shared_api.sh
 RDK_LOGGER_PATH="/rdklogger"
 
 NVRAM2_SUPPORTED="no"
-. $RDK_LOGGER_PATH/utils.sh 
+. /lib/rdk/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
 UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`

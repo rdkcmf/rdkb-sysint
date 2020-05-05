@@ -20,7 +20,7 @@
 RDK_LOGGER_PATH="/rdklogger"
 
 source /etc/utopia/service.d/log_capture_path.sh
-source $RDK_LOGGER_PATH/utils.sh 
+source /lib/rdk/utils.sh 
 if [ -f /etc/logFiles.properties ]; then
     source /etc/logFiles.properties
 fi

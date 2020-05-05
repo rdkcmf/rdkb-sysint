@@ -33,7 +33,7 @@
 RDK_LOGGER_PATH="/rdklogger"
 
 source $RDK_LOGGER_PATH/logfiles.sh
-source $RDK_LOGGER_PATH/utils.sh
+source /lib/rdk/utils.sh
 source /lib/rdk/t2Shared_api.sh
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
