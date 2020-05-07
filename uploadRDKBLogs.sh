@@ -557,6 +557,7 @@ HttpLogUpload()
             # Response after executing curl with the public key is 200, then file uploaded successfully.
             if [ "$http_code" = "200" ];then
                 echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+		t2CountNotify "LOGS_UPLOADED"
                 rm -rf $UploadFile
 		if [ -f "$PRESERVE_LOG_PATH/$UploadFile" ] && [ "$UploadPath" != "$PRESERVE_LOG_PATH" ]; then #Remove from backup.
 		   rm -rf "$PRESERVE_LOG_PATH/$UploadFile"
@@ -670,6 +671,7 @@ HttpLogUpload()
                 #Logs upload successful when the return code is 200 after the second curl execution.
                 if [ "$http_code" = "200" ];then
                     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+		    t2CountNotify "LOGS_UPLOADED"
                     result=0
                     rm -rf $UploadFile
                     if [ -f "$PRESERVE_LOG_PATH/$UploadFile" ] && [ "$UploadPath" != "$PRESERVE_LOG_PATH" ]; then #Remove from backup.
@@ -688,6 +690,7 @@ HttpLogUpload()
         else
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+	    t2CountNotify "LOGUPLOAD_FAILED"
 	    preserveThisLog $UploadFile $UploadPath
 	    t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
 
