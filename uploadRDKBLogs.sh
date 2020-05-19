@@ -419,7 +419,9 @@ HttpLogUpload()
    if [ "$UploadFile" = "" ] && [ "$nvram2Backup" = "true" ]
    then
        echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
-       UploadFile=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+       if [ -d $LOG_BACK_UP_REBOOT ]; then
+          UploadFile=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+       fi
        if [ "$UploadFile" != "" ]
        then
          cd $LOG_BACK_UP_REBOOT

@@ -409,7 +409,9 @@ bootup_upload()
 	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
 	   then
 	       echo_t "Checking if any file available in $LOG_BACK_UP_REBOOT"
-	       fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+               if [ -d $LOG_BACK_UP_REBOOT ]; then
+	          fileToUpload=`ls $LOG_BACK_UP_REBOOT | grep tgz`
+               fi
 	   fi
 	       
 	   echo_t "File to be uploaded is $fileToUpload ...."
@@ -438,8 +440,9 @@ bootup_upload()
 	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
 	   then
 	       echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
-	       fileToUpload=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
-
+	       if [ -d $TMP_LOG_UPLOAD_PATH ]; then
+	          fileToUpload=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+               fi
 	   fi
 
 	   echo_t "File to be uploaded is $fileToUpload ...."
@@ -492,7 +495,9 @@ bootup_upload()
 	if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
 	then
 		echo_t "Checking if any file available in $TMP_LOG_UPLOAD_PATH"
-		UploadFile=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+                 if [ -d $TMP_LOG_UPLOAD_PATH ]; then
+		    UploadFile=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
+                 fi
 	fi
 
 	echo_t "File to be uploaded is $UploadFile ...."
