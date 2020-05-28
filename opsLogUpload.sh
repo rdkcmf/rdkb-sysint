@@ -70,7 +70,6 @@ PATTERN_FILE="/tmp/pattern_file"
 WAN_INTERFACE="erouter0"
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
-CA_CERT="/nvram/cacert.pem"
 SECURE_SYSCFG=`syscfg get UpdateNvram`
 SYS_DB_FILE="/nvram/syscfg.db"
 if [ "$SECURE_SYSCFG" = "false" ]; then
@@ -175,9 +174,9 @@ useDirectRequest()
           fi
           ID="/tmp/uydrgopwxyem"
           GetConfigFile $ID
-        CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert $CA_CERT --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
+        CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
       else
-          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
+          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type --connect-timeout 30 -m 30"
       fi
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
@@ -257,7 +256,7 @@ useCodebigRequest()
          echo "serverUrl : $S3_URL_SIGN"
          authorizationHeader=`echo $CB_SIGNED | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*filename|filename|g"`
          authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --cacert /nvram/cacert.pem \"$S3_URL_SIGN\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
+         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL_SIGN\" --interface $WAN_INTERFACE $addr_type -H '$authorizationHeader' --connect-timeout 30 -m 30"
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
