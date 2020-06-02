@@ -678,6 +678,8 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
                         done
 		fi
         fi
+
+        file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	#TCCBR-4275 to handle factory reset case.
 	if ( [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ] ) || ( [ "$RebootReason" == "factory-reset" ] ); then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
