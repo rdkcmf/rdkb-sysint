@@ -121,11 +121,8 @@ fi
 ARGS=$1
 getBuildType()
 {
-   if [ "$UseCodeBig" -eq "1" ]; then
-        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
-   else
-        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
-   fi
+   IMAGENAME=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt)
+
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then

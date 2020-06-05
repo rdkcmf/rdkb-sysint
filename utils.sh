@@ -187,7 +187,7 @@ Uptime()
 getModel()
 {
   if [ $BOX_TYPE = "XF3" ]; then
-     modelName=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2 | cut -d "_" -f 1`
+     modelName=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt | cut -d "_" -f 1)
   else
      modelName=`dmcli eRT getv Device.DeviceInfo.ModelName | grep value | awk '{print $5}'`
      if [ "$modelName" = "" ]
@@ -200,8 +200,7 @@ getModel()
 
 getFWVersion()
 {
-    # Handle imagename separator being colon or equals
-    grep imagename /version.txt | sed 's/.*[:=]//'
+    sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt
 }
 
 getBuildType()
