@@ -173,7 +173,19 @@ fi
 timeout=30
 default_IP=$DEFAULT_IP
 upload_protocol='TFTP'
+
 upload_httplink=$HTTP_UPLOAD_LINK
+if [ -f /tmp/DCMSettings.conf ]; then
+
+      upload_httplink=`grep 'LogUploadSettings:UploadRepository:URL' /tmp/DCMSettings.conf | cut -d '=' -f2`
+      if [ -z "$upload_httplink" ]; then
+            echo_t "upload_httplink urn:settings:LogUploadSettings:UploadRepository' is not found in DCMSettings.conf"
+            upload_httplink=$HTTP_UPLOAD_LINK
+      else
+            echo_t "upload_httplink is $upload_httplink in DCMSettings.conf"
+      fi
+fi 
+
 
 ## Get Receiver Id
 getReceiverId()
