@@ -70,6 +70,14 @@ DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 FWDL_FLAG="/tmp/.fwdl_flag"
 
+#to support ocsp
+EnableOCSPStapling="/tmp/.EnableOCSPStapling"
+EnableOCSP="/tmp/.EnableOCSPCA"
+
+if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+    CERT_STATUS="--cert-status"
+fi
+
 PEER_COMM_ID="/tmp/elxrretyt-dcm.swr"
 
 if [ ! -f /usr/bin/GetConfigFile ];then
@@ -242,7 +250,7 @@ useDirectRequest()
    count=0
    while [ "$count" -lt "$DIRECT_MAX_ATTEMPTS" ] ; do    
        echo_t " DCM connection type DIRECT"
-      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
        echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
        HTTP_CODE=`result= eval $CURL_CMD`
        ret=$?
@@ -302,7 +310,7 @@ useCodebigRequest()
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`
       rm -f $SIGN_FILE
-      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" \"$CB_SIGNED_REQUEST\""
+      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" \"$CB_SIGNED_REQUEST\""
       echo_t " DCM connection type CODEBIG at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $DCM_LOG_FILE
       echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*#<hidden>#p'`" >> $DCM_LOG_FILE
       HTTP_CODE=`result= eval $CURL_CMD`

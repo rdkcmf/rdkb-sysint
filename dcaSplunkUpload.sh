@@ -56,6 +56,15 @@ SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 CODEBIG_MAX_ATTEMPTS=3
 
 SLEEP_TIME_FILE="/tmp/.rtl_sleep_time.txt"
+
+#to support ocsp
+EnableOCSPStapling="/tmp/.EnableOCSPStapling"
+EnableOCSP="/tmp/.EnableOCSPCA"
+
+if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
+    CERT_STATUS="--cert-status"
+fi
+
 #MAX_LIMIT_RESEND=2
 # Max backlog queue set to 5, after which the resend file will discard subsequent entries
 MAX_CONN_QUEUE=5
@@ -208,12 +217,12 @@ useDirectRequest()
             ID="/tmp/geyoxnweddys"
             GetConfigFile $ID
         fi
-        CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
-        HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+        CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+        HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
         ret=$?
     else
-        CURL_CMD="curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
-        HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+        CURL_CMD="curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+        HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
         ret=$?
     fi
     rm -rf $ID
@@ -276,10 +285,10 @@ useCodebigRequest()
         eval $SIGN_CMD > $SIGN_FILE
         CB_SIGNED_REQUEST=`cat $SIGN_FILE`
         rm -f $SIGN_FILE
-        CURL_CMD="curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$CB_SIGNED_REQUEST\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+        CURL_CMD="curl $TLS $CERT_STATUS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$CB_SIGNED_REQUEST\" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
         echo_t "dca$2: Using Codebig connection at `echo "$CURL_CMD" | sed -ne 's#.*\(https:.*\)?.*#\1#p'`" >> $RTL_LOG_FILE
         echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -ne 's#oauth_consumer_key=.*oauth_signature=.* --#<hidden> --#p'`" >> $RTL_LOG_FILE
-        HTTP_CODE=`curl $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$CB_SIGNED_REQUEST" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+        HTTP_CODE=`curl $TLS $CERT_STATUS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$CB_SIGNED_REQUEST" --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
         curlret=$?
         http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
         [ "x$http_code" != "x" ] || http_code=0
