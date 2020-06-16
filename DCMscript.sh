@@ -524,7 +524,7 @@ fi
                            echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
 			else
 			   echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
-			   sh /etc/firmwareSched.sh &
+			   sh /etc/firmwareSched.sh
 			fi
 		    fi
              
