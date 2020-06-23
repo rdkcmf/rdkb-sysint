@@ -66,10 +66,22 @@ fi
 UseCodeBig=0
 conn_str="Direct"
 CodebigAvailable=0
-
+XPKI_MTLS_MAX_TRIES=0
+xpkiMtlsRFC=`syscfg get UseXPKI_Enable`
 mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
+
+checkXpkiMtlsBasedLogUpload()
+{
+    if [ "x$xpkiMtlsRFC" = "xtrue" ] && [ -f /usr/bin/rdkssacli ] && [ -f /nvram/certs/devicecert_1.pk12 ]; then
+        useXpkiMtlsLogupload="true"
+        XPKI_MTLS_MAX_TRIES=2
+    else
+        useXpkiMtlsLogupload="false"
+        XPKI_MTLS_MAX_TRIES=0
+    fi
+}
 
 if [ $# -lt 4 ]; then 
      echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
@@ -255,58 +267,61 @@ useDirectRequest()
     # $http_code --> Response code retrieved from HTTP_CODE file path.
     echo_t "Trying Direct Communication"
     retries=0
+
+    checkXpkiMtlsBasedLogUpload
+
     while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
-      if [ "$mTlsLogUpload" == "true" ] && [ -d /etc/ssl/certs ]; then
-          if [ ! -f /usr/bin/GetConfigFile ];then
-              echo "Error: GetConfigFile Not Found"
+        if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
+          msg_tls_source="mTLS certificate from xPKI"
+          echo_t "Log Upload: $msg_tls_source"
+          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+        elif [ "x$mTlsLogUpload" = "xtrue" ] && [ -f /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem ]; then
+          if [ ! -x /usr/bin/GetConfigFile ];then
+              echo_t "Error: GetConfigFile Not Found"
               exit 127
           fi
           ID="/tmp/uydrgopwxyem"
           GetConfigFile $ID
-        CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
-      else
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
-      fi
-      if [[ ! -e $UploadFile ]]; then
-        echo_t "No file exist or already uploaded!!!"
-        http_code=-1
-        break
-      fi
-        echo_t "CURL_CMD:$CURL_CMD"
+          if [ ! -f "$ID" ]; then
+              echo_t "Getconfig file fails"
+          fi
+          msg_tls_source="mTLS certificate from RDK-CA"
+          echo_t "Log Upload: $msg_tls_source"
+          CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+        else
+          msg_tls_source="TLS"
+          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+        fi
+
+        if [[ ! -e $UploadFile ]]; then
+          echo_t "No file exist or already uploaded!!!"
+          break;
+        fi
+        echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g'`"
         HTTP_CODE=`ret= eval $CURL_CMD`
         if [ "x$HTTP_CODE" != "x" ]; then
             http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-            echo_t "Direct Communication - ret:$ret, http_code:$http_code"
+            echo_t "Log Upload: $msg_tls_source Direct Communication - ret:$ret, http_code:$http_code"
             if [ "$http_code" != "" ];then
-                echo_t "Direct connection HttpCode received is : $http_code"
+                echo_t "Log Upload: $msg_tls_source Direct connection HttpCode received is : $http_code"
                 if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
-                    if [ -f "$ID" ];then
-                        rm -rf "$ID"
-                    else
-                        echo "Getconfig file fails" 
-                    fi
+                    rm -f "$ID"
                     return 0
                 fi
             fi
         else
             http_code=0
-            echo_t "Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
+            echo_t "Log Upload: $msg_tls_source Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
         fi
                
         retries=`expr $retries + 1`
-        if [ -f "$ID" ];then
-            rm -rf "$ID"
-        else
-            echo "Getconfig file fails" 
-        fi
         sleep 30
     done
-    echo "Retries for Direct connection exceeded or file not exist " 
+    rm -f "$ID"
+    echo_t "Retries for Direct connection exceeded " 
     return 1
 }
 
@@ -471,11 +486,12 @@ HttpLogUpload()
         echo_t "File to be uploaded: $UploadFile"
         UPTIME=`uptime`
         echo_t "System Uptime is $UPTIME"
-        if [ "$mTlsLogUpload" == "true" ]; then
-          S3_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
-          echo "Log Upload requires Mutual Authentication:$S3_URL"
-        fi
         echo_t "S3 URL is : $S3_URL"
+        checkXpkiMtlsBasedLogUpload
+        if [ "x$mTlsLogUpload" = "xtrue" ] || [ "x$useXpkiMtlsLogupload" = "xtrue" ]; then
+            S3_SECURE_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
+            echo_t "Log Upload: requires Mutual Authentication S3 Secure URL is :$S3_SECURE_URL"
+        fi
 
         S3_MD5SUM=""
         echo "RFC_EncryptCloudUpload_Enable:$encryptionEnable"
@@ -647,7 +663,7 @@ HttpLogUpload()
                     esac
                 fi
 
-                echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
+                echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g'`"
                 ret= eval $CURL_CMD > $HTTP_CODE
                 if [ -f $HTTP_CODE ]; then
                     http_code=$(awk '{print $0}' $HTTP_CODE)
