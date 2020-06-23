@@ -31,6 +31,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 CRON_TAB="/var/spool/cron/crontabs/root"
 DCM_PATH="/lib/rdk"
 SELFHEAL_PATH="/usr/ccsp/tad"
+CERT_CHECKER_PATH="/usr/bin"
 
 calcRandTimeandUpload()
 {
@@ -174,6 +175,12 @@ calcRandTimeandUpload()
     if [ "$BOX_TYPE" == "XB6" ]; then
        echo_t "RDK Logger : calling log_factoryPartnerId.sh"
        sh $RDK_LOGGER_PATH/log_factoryPartnerId.sh &
+    fi
+
+    #check device certificates
+    if [ -x $CERT_CHECKER_PATH/rdkssacertcheck.sh ]; then
+       echo_t "RDK Logger : calling rdkssacertcheck.sh"
+       sh $CERT_CHECKER_PATH/rdkssacertcheck.sh nonotify &
     fi
 
     createSysDescr
