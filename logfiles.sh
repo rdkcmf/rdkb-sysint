@@ -194,7 +194,7 @@ sync_atom_log_files()
             rm $SCP_RUNNING
         fi
         #facing issues with nice value in rbus mode thereby not considering nice value in rbus mode
-        if [ -e /nvram/rbus ]
+        if [ -e /nvram/rbus_support ]
         then
             scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
         else
@@ -213,7 +213,7 @@ sync_atom_log_files()
     elif [ "$SCP_PID" == "" ]; then
         touch $SCP_RUNNING
         #facing issues with nice value in rbus mode thereby not considering nice value in rbus mode
-        if [ -e /nvram/rbus ]
+        if [ -e /nvram/rbus_support ]
         then
             scp -i $PEER_COMM_ID -r root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $destination > /dev/null 2>&1
         else
