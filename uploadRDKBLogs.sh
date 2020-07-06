@@ -264,6 +264,10 @@ useDirectRequest()
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
         echo_t "Curl Command built: `echo "$CURL_CMD" | sed -ne 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#p'`"
       fi
+      if [[ ! -e $UploadFile ]]; then
+        echo_t "No file exist or already uploaded!!!"
+        break;
+      fi
         echo_t "CURL_CMD:$CURL_CMD"
         HTTP_CODE=`ret= eval $CURL_CMD`
         if [ "x$HTTP_CODE" != "x" ]; then
@@ -349,7 +353,10 @@ useCodebigRequest()
 
         # Performing 3 tries for successful curl command execution.
         # $http_code --> Response code retrieved from HTTP_CODE file path.
-
+        if [[ ! -e $UploadFile ]]; then
+             echo_t "No file exist or already uploaded!!!"
+             break;
+        fi
         echo_t "Trial $retries for CODEBIG..."
         #Sensitive info like Authorization signature should not print
         echo "Curl Command built: $CURL_CMD_FOR_ECHO"
@@ -533,7 +540,10 @@ HttpLogUpload()
                         CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" --connect-timeout 30 -m 30"
                     fi
                 fi
-
+	            if [[ ! -e $UploadFile ]]; then
+                   echo_t "No file exist or already uploaded!!!"
+                   break;
+                fi
                 #Sensitive info like Authorization signature should not print
                 echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
                 eval $CURL_CMD > $HTTP_CODE
@@ -607,6 +617,10 @@ HttpLogUpload()
                 if [ $retries -ne 0 ]; then
                      CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" --connect-timeout 30 -m 30"
                 fi
+                if [[ ! -e $UploadFile ]]; then
+                   echo_t "No file exist or already uploaded!!!"
+                   break;
+               fi
                 echo_t "Curl Command built: $CURL_CMD"
                 eval $CURL_CMD > $HTTP_CODE
                 ret=$?
@@ -660,6 +674,10 @@ HttpLogUpload()
                             #Sensitive info like Authorization signature should not print
                         CURL_CMD_FOR_ECHO="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$RemSignature\" --connect-timeout 10 -m 10"
                     fi
+                    if [[ ! -e $UploadFile ]]; then
+                       echo_t "No file exist or already uploaded!!!"
+                       break;
+		            fi
 		    #Sensitive info like Authorization signature should not print
                     echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
                     HTTP_CODE=`ret= eval $CURL_CMD`
@@ -769,6 +787,9 @@ then
 fi
 
 # Remove the log in progress flag
-rm $REGULAR_UPLOAD
+if [ -f $REGULAR_UPLOAD ]
+then
+    rm $REGULAR_UPLOAD
+fi
 # removing event which is set in backupLogs.sh when wan goes down
 sysevent set wan_event_log_upload no
