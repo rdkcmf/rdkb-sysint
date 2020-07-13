@@ -262,7 +262,7 @@ uploadOnboardLogs()
     fi
 
     if [ "$ret" -ne "0" ]; then
-         echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+         echo "LOG UPLOAD UNSUCCESSFUL, ret = $ret"
     fi
 
     # If 200, executing second curl command with the public key.
@@ -308,7 +308,7 @@ uploadOnboardLogs()
 	     t2CountNotify "LOGS_UPLOADED"
         fi
     else
-        echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+        echo_t "LOG UPLOAD UNSUCCESSFUL, http_code = : $http_code"
     fi
     cd $curDir
 }
