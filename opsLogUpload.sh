@@ -597,7 +597,6 @@ uploadOnRequest()
 	HTTPLogUploadOnRequest
 	#fi
 	cd $curDir
-	echo_t "Log file Upload completed..."
 
 	# Remove the in progress flag 
 	rm -rf $UPLOAD_ON_REQUEST
