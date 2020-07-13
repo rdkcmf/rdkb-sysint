@@ -368,7 +368,7 @@ HTTPLogUploadOnRequest()
     fi
 
     if [ "$ret" -ne "0" ]; then
-        echo "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+        echo "LOG UPLOAD UNSUCCESSFUL, ret = $ret"
         rm -rf $blog_dir$timeRequested 
     fi
 
@@ -464,49 +464,47 @@ HTTPLogUploadOnRequest()
        
         #Executing curl with the response key when return code after the first curl execution is 200.
         if [ "$http_code" = "200" ];then
-        Key=$(awk '{print $0}' $OutputFile)
-        if [ "$encryptionEnable" != "true" ]; then
-            Key=\"$Key\"
+            Key=$(awk '{print $0}' $OutputFile)
+            if [ "$encryptionEnable" != "true" ]; then
+                Key=\"$Key\"
+            fi
+            CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key $CERT_STATUS --connect-timeout 30 -m 30"
+            CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
+            retries=0
+            while [ "$retries" -lt "3" ]
+            do       
+	        echo_t "Trial $retries..."              
+                echo_t "Curl Command built: $CURL_REMOVE_HEADER"
+                HTTP_CODE=`ret= eval $CURL_CMD`
+                if [ "x$HTTP_CODE" != "x" ];
+	        then
+		    http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+                    if [ "$http_code" != "" ];then
+                        if [ "$http_code" = "200" ];then
+                            echo $http_code > $UPLOADRESULT
+                            break
+                        else
+                            echo "failed" > $UPLOADRESULT
+                        fi
+                    fi
+                else
+                    http_code=0
+                fi
+                retries=`expr $retries + 1`
+                sleep 30
+            done
+            #Logs upload successful when the return code is 200 after the second curl execution.
+            if [ "$http_code" = "200" ];then
+                echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
+	        t2CountNotify "LOGS_UPLOADED"
+	        #Remove all log directories
+	        rm -rf $blog_dir
+                result=0
+            fi
         fi
-        CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type  $Key $CERT_STATUS --connect-timeout 30 -m 30"
-        CURL_REMOVE_HEADER=`echo $CURL_CMD | sed "s/AWSAccessKeyId=.*Signature=.*&//g;s/\"//g;s/.*https/https/g"`
-        retries=0
-        while [ "$retries" -lt "3" ]
-        do       
-	    echo_t "Trial $retries..."              
-            echo_t "Curl Command built: $CURL_REMOVE_HEADER"
-            HTTP_CODE=`ret= eval $CURL_CMD`
-            if [ "x$HTTP_CODE" != "x" ];
-	    then
-		http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-
-		if [ "$http_code" != "" ];then
-	
-	       		if [ "$http_code" = "200" ];then
-					echo $http_code > $UPLOADRESULT
-	       			break
-			else
-				echo "failed" > $UPLOADRESULT
-	       	fi
-		fi
-        else
-            http_code=0
-        fi
-            retries=`expr $retries + 1`
-            sleep 30
-        done
-        #Logs upload successful when the return code is 200 after the second curl execution.
-        if [ "$http_code" = "200" ];then
-            echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-	    t2CountNotify "LOGS_UPLOADED"
-	    #Remove all log directories
-	    rm -rf $blog_dir
-            result=0
-        fi
-    fi
     # Any other response code, log upload is unsuccessful.
     else 
-       	echo_t "LOG UPLOAD UNSUCCESSFUL,INVALID RETURN CODE: $http_code"
+        echo_t "LOG UPLOAD UNSUCCESSFUL, http_code = : $http_code"
 	#Keep tar ball and remove only the log folder
 	rm -rf $blog_dir$timeRequested
 		
