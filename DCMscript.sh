@@ -476,6 +476,20 @@ if [ ! -f $T2_0_BIN ]; then
     T2_ENABLE="false"
 fi
 
+WAIT_COUNT=0
+MAX_PAMINIT_CHECK_TIMEOUT=30
+t2Log "Checking For PAM processes"
+while [ $WAIT_COUNT -lt $MAX_PAMINIT_CHECK_TIMEOUT ]
+do
+    if [ ! -f "/tmp/pam_initialized" ]; then
+        sleep 10
+        let WAIT_COUNT++
+    else
+        t2Log "PAM is Initilized"
+        break
+    fi
+done
+
 if [ "x$T2_ENABLE" == "xtrue" ]; then
     t2Pid=`pidof $T2_0_APP`
     if [ -z "$t2Pid" ]; then
