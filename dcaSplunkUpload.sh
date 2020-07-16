@@ -337,8 +337,16 @@ cur_time=`date "+%Y-%m-%d %H:%M:%S"`
 # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
 # Otherwise we will not specify the ip address family in curl options
 addr_type=""
-[ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
-
+if [ "x$BOX_TYPE" = "xHUB4" ]; then
+   CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+   if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+                [ "x`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+   else
+                [ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+   fi
+else
+   [ "x`ifconfig $EROUTER_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+fi
 if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    ##  1]  Pull processed data from ATOM 
    rm -f $TELEMETRY_JSON_RESPONSE

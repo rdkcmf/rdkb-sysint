@@ -207,7 +207,16 @@ retryUpload()
 	while : ; do
 	   sleep 10
 	   WAN_STATE=`sysevent get wan_service-status`
+if [ "x$BOX_TYPE" = "xHUB4" ]; then
+   CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+   if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+           EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+   else
+           EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+   fi
+else
        EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+fi
        SYSEVENT_PID=`pidof syseventd`
 	   if [ -f $WAITINGFORUPLOAD ]
 	   then
@@ -809,7 +818,16 @@ touch $REGULAR_UPLOAD
 if [ "$UploadProtocol" = "HTTP" ]
 then
    WAN_STATE=`sysevent get wan_service-status`
+if [ "x$BOX_TYPE" = "xHUB4" ]; then
+   CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+   if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+           EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+   else
+           EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+   fi
+else
    EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+fi
    SYSEVENT_PID=`pidof syseventd`
    if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
    then
