@@ -345,7 +345,16 @@ HTTPLogUploadOnRequest()
     # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
     # Otherwise we will not specify the ip address family in curl options
     addr_type=""
+if [ "x$BOX_TYPE" = "xHUB4" ]; then
+   CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+   if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+           [ "x`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+   else
+           [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+   fi
+else
     [ "x`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`" != "x" ] || addr_type="-4"
+fi
 
     UploadFile=`ls | grep "tgz"`
     echo_t "files to be uploaded is : $UploadFile"
