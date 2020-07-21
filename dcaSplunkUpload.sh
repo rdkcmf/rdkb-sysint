@@ -186,6 +186,8 @@ get_Codebigconfig()
    if [ -f /usr/bin/GetServiceUrl ]; then
       CodebigAvailable=1
    fi
+   # Forcing telemetry data upload only through direct uploads as codebig proxy not updated to new splunk end point.
+   CodebigAvailable=0
    if [ "$CodebigAvailable" -eq "1" ]; then
        CodeBigEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.CodeBigFirst.Enable | grep true 2>/dev/null`
    fi
