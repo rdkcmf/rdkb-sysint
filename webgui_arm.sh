@@ -140,7 +140,7 @@ proxy.server      =    ( \"\" =>
 }" >> $LIGHTTPD_CONF
 
 # No RF captive portal 
-if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "XB6" ]
+if [ "$BOX_TYPE" = "XB6" ]
 then
    echo "\$SERVER[\"socket\"] == \"brlan0:31515\" { server.use-ipv6 = \"enable\" 
 proxy.server      =    ( \"\" =>
@@ -231,43 +231,47 @@ done
 echo_t "WEBGUI : NotifyWiFiChanges is $SET_CONFIGURE_FLAG"
 echo_t "WEBGUI : redirection_flag val is $WIFIUNCONFIGURED"
 
-
-if [ -f "/tmp/.gotnetworkresponse" ]
+# No RF captive portal
+if [ "$BOX_TYPE" = "XB6" ]
 then
-    echo_t "WEBGUI : File /tmp/.gotnetworkresponse exists, no rf check not needed."
-else
-    # P&M up will make sure CM agent is up as well as
-    # RFC values are picked
-    echo_t "No RF CP: Check PAM initialized"
-    PAM_UP=0
-    while [ $PAM_UP -ne 1 ]
-    do
-    sleep 1
-    #Check if CcspPandMSsp is up
-    # PAM_PID=`pidof CcspPandMSsp`
 
-    if [ -f "/tmp/pam_initialized" ]
-    then
-         PAM_UP=1
-    fi
-    done
-    echo_t "RF CP: PAM is initialized"
+	if [ -f "/tmp/.gotnetworkresponse" ]
+	then
+	    echo_t "WEBGUI : File /tmp/.gotnetworkresponse exists, no rf check not needed."
+	else
+	    # P&M up will make sure CM agent is up as well as
+	    # RFC values are picked
+	    echo_t "No RF CP: Check PAM initialized"
+	    PAM_UP=0
+	    while [ $PAM_UP -ne 1 ]
+	    do
+	    sleep 1
+	    #Check if CcspPandMSsp is up
+	    # PAM_PID=`pidof CcspPandMSsp`
 
-    enableRFCaptivePortal=`syscfg get enableRFCaptivePortal`
-    ethWanEnabled=`syscfg get eth_wan_enabled`
-    cpFeatureEnbled=`syscfg get CaptivePortal_Enable`
+	    if [ -f "/tmp/pam_initialized" ]
+	    then
+		 PAM_UP=1
+	    fi
+	    done
+	    echo_t "RF CP: PAM is initialized"
 
-    # Enable RF CP in first iteration. network_response.sh will run once WAN comes up
-    # network_response.sh will take the unit out of RF CP 
-    if [ "$enableRFCaptivePortal" != "false" ] && [ "$ethWanEnabled" != "true" ] && [ "$cpFeatureEnbled" = "true" ]
-    then
-       isRfOff=`checkRfStatus`
-       if [ "$isRfOff" = "true" ]
-       then
-          echo_t "WEBGUI: Restart events for RF CP"
-          restartEventsForRfCp
-       fi
-    fi
+	    enableRFCaptivePortal=`syscfg get enableRFCaptivePortal`
+	    ethWanEnabled=`syscfg get eth_wan_enabled`
+	    cpFeatureEnbled=`syscfg get CaptivePortal_Enable`
+
+	    # Enable RF CP in first iteration. network_response.sh will run once WAN comes up
+	    # network_response.sh will take the unit out of RF CP 
+	    if [ "$enableRFCaptivePortal" != "false" ] && [ "$ethWanEnabled" != "true" ] && [ "$cpFeatureEnbled" = "true" ]
+	    then
+	       isRfOff=`checkRfStatus`
+	       if [ "$isRfOff" = "true" ]
+	       then
+		  echo_t "WEBGUI: Restart events for RF CP"
+		  restartEventsForRfCp
+	       fi
+	    fi
+	fi
 fi
 
 if [ "$WIFIUNCONFIGURED" = "true" ]
