@@ -27,15 +27,21 @@ fi
 if [ -f "$SOCAT_PATH""$SOCAT_BIN" ]; then
     echo_t "Socat is already present, no need to download" >> $LOG_FILE
 else
-    sh $DNLD_SCRIPT $SOCAT_APP_NAME "" $VALIDATION_METHOD $PKG_EXT ""
-    DNLD_RES=$?
-    echo_t "Socat Download is completed, result is:$DNLD_RES" >> $LOG_FILE
-    if [ $DNLD_RES -eq 0 ]; then
-        echo_t "socat download is successful" >> $LOG_FILE
-    else
-        echo_t "socat Download has failed" >> $LOG_FILE
-        exit 1
-    fi
+    counter=0
+    while [ $counter -lt 3 ]
+    do
+        sh $DNLD_SCRIPT $SOCAT_APP_NAME "" $VALIDATION_METHOD $PKG_EXT ""
+        DNLD_RES=$?
+        echo_t "Socat Download is completed, result is:$DNLD_RES" >> $LOG_FILE
+        if [ $DNLD_RES -eq 0 ];then
+            echo_t "socat download is successful" >> $LOG_FILE
+            break
+        else
+            echo_t "socat download is failed. Retrying download" >> $LOG_FILE
+            counter = `$counter + 1`
+            sleep 10
+        fi
+    done
 fi
 
 if [ -f "$STUNNEL_PATH""$STUNNEL_BIN" ]; then
