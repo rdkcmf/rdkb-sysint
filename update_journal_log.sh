@@ -45,10 +45,10 @@ do
    #Keeps appending to the existing file 
    nice -n 19 journalctl -k --since "${difference_time} sec ago" >> ${DMESG_FILE}
    if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "XF3" ] || [ "$BOX_TYPE" = "TCCBR" ];then
-	   #ARRISXB6-7973: Complete journalctl logs to /rdklogs/logs/atom_journal_logs.txt.0
+	   #ARRISXB6-7973: Complete journalctl logs to /rdklogs/logs/journal_logs.txt.0
            uptime_in_secs="`awk '{print $1}' /proc/uptime | cut -d '.' -f1`"
            if [ $uptime_in_secs -ge 240 ]  && [ $BootupLog_is_updated -eq 0 ]; then
-                nice -n 19 journalctl > ${atom_journal_log}
+                nice -n 19 journalctl > ${journal_log}
                 BootupLog_is_updated=1;
            fi
    fi
