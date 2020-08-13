@@ -56,10 +56,19 @@ case $oper in
 		IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
 		Check=$(ip_to_hex $IpCheckVal)
 		# getting the IPV6 address for CM
-		CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-		if [ -z "$CM_IP" ]; then
-			CM_IP=$CM_IPV4
-		fi
+                # creating a ssh tunnel directly to the LANIP:22 for IPV6 only scenario
+                if [ "x$BOX_TYPE" = "xHUB4" ]; then
+                        if [ -z "$CM_IPV4" ]; then
+                                CM_IP=`syscfg get lan_ipaddr`
+                        else
+                                CM_IP=$CM_IPV4
+                        fi
+                else
+                         CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+                         if [ -z "$CM_IP" ]; then
+                            CM_IP=$CM_IPV4
+                         fi
+                fi
 	     else
 		if [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
 			CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`

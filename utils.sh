@@ -63,7 +63,7 @@ getIPAddress()
     if [ "x$BOX_TYPE" = "xHUB4" ]; then
        CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
-               wanIP=`ifconfig $HUB4_IPV6_INTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+               wanIP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
        else
                wanIP=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
        fi
