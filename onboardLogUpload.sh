@@ -305,7 +305,7 @@ uploadOnboardLogs()
         # Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ "$http_code" = "200" ];then
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-	     t2CountNotify "LOGS_UPLOADED"
+	     t2CountNotify "SYS_INFO_LOGS_UPLOADED"
         fi
     else
         echo_t "LOG UPLOAD UNSUCCESSFUL, http_code = : $http_code"

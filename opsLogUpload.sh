@@ -426,7 +426,7 @@ HTTPLogUploadOnRequest()
 	# Response after executing curl with the public key is 200, then file uploaded successfully.
         if [ "$http_code" = "200" ];then
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-	     t2CountNotify "LOGS_UPLOADED"
+	     t2CountNotify "SYS_INFO_LOGS_UPLOADED"
 	    #Remove all log directories
 	     rm -rf $blog_dir
         fi
@@ -502,7 +502,7 @@ HTTPLogUploadOnRequest()
             #Logs upload successful when the return code is 200 after the second curl execution.
             if [ "$http_code" = "200" ];then
                 echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
-	        t2CountNotify "LOGS_UPLOADED"
+	        t2CountNotify "SYS_INFO_LOGS_UPLOADED"
 	        #Remove all log directories
 	        rm -rf $blog_dir
                 result=0
