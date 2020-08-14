@@ -274,7 +274,8 @@ useDirectRequest()
       fi
       if [[ ! -e $UploadFile ]]; then
         echo_t "No file exist or already uploaded!!!"
-        break;
+        http_code=-1
+        break
       fi
         echo_t "CURL_CMD:$CURL_CMD"
         HTTP_CODE=`ret= eval $CURL_CMD`
@@ -305,7 +306,7 @@ useDirectRequest()
         fi
         sleep 30
     done
-    echo "Retries for Direct connection exceeded " 
+    echo "Retries for Direct connection exceeded or file not exist " 
     return 1
 }
 
@@ -363,7 +364,8 @@ useCodebigRequest()
         # $http_code --> Response code retrieved from HTTP_CODE file path.
         if [[ ! -e $UploadFile ]]; then
              echo_t "No file exist or already uploaded!!!"
-             break;
+             http_code=-1
+             return 1
         fi
         echo_t "Trial $retries for CODEBIG..."
         #Sensitive info like Authorization signature should not print
@@ -490,7 +492,7 @@ HttpLogUpload()
            ret=$?
         fi
 
-        if [ "$ret" -ne "0" ]; then
+        if [ "$ret" -ne "0" ] && [ "$http_code" -ne "-1" ]; then
             echo_t "INVALID RETURN CODE: $http_code"
             echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
             t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
@@ -550,7 +552,8 @@ HttpLogUpload()
                 fi
 	            if [[ ! -e $UploadFile ]]; then
                    echo_t "No file exist or already uploaded!!!"
-                   break;
+                   http_code=-1
+                   break
                 fi
                 #Sensitive info like Authorization signature should not print
                 echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
@@ -596,9 +599,11 @@ HttpLogUpload()
                    adjustPreserveCount
                 fi
 
-	     else
-		echo_t "LOGS UPLOAD FAILED, RETURN CODE: $http_code"
-        	preserveThisLog $UploadFile $UploadPath
+	        else
+                 if [ "$http_code" -ne "-1" ]; then
+                    echo_t "LOGS UPLOAD FAILED, RETURN CODE: $http_code"
+                    preserveThisLog $UploadFile $UploadPath
+                fi
             fi
 
         #When 302, there is URL redirection.So get the new url from FILENAME and curl to it to get the key.
@@ -627,7 +632,8 @@ HttpLogUpload()
                 fi
                 if [[ ! -e $UploadFile ]]; then
                    echo_t "No file exist or already uploaded!!!"
-                   break;
+                   http_code=-1
+                   break
                fi
                 echo_t "Curl Command built: $CURL_CMD"
                 eval $CURL_CMD > $HTTP_CODE
@@ -684,7 +690,8 @@ HttpLogUpload()
                     fi
                     if [[ ! -e $UploadFile ]]; then
                        echo_t "No file exist or already uploaded!!!"
-                       break;
+                       http_code=-1
+                       break
 		            fi
 		    #Sensitive info like Authorization signature should not print
                     echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
@@ -718,17 +725,21 @@ HttpLogUpload()
                     if [ "$UploadPath" = "$PRESERVE_LOG_PATH" ] ; then
                       adjustPreserveCount
                     fi
-		 else
-			echo_t "LOG UPLOAD FAILED, RETURN CODE: $http_code"
-                	preserveThisLog $UploadFile $UploadPath
-		 fi
+                else
+                    if [ "$http_code" -ne "-1" ]; then
+                        echo_t "LOG UPLOAD FAILED, RETURN CODE: $http_code"
+                        preserveThisLog $UploadFile $UploadPath
+                    fi
+                fi
             fi
         else
-            echo_t "INVALID RETURN CODE: $http_code"
-            echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
-	    t2CountNotify "LOGUPLOAD_FAILED"
-	    preserveThisLog $UploadFile $UploadPath
-	    t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
+            if [ "$http_code" -ne "-1" ]; then
+                echo_t "INVALID RETURN CODE: $http_code"
+                echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
+                t2CountNotify "LOGUPLOAD_FAILED"
+                preserveThisLog $UploadFile $UploadPath
+                t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
+            fi
 
             fi
 
