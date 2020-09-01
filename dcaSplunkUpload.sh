@@ -36,6 +36,7 @@ CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcas"
 FORCE_DIRECT_ONCE="/tmp/.forcedirectonce_dcas"
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 TELEMETRY_RESEND_FILE="$PERSISTENT_PATH/.resend.txt"
+TELEMETRY_BOOTUP_RESEND_FILE="$PERSISTENT_PATH/.bootmarkers_resend.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 
 RTL_LOG_FILE="$LOG_PATH/dcmscript.log"
@@ -384,11 +385,12 @@ fi
 
 if [ "$inputArgs" = "logbackup_without_upload" ];then
       echo_t "log backup during bootup, Will upload on later call..!"
+      echo_t "log backup during bootup, Will upload on later call..!" >> $RTL_LOG_FILE
       if [ -f $TELEMETRY_JSON_RESPONSE ]; then
            outputJson=`cat $TELEMETRY_JSON_RESPONSE`
       fi
       if [ ! -f $TELEMETRY_JSON_RESPONSE ] || [ "x$outputJson" = "x" ] ; then
-               echo_t "dca: Unable to find Json message or Json is empty." >> $RTL_LOG_FILE
+               echo_t "logbackup_without_upload::dca: Unable to find Json message or Json is empty." >> $RTL_LOG_FILE
          if [ ! -f /etc/os-release ];then pidCleanup; fi
          exit 0
       fi
@@ -400,16 +402,36 @@ if [ "$inputArgs" = "logbackup_without_upload" ];then
             fi
             mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE
       fi
-      # ensure that Json is put at the top of the queue
-      echo "$outputJson" > $TELEMETRY_RESEND_FILE
       if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
          cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
          rm -f $TELEMETRY_TEMP_RESEND_FILE
       fi
+      if [ -f $TELEMETRY_BOOTUP_RESEND_FILE ]; then
+            echo_t "Warning:Bootupmarkers json of previous boot didn't get uploaded. " >> $RTL_LOG_FILE
+            echo_t " dca:logbackup_without_upload:Updating with latest bootJson. " >> $RTL_LOG_FILE
+      fi
+      echo "$outputJson" > $TELEMETRY_BOOTUP_RESEND_FILE
       if [ ! -f /etc/os-release ];then pidCleanup; fi
       exit 0
 fi
 get_Codebigconfig
+# Post Bootup markers Json
+if [ -f $TELEMETRY_BOOTUP_RESEND_FILE ] && [ "x$ignoreResendList" != "xtrue" ]; then
+    bootupJson=`cat $TELEMETRY_BOOTUP_RESEND_FILE`
+    if [ "x$bootupJson" = "x" ] ; then
+        echo_t "dca:Empty BootupJson" >> $RTL_LOG_FILE
+    else
+        echo_t "dca BootupJson resend : $bootupJson" >> $RTL_LOG_FILE
+        $first_conn "$bootupJson" "resend" || conn_type_used="Fail"
+         if [ "x$conn_type_used" = "xFail" ] ; then
+            echo_t "dca Connecion failed .Attempt bootupJson in next upload" >> $RTL_LOG_FILE
+         else
+            echo_t "dca::bootupJson message successfully submitted." >> $RTL_LOG_FILE
+            rm -f $TELEMETRY_BOOTUP_RESEND_FILE
+        fi
+    fi
+fi
+
 ##  2] Check for unsuccessful posts from previous execution in resend que.
 ##  If present repost either with appending to existing or as independent post
 if [ -f $TELEMETRY_RESEND_FILE ] && [ "x$ignoreResendList" != "xtrue" ]; then
@@ -441,7 +463,9 @@ if [ ! -f $TELEMETRY_JSON_RESPONSE ] || [ "x$outputJson" = "x" ] ; then
     exit 0
 fi
 
-echo "$outputJson" > $TELEMETRY_RESEND_FILE
+TELEMETRY_RESEND_MAKER="/tmp/.resend_maker_$$.txt"
+
+echo "$outputJson" > $TELEMETRY_RESEND_MAKER
 # sleep for random time before upload to avoid bulk requests on splunk server
 echo_t "dca: Sleeping for $sleep_time before upload." >> $RTL_LOG_FILE
 sleep $sleep_time
@@ -449,18 +473,42 @@ timestamp=`date +%Y-%b-%d_%H-%M-%S`
 $first_conn "$outputJson"  ||  conn_type_used="Fail" 
 if [ "x$conn_type_used" != "xFail" ]; then
     echo_t "dca: Json message successfully submitted." >> $RTL_LOG_FILE
-    rm -f $TELEMETRY_RESEND_FILE
-    [ ! -f $TELEMETRY_TEMP_RESEND_FILE ] ||  mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
+    rm -f $TELEMETRY_RESEND_MAKER 
 else
+    echo_t "currentJson submit failed" >> $RTL_LOG_FILE
    if [ -f $TELEMETRY_TEMP_RESEND_FILE ] ; then
        if [ "`cat $TELEMETRY_TEMP_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
             echo_t "dca: resend queue size has already reached MAX_CONN_QUEUE. Not adding anymore entries" >> $RTL_LOG_FILE
             mv $TELEMETRY_TEMP_RESEND_FILE $TELEMETRY_RESEND_FILE
        else
+            if [ -f $TELEMETRY_RESEND_MAKER ] ; then
+                cat $TELEMETRY_RESEND_MAKER > $TELEMETRY_RESEND_FILE
+                rm -f $TELEMETRY_RESEND_MAKER
+            fi
             cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
             echo_t "dca: Json message submit failed. Adding message to resend queue" >> $RTL_LOG_FILE
        fi
        rm -f $TELEMETRY_TEMP_RESEND_FILE
+   else
+       if [ -f $TELEMETRY_RESEND_FILE ] ; then
+          if [ "`cat $TELEMETRY_RESEND_FILE | wc -l `" -ge "$MAX_CONN_QUEUE" ]; then
+               echo_t "dca: resend queue_size has already reached MAX_CONN_QUEUE. Not adding current Json" >> $RTL_LOG_FILE
+          else
+#add the currentJson at the top of the resend queue.and then clear the currentJson file.
+               mv $TELEMETRY_RESEND_FILE $TELEMETRY_TEMP_RESEND_FILE
+               if [ -f $TELEMETRY_RESEND_MAKER ] ; then
+                   cat $TELEMETRY_RESEND_MAKER > $TELEMETRY_RESEND_FILE
+                   rm -f $TELEMETRY_RESEND_MAKER
+               fi
+               cat $TELEMETRY_TEMP_RESEND_FILE >> $TELEMETRY_RESEND_FILE
+               rm -f $TELEMETRY_TEMP_RESEND_FILE
+           fi
+       else
+            #when there is no resend file or temp_resend file, move the currentjson to resend queue
+            if [ -f $TELEMETRY_RESEND_MAKER ] ; then
+                mv $TELEMETRY_RESEND_MAKER  $TELEMETRY_RESEND_FILE
+            fi
+       fi
     fi
 fi
 rm -f $TELEMETRY_JSON_RESPONSE
