@@ -38,7 +38,7 @@ else
             break
         else
             echo_t "socat download is failed. Retrying download" >> $LOG_FILE
-            counter = `$counter + 1`
+            counter=`expr $counter + 1`
             sleep 10
         fi
     done
