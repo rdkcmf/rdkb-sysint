@@ -60,18 +60,21 @@ get_wan_ips()
 start_dropbear_wan()
 {
 	get_wan_ips
-	DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
-	DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
+	DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1_wanssh"
+	DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2_wanssh"
         if [ ! -d '/tmp/.dropbear' ]; then
             echo "wan_ssh.sh: need to create dropbear dir "
             mkdir -p /tmp/.dropbear
         fi
-	getConfigFile $DROPBEAR_PARAMS_1
-	getConfigFile $DROPBEAR_PARAMS_2
+        if [ ! -f $DROPBEAR_PARAMS_1 ]; then
+	    getConfigFile $DROPBEAR_PARAMS_1
+        fi
+        if [ ! -f $DROPBEAR_PARAMS_2 ]; then
+	    getConfigFile $DROPBEAR_PARAMS_2
+        fi
         echo "WAN_PARAMS: $WAN_PARAMS"
         #RDKB-16251
 	dropbear -E -s -b /etc/sshbanner.txt -a $WAN_PARAMS -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 2>/dev/null
-        rm -rf /tmp/.dropbear/*
 }
 
 add_v4firewall_rule()

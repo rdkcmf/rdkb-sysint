@@ -597,9 +597,10 @@ RebootReason=`syscfg get X_RDKCENTRAL-COM_LastRebootReason`
 
 if [ "$BOX_TYPE" = "XB3" ]; then
         if [ "$RebootReason" = "RESET_ORIGIN_ATOM_WATCHDOG" ] || [ "$RebootReason" = "RESET_ORIGIN_ATOM" ]; then
-	       GetConfigFile $PEER_COMM_ID
+               if [ ! -f $PEER_COMM_ID ]; then
+	              GetConfigFile $PEER_COMM_ID
+               fi
 	       scp -i $PEER_COMM_ID -r root@$ATOM_INTERFACE_IP:$RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE  $LOG_SYNC_PATH > /dev/null 2>&1
-	       rm -rf $PEER_COMM_ID
 	fi
         if [ "$RebootReason" = "HOST-OOPS-REBOOT" ]; then
 	       cp $RAM_OOPS_FILE_LOCATION$RAM_OOPS_FILE0  $LOG_SYNC_PATH$RAM_OOPS_FILE0_HOST
