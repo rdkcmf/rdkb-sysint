@@ -63,9 +63,10 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
         exit 127
     fi
 
+    if [ ! -f $PEER_COMM_ID ]; then
     GetConfigFile $PEER_COMM_ID
+    fi
     ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'update_cronschedule' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
-    rm -f $PEER_COMM_ID
 else
     sh /lib/rdk/dca_utility.sh 3 &
 fi

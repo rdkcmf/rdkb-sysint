@@ -343,14 +343,14 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
    ##  1]  Pull processed data from ATOM 
    rm -f $TELEMETRY_JSON_RESPONSE
 
-   
-   GetConfigFile $PEER_COMM_ID
+   if [ ! -f $PEER_COMM_ID ]; then
+       GetConfigFile $PEER_COMM_ID
+   fi
    scp -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE > /dev/null 2>&1
    if [ $? -ne 0 ]; then
        scp -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP:$TELEMETRY_JSON_RESPONSE $TELEMETRY_JSON_RESPONSE > /dev/null 2>&1
    fi
    echo_t "Copied $TELEMETRY_JSON_RESPONSE " >> $RTL_LOG_FILE 
-   rm -f $PEER_COMM_ID
    sleep 2
 fi
 

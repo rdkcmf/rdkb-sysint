@@ -93,10 +93,11 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
             sleep 120
             if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then 
             	echo_t "$0 : exec utils remotely for clearing markers" >> $T2_0_LOGFILE
-            	GetConfigFile $PEER_COMM_ID
+		if [ ! -f $PEER_COMM_ID ]; then
+                    GetConfigFile $PEER_COMM_ID
+		fi
             	ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "echo 'clearSeekValues' > $TELEMETRY_T2_INOTIFY_EVENT"  > /dev/null 2>&1
 		sleep 1
-		rm -f $PEER_COMM_ID
             else 
                 echo_t "$0 : Clearing markers from $TELEMETRY_PATH" >> $T2_0_LOGFILE
             	rm -rf $TELEMETRY_PATH_TEMP
@@ -133,7 +134,9 @@ fi
 sshCmdOnArm(){
 
     command=$1
-    GetConfigFile $PEER_COMM_ID
+    if [ ! -f $PEER_COMM_ID ]; then
+        GetConfigFile $PEER_COMM_ID
+    fi
     count=0
     isCmdExecFail="true"
     while [ $count -lt $MAX_SSH_RETRY ]
@@ -149,7 +152,6 @@ sshCmdOnArm(){
         fi
         count=$((count + 1))
     done
-    rm -f $PEER_COMM_ID
 
     if [ "x$isCmdExecFail" == "xtrue" ]; then
         echo_t "Failed to exec command $command on arm with $MAX_SSH_RETRY retries" >> $RTL_LOG_FILE
@@ -448,19 +450,22 @@ dropbearRecovery()
 {
    dropbearPid=`ps | grep -i dropbear | grep "$ATOM_INTERFACE_IP" | grep -v grep`
    if [ -z "$dropbearPid" ]; then
-       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
-       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2$$"
+       DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1_dcautil"
+       DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2_dcautil"
        if [ ! -d '/tmp/.dropbear' ]; then
           echo_t "wan_ssh.sh: need to create dropbear dir !!! " >> $RTL_LOG_FILE
           mkdir -p /tmp/.dropbear
        fi
        echo_t "wan_ssh.sh: need to create dropbear files !!! " >> $RTL_LOG_FILE
-       getConfigFile $DROPBEAR_PARAMS_1
-       getConfigFile $DROPBEAR_PARAMS_2
+       if [ ! -f $DROPBEAR_PARAMS_1 ]; then
+           getConfigFile $DROPBEAR_PARAMS_1
+       fi
+       if [ ! -f $DROPBEAR_PARAMS_2 ]; then
+           getConfigFile $DROPBEAR_PARAMS_2
+       fi
        dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ATOM_INTERFACE_IP:22 &
        sleep 2
    fi
-   rm -rf /tmp/.dropbear/*
 }
    
 clearTelemetryConfig()
@@ -565,9 +570,10 @@ if [ ! -f $SORTED_PATTERN_CONF_FILE ] || [ $triggerType -eq 1 ] ; then
         while [ ! -f $DCMRESPONSE ]
         do
             echo "WARNING !!! Unable to locate $DCMRESPONSE .. Retrying " >> $RTL_LOG_FILE
-            GetConfigFile $PEER_COMM_ID
+            if [ ! -f $PEER_COMM_ID ]; then
+                GetConfigFile $PEER_COMM_ID
+            fi
             scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$DCMRESPONSE $DCMRESPONSE > /dev/null 2>&1
-            rm -f $PEER_COMM_ID
             sleep 10
         done
     fi
@@ -590,10 +596,11 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
     mkdir -p $LOG_PATH
     TMP_SCP_PATH="/tmp/scp_logs"
     mkdir -p $TMP_SCP_PATH
-    GetConfigFile $PEER_COMM_ID
+    if [ ! -f $PEER_COMM_ID ]; then
+        GetConfigFile $PEER_COMM_ID
+    fi
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile  $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$PcdLogFile  $TMP_SCP_PATH/ > /dev/null 2>&1
-    rm -f $PEER_COMM_ID
 
     RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
     RPC_OK=`echo $RPC_RES | grep "RPC CONNECTED"`

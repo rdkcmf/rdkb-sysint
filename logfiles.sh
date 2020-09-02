@@ -128,7 +128,9 @@ createSysDescr()
 
 flush_atom_logs()
 {
-    GetConfigFile $PEER_COMM_ID
+    if [ ! -f $PEER_COMM_ID ]; then
+        GetConfigFile $PEER_COMM_ID
+    fi
     T2_ENABLE=`syscfg get T2Enable` 
     if [ ! -f $T2_0_BIN ]; then                                                 
     	echo_t  "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!"
@@ -159,8 +161,6 @@ flush_atom_logs()
 		fi
 
 	done
-        rm -f $PEER_COMM_ID
-	
 }
 
 #To sync logs from atom side :
@@ -171,8 +171,9 @@ sync_atom_log_files()
 {
     destination=$1
     SCP_PID=`pidof scp`
-    GetConfigFile $PEER_COMM_ID
-
+    if [ ! -f $PEER_COMM_ID ]; then
+        GetConfigFile $PEER_COMM_ID
+    fi
     if [ "$SCP_PID" != "" ] && [ -f $SCP_RUNNING ] && [ ! -f $SCP_WAITING ]; then
         i=0;
         timeout=1;
@@ -219,7 +220,6 @@ sync_atom_log_files()
         fi
         rm $SCP_RUNNING
     fi
-    rm -f $PEER_COMM_ID
 }
 
 
