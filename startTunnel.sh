@@ -52,21 +52,21 @@ case $oper in
            start)
 
 	     if [ -f "/nvram/ETHWAN_ENABLE" ];then
-		CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+		CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 		IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
 		Check=$(ip_to_hex $IpCheckVal)
 		# getting the IPV6 address for CM
-		CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+		CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
 		if [ -z "$CM_IP" ]; then
 			CM_IP=$CM_IPV4
 		fi
 	     else
 		if [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
-			CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+			CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 			IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
 			Check=$(ip_to_hex $IpCheckVal)
 			# Get Gobal scope IPv6 address from interface privbr
-			CM_IP=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1` 
+			CM_IP=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1` 
 			# If Gobal scope IPv6 address is not present
 			if [ -z "$CM_IP" ]; then
 				# Get Link local scope IPv6 address from interface privbr
@@ -86,9 +86,9 @@ case $oper in
 			fi
 		elif [ $BOX_TYPE = "XF3" ]; then
 			# PACE XF3 and PACE CFG3
-			CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1`
+			CM_IP=`ifconfig $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1 | head -n1`
 			if [ -z "$CM_IP" ]; then
-				CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+				CM_IP=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 			fi
 		else
 			CM_IP=`getCMIPAddress`
