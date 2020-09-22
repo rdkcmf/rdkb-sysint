@@ -119,7 +119,7 @@ getBuildType()
    if [ "$UseCodeBig" -eq "1" ]; then
         IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
    else
-        IMAGENAME=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
+        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
    fi
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
