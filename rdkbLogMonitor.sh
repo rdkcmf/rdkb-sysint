@@ -85,7 +85,7 @@ DeviceUP=0
 ## FW version from version.txt 
 getFWVersion()
 {
-    verStr=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
+    verStr=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
     echo $verStr
 }
 
