@@ -62,13 +62,18 @@ if [ -z $PERSISTENT_PATH ]; then
 fi
 
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
+T2_XCONF_PERSISTENT_PATH="$PERSISTENT_PATH/.t2persistentfolder"
+T2_BULK_PERSISTENT_PATH="$PERSISTENT_PATH/.t2reportprofiles"
 DCMFLAG="/tmp/.DCMSettingsFlag"
 DCM_LOG_FILE="$LOG_PATH/dcmscript.log"
 TELEMETRY_INOTIFY_FOLDER="/telemetry"
 TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
+T2_RESPONSE="$T2_XCONF_PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 FWDL_FLAG="/tmp/.fwdl_flag"
+
+
 
 #to support ocsp
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
@@ -467,6 +472,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
         rm -rf $TELEMETRY_PATH
         mkdir -p $TELEMETRY_PATH
         mkdir -p $TELEMETRY_PATH_TEMP
+        mkdir -p $T2_XCONF_PERSISTENT_PATH
         t2Log "Starting $T2_0_BIN daemon."
         ${T2_0_BIN}
     else
@@ -490,7 +496,15 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
             crontab $tempfile -c $CRON_SPOOL
         fi
     fi
-    rm -rf $tempfile 
+    rm -rf $tempfile
+    # Refer to config downloaded from telemetry version 2.0 to avoid additional persistent storage usage
+    if [ ! -L $DCMRESPONSE ]; then
+        echo_t "Remove config from DCA $DCMRESPONSE and create symlink to $T2_RESPONSE" >> $DCM_LOG_FILE
+        # Clear persistent file from DCA execution
+        rm -f $DCMRESPONSE
+        touch $T2_RESPONSE
+        ln -s $T2_RESPONSE $DCMRESPONSE
+    fi
 
     isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
     if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
@@ -512,6 +526,19 @@ fi
     fi
 
     if [ $checkon_reboot -eq 1 ]; then
+    	
+    # Clear response from telemetry 2.0 configs from persistent location with previous execution to avoid high persistent location usage
+    if [ -d "$T2_XCONF_PERSISTENT_PATH" ]; then 
+        rm -rf $T2_XCONF_PERSISTENT_PATH	
+    fi
+    if [ -d "$T2_BULK_PERSISTENT_PATH" ]; then 
+        rm -rf $T2_BULK_PERSISTENT_PATH	
+    fi
+    if [ -L "$DCMRESPONSE" ]; then
+	echo_t "Remove symbolic link from telemetry 2.0 execution " >> $DCM_LOG_FILE
+        rm -f $DCMRESPONSE
+    fi
+	
 	sendHttpRequestToServer $DCMRESPONSE $URL
 	ret=$?
 	echo_t "sendHttpRequestToServer returned $ret" >> $DCM_LOG_FILE
