@@ -40,7 +40,12 @@ do
 
 	sleep 60
 	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-	      MAXSIZE=512
+	      MAXSIZE=1536
+	      #Devices that have more nvram size can override default upload threshold (1.5MB) through device.properties
+	      if [ "$LOG_UPLOAD_THRESHOLD" != "" ]
+ 	      then
+ 		MAXSIZE=$LOG_UPLOAD_THRESHOLD
+ 	      fi
 	else
 	      MAXSIZE=524288
 	fi
@@ -49,12 +54,7 @@ do
 	cd $LOG_PATH
 	totalSize=0
         if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-
-		for f in $TMP_FILE_LIST
-		do
-			tempSize=`du -c $f | tail -1 | awk '{print $1}'`
-			totalSize=`expr $totalSize + $tempSize`
-		done
+		totalSize=`du -c | tail -1 | awk '{print $1}'`
         else
 
 		for f in $TMP_FILE_LIST
