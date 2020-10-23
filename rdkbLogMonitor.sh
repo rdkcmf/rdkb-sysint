@@ -664,30 +664,28 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	#TCCBR-4723 To handle all log upload with epoc time cases. Brought this block of code just 
 	#above to the prevoius condition for making all cases to wait for timesync before log upload.
 
-        if [ "$DOCSIS_TIME_SYNC_NEEDED" == "yes" ]; then
-		if [ "`sysevent get TimeSync-status`" != "synced" ];then
-			loop=1
-                        retry=1
-                        while [ "$loop" = "1" ]
-                        do
-                                echo_t "Waiting for time synchronization between processors before logbackup"
-                                TIME_SYNC_STATUS=`sysevent get TimeSync-status`
-                                if [ "$TIME_SYNC_STATUS" == "synced" ]
-                                then
-                                        echo_t "Time synced. Breaking loop"
-                                        break
-                                elif [ "$retry" = "12" ]
-                                then
-                                        echo_t "Time not synced even after 2 min retry. Breaking loop and using default time for logbackup"
-                                        break
-                                else
-                                        echo_t "Time not synced yet. Sleeping.. Retry:$retry"
-                                        retry=`expr $retry + 1`
-                                        sleep 10
-                                fi
-                        done
-		fi
-        fi
+	if [ "`sysevent get wan-status`" != "started" ];then
+		loop=1
+		retry=1
+		while [ "$loop" = "1" ]
+		do
+			echo_t "Waiting for time synchronization between processors before logbackup"
+			WAN_STATUS=`sysevent get wan-status`
+			if [ "$WAN_STATUS" == "started" ]
+			then
+					echo_t "Time synced. Breaking loop"
+					break
+			elif [ "$retry" = "9" ]
+			then
+					echo_t "Time not synced even after 3 min retry. Breaking loop and using default time for logbackup"
+					break
+			else
+					echo_t "Time not synced yet. Sleeping.. Retry:$retry"
+					retry=`expr $retry + 1`
+					sleep 20
+			fi
+		done
+	fi
 
         file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	#TCCBR-4275 to handle factory reset case.
