@@ -875,7 +875,11 @@ processDCMResponse()
                     echo "$UPLOAD_LOGS"
 		fi
 
- 
+    else
+	UPLOAD_LOGS="false"
+	sysevent set UPLOAD_LOGS_VAL_DCM $UPLOAD_LOGS
+	touch $DCM_SETTINGS_PARSED
+	echo "$UPLOAD_LOGS"
     fi
 }
 
