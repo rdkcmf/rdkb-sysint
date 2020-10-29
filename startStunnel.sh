@@ -3,7 +3,7 @@
 source /etc/log_timestamp.sh
 
 export TERM=xterm
-
+export HOME=/home/root
 LOG_FILE=/tmp/shortsLog.txt
 
 usage()
