@@ -73,7 +73,7 @@ T2_RESPONSE="$T2_XCONF_PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 FWDL_FLAG="/tmp/.fwdl_flag"
 
-
+FORMATTED_TMP_DCM_RESPONSE='/tmp/DCMSettings.conf'
 
 #to support ocsp
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
@@ -375,6 +375,41 @@ useCodebigRequest()
     return 1
 }
 
+# Output file from this processing is used by :
+# 1] RFC module - RFCBase.sh
+# 2] Firmware upgrade module - firmwareSched.sh
+processJsonResponse()
+{   
+    if [ -f "$DCMRESPONSE" ]
+    then
+    	# Do not use persistent locations with inline stream edit operators
+    	tmpConfigFile="/tmp/dcm$$.txt"
+    	cp $DCMRESPONSE $tmpConfigFile
+        sed -i 's/,"urn:/\n"urn:/g' $tmpConfigFile            # Updating the file by replacing all ',"urn:' with '\n"urn:'
+        sed -i 's/^{//g' $tmpConfigFile                       # Delete first character from file '{'
+        sed -i 's/}$//g' $tmpConfigFile                       # Delete first character from file '}'
+        echo "" >> $tmpConfigFile                             # Adding a new line to the file 
+        cat /dev/null > $FORMATTED_TMP_DCM_RESPONSE         # empty old file
+        while read line
+        do  
+            
+            # Parse the settings  by
+            # 1) Replace the '":' with '='
+            # 2) Updating the result in a output file
+            profile_Check=`echo "$line" | grep -ci 'TelemetryProfile'`
+            if [ $profile_Check -ne 0 ];then
+                echo "$line" | sed 's/"header":"/"header" : "/g' | sed 's/"content":"/"content" : "/g' | sed 's/"type":"/"type" : "/g' >> $FORMATTED_TMP_DCM_RESPONSE
+            else
+                echo "$line" | sed 's/":/=/g' | sed 's/"//g' >> $FORMATTED_TMP_DCM_RESPONSE 
+            fi            
+        done < $tmpConfigFile
+        rm -f $tmpConfigFile
+        
+    else
+        echo "$DCMRESPONSE not found." >> $LOG_PATH/dcmscript.log
+    fi
+}
+
 sendHttpRequestToServer()
 {
     resp=0
@@ -531,7 +566,9 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
         touch $T2_RESPONSE
         ln -s $T2_RESPONSE $DCMRESPONSE
     fi
-
+	# Dependent modules should still get the parsed /tmp/DCMSettings.conf file
+	processJsonResponse
+	
     isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
     if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
 	# bypassing firmwareSched.sh once on boot up because it is called from xconf
@@ -580,7 +617,10 @@ fi
         echo_t "count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
         exit 1
     fi
-
+    
+	# RFC and Firmware download scheduler depends on parsed DCM response file
+	processJsonResponse
+	
     if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
 
