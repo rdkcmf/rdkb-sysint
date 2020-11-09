@@ -36,7 +36,7 @@ source /lib/rdk/getpartnerid.sh
 source /lib/rdk/getaccountid.sh
 EROUTER_IF=erouter0
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
-DCM_SETTINGS_CONF="/tmp/DCMSettings.conf"
+DCM_SETTINGS_CONF="/tmp/DcaSettings.conf"
 
 TELEMETRY_PATH="$PERSISTENT_PATH/.telemetry"
 # Path to store log file seek values
