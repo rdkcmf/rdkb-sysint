@@ -324,6 +324,7 @@ useCodebigRequest()
       return 1
    fi
    count=0
+   retries=0
    while [ "$count" -lt "$CODEBIG_MAX_ATTEMPTS" ] ; do    
       SIGN_CMD="GetServiceUrl 3 \"$JSONSTR\""
       eval $SIGN_CMD > $SIGN_FILE
