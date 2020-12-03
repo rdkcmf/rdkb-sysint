@@ -846,7 +846,7 @@ do
 	    
 	    # We do not want to upload anything if log upload is disabled in DCM
             # If log upload is enabled, then try uploading logs from preserved location if file exists.
-	    if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] 
+		if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] && [ ! -e $WAITINGFORUPLOAD ]
 	    then
          
 	       logBackupEnable=`syscfg get log_backup_enable`
