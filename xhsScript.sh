@@ -27,11 +27,15 @@ if [ ! -f /usr/bin/GetConfigFile ];then
     exit 127
 fi
 
-partnerId=$(getPartnerId)
+#partnerId=$(getPartnerId)
+if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]; then
+    #Use nvm cust_id instead of getPartnerId to avoid syscfg dependency
+    cust_idx=`arris_rpc_client arm nvm_get cust_id`
+fi
 
 #Retrieve Parameter2
 mkdir -p /tmp/xhs
-if [ "$partnerId" = "cox" ];then
+if [ "$cust_idx" = "cox" ];then
     COMMID="/tmp/xhs/cyavtfjzx.pse-cox"
 else
     COMMID="/tmp/xhs/cyavtfjzx.pse"
@@ -42,13 +46,15 @@ param2=`/bin/cat $COMMID`
 
 if [ -n  "$param2" ] ; then
 
-	#Retrieve CM MAC-Use RPC instead of DMCLI because of Reset to Defaults and timing.
-	cmMAC=$(arris_rpc_client arm nvm_get cm_mac)
-	
-	#Calculate Return Value
-	if [ -n  "$cmMAC" ] ; then
-		retVal=$(/usr/sbin/icontrolkey -m $cmMAC -p $param2 )
-	fi
+    if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]; then
+        #Retrieve CM MAC-Use RPC instead of DMCLI because of Reset to Defaults and timing.
+        cmMAC=$(arris_rpc_client arm nvm_get cm_mac)
+    fi
+
+    #Calculate Return Value
+    if [ -n  "$cmMAC" ] ; then
+        retVal=$(/usr/sbin/icontrolkey -m $cmMAC -p $param2 )
+    fi
 fi
 
 #Cleanup
@@ -56,7 +62,7 @@ param2=""
 cmMAC=""
 
 if [ -e $COMMID ] ; then
-	/bin/rm -rf $COMMID
+    /bin/rm -rf $COMMID
 fi
 
 echo $retVal
