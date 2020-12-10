@@ -105,6 +105,10 @@ if [ "$SECURE_SYSCFG" = "false" ]; then
 fi
 
 
+if [ "$UploadHttpLink" == "" ]
+then
+	UploadHttpLink=$URL
+fi
 #to support ocsp
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
 EnableOCSP="/tmp/.EnableOCSPCA"
