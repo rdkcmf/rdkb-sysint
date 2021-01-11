@@ -44,6 +44,10 @@ ID="/tmp/nvgeajacl.ipe"
 oper=$1
 shift
 
+# XB6 Arris Class devices need to utilize erouter0.
+if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]; then
+    CMINTERFACE="erouter0"
+fi
 case $oper in 
            h)
              usage
@@ -88,10 +92,19 @@ case $oper in
 				fi
 			fi
 		elif [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ; then
-			#XB6 Arris Device Class devices need to utilize pseudo interface wan0 since CM is on another processor
-			CM_IP=`ifconfig -a $CMINTERFACE | grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1 | head -n1`
+			CM_IPV4=""
+			CM_IP=""
+			CM_IPV4=`ifconfig $CMINTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
+			if [ ! "$CM_IPV4" ]; then
+				echo "Error: There is no valid CM interface configured and error getting IP address for the device."
+			fi
+			CM_IP=`ifconfig $CMINTERFACE| grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1 | head -n1`
 			if [ ! "$CM_IP" ]; then
-				CM_IP=`ifconfig -a $CMINTERFACE | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1`
+				echo "Error: There is no valid CM interface configured and error getting IPv6 address for the device"
+			fi
+			if [ -z "$CM_IP" -a -z "$CM_IPV4" ]; then
+				echo "Error: There is no valid CM interface configured and error while starting ssh process."
+				exit 127
 			fi
 		elif [ $BOX_TYPE = "XF3" ]; then
 			# PACE XF3 and PACE CFG3
