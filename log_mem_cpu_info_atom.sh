@@ -134,6 +134,9 @@ TMPFS_THRESHOLD=85
 		CPU_INFO=`mpstat | tail -1` 
 		echo "RDKB_CPUINFO_ATOM : Cpu Info is $CPU_INFO at timestamp $timestamp"
 
+                TMPFS_CUR_USAGE=0
+                TMPFS_CUR_USAGE=`df /tmp | tail -1 | awk '{print $(NF-1)}' | cut -d"%" -f1`
+
 		if [ "$count" -eq "$max_count" ]
 		then
 			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is" >> /rdklogs/logs/CPUInfoPeer.txt.0
@@ -146,20 +149,26 @@ TMPFS_THRESHOLD=85
 			echo_t ""
 			disk_usage="df"
 			eval $disk_usage
-			count=0
-		
+                	count=0
+                        echo_t "TMPFS_USAGE_ATOM_PERIODIC:$TMPFS_CUR_USAGE"
+	                t2ValNotify "TMPFS_USAGE_ATOM_PERIODIC" "$TMPFS_CUR_USAGE"	
+                        if [ $TMPFS_CUR_USAGE -ge $TMPFS_THRESHOLD ]
+                        then
+                            echo_t "TMPFS_USAGE_ATOM:$TMPFS_CUR_USAGE"
+                            t2ValNotify "TMPFS_USAGE_ATOM" "$TMPFS_CUR_USAGE"
+                        fi
 		else
 			echo "RDKB_PROC_MEM_LOG_ATOM : Process Memory log at $timestamp is" >> /rdklogs/logs/CPUInfoPeer.txt.0
 			echo_t "" >> /rdklogs/logs/CPUInfoPeer.txt.0
 			top -m -b n 1 | head -n 14 >> /rdklogs/logs/CPUInfoPeer.txt.0
+                        if [ $TMPFS_CUR_USAGE -ge $TMPFS_THRESHOLD ]
+                        then
+                            disk_usage="df"
+                            eval $disk_usage
+                            echo_t "TMPFS_USAGE_ATOM:$TMPFS_CUR_USAGE"
+                            t2ValNotify "TMPFS_USAGE_ATOM" "$TMPFS_CUR_USAGE"
+                        fi
 		fi
-
-        TMPFS_CUR_USAGE=0
-	TMPFS_CUR_USAGE=`df /tmp | tail -1 | awk '{print $(NF-1)}' | cut -d"%" -f1`
-	if [ $TMPFS_CUR_USAGE -ge $TMPFS_THRESHOLD ]
-	then
-		echo_t "TMPFS_USAGE_ATOM:$TMPFS_CUR_USAGE"
-	fi
 
 	if [ -f $COUNTINFO ]
 	then
