@@ -157,6 +157,7 @@ echo "proxy.server      =    ( \"\" =>
 restartEventsForRfCp()
 {
     echo "WEBGUI : restart norf cp events restart"
+    sysevent set norf_webgui 1
     sysevent set firewall-restart
     sysevent set zebra-restart
     sysevent set dhcp_server-stop
@@ -171,40 +172,24 @@ restartEventsForRfCp()
 checkRfStatus()
 {
    noRfCp=0
-   alreadyset=0
    RF_SIGNAL_STATUS=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_CableRfSignalStatus | grep value | cut -f3 -d : | cut -f2 -d" "`
    isInRfCp=`syscfg get rf_captive_portal`
-   if [ "$RF_SIGNAL_STATUS" = "false" ]
+   echo_t "WEBGUI: values RF_SIGNAL_STATUS : $RF_SIGNAL_STATUS , isInRfCp: $isInRfCp"
+   if [ "$RF_SIGNAL_STATUS" = "false" ] || [ "$isInRfCp" = "true" ]
    then
-      if [ "$isInRfCp" = "" ]
-      then
-         noRfCp=1
-      elif [ "$isInRfCp" = "false" ]
-      then
-         noRfCp=1
-      else
-         alreadyset=1
-      fi
+      noRfCp=1
    else
       noRfCp=0
    fi
 
    if [ $noRfCp -eq 1 ]
    then
-       if [ $alreadyset -eq 0 ]
-       then
-          syscfg set rf_captive_portal true
-          syscfg commit
-          echo "true"
-          #sysevent set firewall-restart 
-       else
-          echo "true"
-       fi
-   #else
-   #    echo_t "WEBGUI: Disabling RF CP configuration"
-   #    syscfg set rf_captive_portal false
-   #    syscfg commit
-   #    echo "false"
+      echo_t "WEBGUI: Set rf_captive_portal true"
+      syscfg set rf_captive_portal true
+      syscfg commit
+      return 1
+   else
+      return 0
    fi
 } 
 
@@ -255,8 +240,10 @@ then
 	    # network_response.sh will take the unit out of RF CP 
 	    if [ "$enableRFCaptivePortal" != "false" ] && [ "$ethWanEnabled" != "true" ] && [ "$cpFeatureEnbled" = "true" ]
 	    then
-	       isRfOff=`checkRfStatus`
-	       if [ "$isRfOff" = "true" ]
+               checkRfStatus
+	       isRfOff=$?
+               echo_t "WEBGUI: RF status returned is: $isRfOff"
+	       if [ "$isRfOff" = "1" ]
 	       then
 		  echo_t "WEBGUI: Restart events for RF CP"
 		  restartEventsForRfCp
