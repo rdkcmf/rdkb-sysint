@@ -41,6 +41,6 @@ t2Log "Starting /lib/rdk/DCMscript.sh."
 echo "Starting /lib/rdk/DCMscript.sh." >> $DCM_LOG_FILE
 
 
-sh /lib/rdk/DCMscript.sh $DCM_LOG_SERVER $DCM_LOG_SERVER_URL $LOG_SERVER 0 1 &
+sh /lib/rdk/DCMscript.sh $DCM_LOG_SERVER $DCM_LOG_SERVER_URL $LOG_SERVER 0 1
 
 
