@@ -272,6 +272,7 @@ fi
 
     if [ "$ret" -ne "0" ]; then
          echo "LOG UPLOAD UNSUCCESSFUL, ret = $ret"
+         t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
     fi
 
     # If 200, executing second curl command with the public key.
@@ -318,6 +319,7 @@ fi
         fi
     else
         echo_t "LOG UPLOAD UNSUCCESSFUL, http_code = : $http_code"
+        t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
     fi
     cd $curDir
 }

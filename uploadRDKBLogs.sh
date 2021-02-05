@@ -771,9 +771,8 @@ HttpLogUpload()
             if [ "$http_code" -ne "-1" ]; then
                 echo_t "INVALID RETURN CODE: $http_code"
                 echo_t "LOG UPLOAD UNSUCCESSFUL TO S3"
-                t2CountNotify "LOGUPLOAD_FAILED"
-                preserveThisLog $UploadFile $UploadPath
                 t2CountNotify "SYS_ERROR_LOGUPLOAD_FAILED"
+                preserveThisLog $UploadFile $UploadPath
             fi
 
             fi
