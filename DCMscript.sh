@@ -461,8 +461,18 @@ sendHttpRequestToServer()
 
 dropbearRecovery()
 {
-   dropbearPid=`ps | grep -i dropbear | grep "$ARM_INTERFACE_IP" | grep -v grep`
-   if [ -z "$dropbearPid" ]; then
+   DROPBEAR_PID_FILE="/var/run/dropbear_ipc.pid"
+   restart_dropbear=1
+
+   if [ -f $DROPBEAR_PID_FILE ];then
+	dropbearPid=`cat $DROPBEAR_PID_FILE`
+
+	if [ -d /proc/$dropbearPid ];then
+		restart_dropbear=0
+	fi
+   fi
+
+   if [ $restart_dropbear -eq 1 ]; then
        echo_t "Dropbear instance is missing ... Recovering dropbear !!! " >> $DCM_LOG_FILE
        DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1_dcmscript"
        DROPBEAR_PARAMS_2="/tmp/.dropbear/dropcfg2_dcmscript"
@@ -477,7 +487,7 @@ dropbearRecovery()
        if [ ! -f $DROPBEAR_PARAMS_2 ]; then
            getConfigFile $DROPBEAR_PARAMS_2
        fi
-       dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ARM_INTERFACE_IP:22 &
+       dropbear -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -E -s -p $ARM_INTERFACE_IP:22 -P $DROPBEAR_PID_FILE > /dev/null 2>&1 &
        sleep 2
    fi
 }
