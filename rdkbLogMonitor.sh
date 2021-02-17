@@ -368,6 +368,9 @@ bootup_tarlogs()
                 echo "tar logs from bootup_tarlogs"
                 tar -X $PATTERN_FILE -cvzf ${MAC}_Logs_${dt}.tgz $LOG_SYNC_PATH
                fi
+               echo "Copy logs $LOG_SYNC_PATH/$SelfHealBootUpLogFile & $LOG_SYNC_PATH$PcdLogFile to $LOG_PATH for telemetry processing"
+               cp $LOG_SYNC_PATH/$SelfHealBootUpLogFile $LOG_PATH
+               cp $LOG_SYNC_PATH$PcdLogFile $LOG_PATH
                rm $PATTERN_FILE
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log*
