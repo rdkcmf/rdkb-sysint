@@ -536,7 +536,7 @@ dropbearRecovery()
 
 T2_ENABLE=`syscfg get T2Enable`
 # Safe wait for IP acquisition
-if [ “x$T2_enable” == “xfalse” ]; then
+if [ "$T2_enable" = "false" ]; then
     loop=1
     counter=0
     while [ $loop -eq 1 ]
