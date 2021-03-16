@@ -600,8 +600,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
         GetConfigFile $PEER_COMM_ID
     fi
     scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_PATH/* $TMP_SCP_PATH/ > /dev/null 2>&1
-    scp -i $PEER_COMM_ID -r $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$SelfHealBootUpLogFile  $ARM_INTERFACE_IP:$LOG_SYNC_PATH/$PcdLogFile  $TMP_SCP_PATH/ > /dev/null 2>&1
-
+ 
     RPC_RES=`rpcclient $ARM_ARPING_IP "touch $SCP_COMPLETE"`
     RPC_OK=`echo $RPC_RES | grep "RPC CONNECTED"`
     if [ "$RPC_OK" == "" ]; then
@@ -613,7 +612,6 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
 		echo_t "RPC touch failed : attemp 2"
 	 fi
     fi
-
     ATOM_FILE_LIST=`echo ${ATOM_FILE_LIST} | sed -e "s/{//g" -e "s/}//g" -e "s/,/ /g"`
     for file in $ATOM_FILE_LIST
     do
@@ -626,7 +624,7 @@ if [ "x$DCA_MULTI_CORE_SUPPORTED" = "xyes" ]; then
         cp -r $TMP_SCP_PATH/* $LOG_PATH/
         rm -rf $TMP_SCP_PATH
     fi
-
+   
     sleep 2
 fi
 

@@ -137,6 +137,10 @@ flush_atom_logs()
     	echo_t  "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!"
     	T2_ENABLE="false"                                                                       
     fi
+    
+    cp $LOG_SYNC_PATH/$SelfHealBootUpLogFile $LOG_PATH
+    cp $LOG_SYNC_PATH$PcdLogFile $LOG_PATH
+    
     if [ "x$T2_ENABLE" == "xtrue" ]; then  
         sh /lib/rdk/dca_utility.sh 2 &
     else
@@ -632,6 +636,7 @@ backupnvram2logs_on_reboot()
 	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
     fi
 	rm $PATTERN_FILE
+	
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log*
 	rm -rf $LOG_SYNC_PATH*core*
@@ -694,7 +699,6 @@ backupAllLogs()
 				then
 					echo_t "Ping to ATOM ip success, syncing ATOM side logs"					
 					sync_atom_log_files $LOG_PATH
-#nice -n 20 rsync root@$ATOM_IP:$ATOM_LOG_PATH$ATOM_FILE_LIST $LOG_PATH > /dev/null 2>&1
 					# dmcli eRT setv Device.Logging.FlushAllLogs bool true
 					echo_t "Call dca for log processing and then flush ATOM logs"
 					flush_atom_logs &
