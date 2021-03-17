@@ -149,11 +149,7 @@ getBuildType()
 {
         # Currenlty this function not used. If used please ensure, calling get_Codebigconfig before this call
         # get_Codebigconfig currenlty called in HttpLogUpload 
-	if [ "$UseCodeBig" -eq "1" ]; then
         IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
-	else
-        IMAGENAME=`grep ^imagename= /fss/gw/version.txt | cut -d "=" -f 2`
-	fi
 
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
