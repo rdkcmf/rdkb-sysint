@@ -31,7 +31,7 @@ t2ValNotify() {
 uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
 echo "before running log_mem_cpu_info_atom.sh.sh printing top output" >> /rdklogs/logs/CPUInfoPeer.txt.0
 top -n1 -b >> /rdklogs/logs/CPUInfoPeer.txt.0
-if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ] && [ "$(pidof dailystats_log.sh)" == "" ] && [ "$(pidof dailystats.sh)" == "" ]; then
+if [ $uptime -gt 1800 ] && [ "$(pidof CcspWifiSsp)" != "" ] && [ "$(pidof apup)" == "" ] && [ "$(pidof fastdown)" == "" ] && [ "$(pidof apdown)" == "" ]  && [ "$(pidof aphealth.sh)" == "" ] && [ "$(pidof radiohealth.sh)" == "" ] && [ "$(pidof aphealth_log.sh)" == "" ] && [ "$(pidof bandsteering.sh)" == "" ] && [ "$(pidof l2shealth_log.sh)" == "" ] && [ "$(pidof l2shealth.sh)" == "" ] && [ "$(pidof dailystats_log.sh)" == "" ] && [ "$(pidof dailystats.sh)" == "" ]; then
 	if [ -e /rdklogger/log_capture_path_atom.sh ]
 	then
 		source /rdklogger/log_capture_path_atom.sh 
