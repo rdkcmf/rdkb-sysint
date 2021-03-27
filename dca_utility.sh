@@ -654,7 +654,6 @@ else
        ## This interface is not accessible from ATOM, replace value from ARM
        estbMac=$(getEstbMac)
        firmwareVersion=$(getFWVersion)
-       firmwareVersion=$(echo $firmwareVersion | sed -e "s/imagename://g")
        partnerId=$(getPartnerId)
        accountId=$(getAccountId)
        erouterIpv4=$(getErouterIpv4)
