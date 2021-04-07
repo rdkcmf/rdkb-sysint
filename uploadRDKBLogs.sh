@@ -83,16 +83,16 @@ checkXpkiMtlsBasedLogUpload()
     fi
 }
 
-checkRdkCaMtlsBasedLogUpload()
+checkStaticXpkiMtlsBasedLogUpload()
 {
-    if [ "x$mTlsLogUpload" = "xtrue" ] && [ -f /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem ] && [ -x /usr/bin/GetConfigFile ]; then
-        ID="/tmp/uydrgopwxyem"
+    if [ "x$mTlsLogUpload" = "xtrue" ] && [ -f /etc/ssl/certs/staticXpkiCrt.pk12 ] && [ -x /usr/bin/GetConfigFile ]; then
+        ID="/tmp/.cfgStaticxpki"
         GetConfigFile $ID
         if [ ! -f "$ID" ]; then
             echo_t "Getconfig file fails , use standard TLS"
-            useRdkCaMtlsLogupload="false"
+            useStaticXpkiMtlsLogupload="false"
         else
-            useRdkCaMtlsLogupload="true"
+            useStaticXpkiMtlsLogupload="true"
         fi
     fi
 }
@@ -288,9 +288,9 @@ useDirectRequest()
     retries=0
 
     checkXpkiMtlsBasedLogUpload
-    checkRdkCaMtlsBasedLogUpload
+    checkStaticXpkiMtlsBasedLogUpload
 
-    if [ "x$useRdkCaMtlsLogupload" = "xtrue" ] || [ "x$useXpkiMtlsLogupload" = "xtrue" ]; then
+    if [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ] || [ "x$useXpkiMtlsLogupload" = "xtrue" ]; then
         S3_SECURE_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
         echo_t "Log Upload: requires Mutual Authentication. S3 Secure Url is :$S3_SECURE_URL"
     fi
@@ -303,10 +303,10 @@ useDirectRequest()
           msg_tls_source="mTLS certificate from xPKI"
           echo_t "Log Upload: $msg_tls_source"
           CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        elif [ "x$useRdkCaMtlsLogupload" = "xtrue" ]; then
-          msg_tls_source="mTLS certificate from RDK-CA"
+        elif [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ]; then
+          msg_tls_source="mTLS using static xpki certificate"
           echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --key $ID --cert /etc/ssl/certs/cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
         else
           msg_tls_source="TLS"
           CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
