@@ -422,7 +422,6 @@ bootup_upload()
 	   fi
 	       
 	   echo_t "File to be uploaded is $fileToUpload ...."
-	   t2CountNotify "SYS_ERROR_LogFile_truncated"
 
 	   HAS_WAN_IP=""
 	   
@@ -455,7 +454,6 @@ bootup_upload()
 	   fi
 
 	   echo_t "File to be uploaded is $fileToUpload ...."
-	   t2CountNotify "SYS_ERROR_LogFile_truncated"
 	   #RDKB-7196: Randomize log upload within 30 minutes
 	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
 		boot_up_log_synced="true"
@@ -511,7 +509,6 @@ bootup_upload()
 	fi
 
 	echo_t "File to be uploaded is $UploadFile ...."
-	t2CountNotify "SYS_ERROR_LogFile_truncated"
 
 	if [ "$UploadFile" != "" ]
 	then
