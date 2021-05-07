@@ -35,6 +35,13 @@
 #######################################################################
 
 source /lib/rdk/t2Shared_api.sh
+source /etc/device.properties
+
+if [ ! -f /nvram/certs/myrouter.io.cert.pem ] && [ "$BOX_TYPE" = "XB3" ]; then
+    if [ -f /lib/rdk/check-webui-update.sh ]; then
+        sh /lib/rdk/check-webui-update.sh
+    fi
+fi
 
 #WEBGUI_SRC=/fss/gw/usr/www/html.tar.bz2
 #WEBGUI_DEST=/var/www

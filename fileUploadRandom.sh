@@ -183,6 +183,12 @@ calcRandTimeandUpload()
        sh $CERT_CHECKER_PATH/rdkssacertcheck.sh nonotify &
     fi
 
+    #Adding webui cert expiry check in a mentainance window
+    securewebui=`syscfg get SecureWebUI_Enable`
+    if [ "$securewebui" = "true" ] && [ -f $DCM_PATH/webui-mwindow.sh ]; then
+        sh $DCM_PATH/webui-mwindow.sh &
+    fi
+
     createSysDescr
 }
 
