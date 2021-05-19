@@ -321,7 +321,7 @@ then
                if [ "$check_success" != "" ]
                then
                   echo_t "WEBGUI : Setting ConfigureWiFi to true is success"
-                  uptime=`cat /proc/uptime | awk '{ print $1 }' | cut -d"." -f1`
+                  uptime=$(cut -d. -f1 /proc/uptime)
                   echo_t "Enter_WiFi_Personalization_captive_mode:$uptime"
 		  t2ValNotify "btime_wcpenter_split" $uptime
                   touch /tmp/.configurewifidone

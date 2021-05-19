@@ -356,7 +356,7 @@ CopyToTmp()
 checkConnectivityAndReboot()
 {
 	rebootNeeded=0
-	uptime=`cat /proc/uptime | cut -d "." -f1`
+	uptime=$(cut -d. -f1 /proc/uptime)
 	if [ "$uptime" -ge "1800" ] ; then
 		#echo "box is up more than 30 min"
 		rebootNeeded=1
