@@ -313,6 +313,10 @@ bootup_remove_old_backupfiles()
 				rm -rf $LOG_BACK_UP_REBOOT*.log*
 				rm -rf $LOG_BACK_UP_REBOOT*.txt*
 				rm -rf $LOG_BACK_UP_REBOOT*core*
+
+				if [ "$BOX_TYPE" == "HUB4" ]; then
+					rm -rf $LOG_BACK_UP_REBOOT*tar.gz*
+				fi
 			fi 
 			
 			cd -
@@ -375,6 +379,9 @@ bootup_tarlogs()
                rm -rf $LOG_SYNC_PATH*.txt*
 	       rm -rf $LOG_SYNC_PATH*.log*
 	       rm -rf $LOG_SYNC_PATH*core*
+	       if [ "$BOX_TYPE" == "HUB4" ]; then
+		rm -rf $LOG_SYNC_PATH*tar.gz*
+	       fi
 	       rm -rf $LOG_SYNC_PATH$PcdLogFile
 	       rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
 	       echo_t "RDK_LOGGER: tar activation logs from bootup_tarlogs ${MAC}_Logs_${dt}.tgz"

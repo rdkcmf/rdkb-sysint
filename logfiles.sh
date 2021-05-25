@@ -573,6 +573,9 @@ backupnvram2logs()
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log*
 	rm -rf $LOG_SYNC_PATH*core*
+	if [ "$BOX_TYPE" == "HUB4" ]; then
+		rm -rf $LOG_SYNC_PATH*tar.gz*
+	fi
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
 	if [ "$BOX_TYPE" = "XB6" ]; then
 		rm -rf $LOG_SYNC_PATH$SYS_CFG_FILE  
@@ -640,6 +643,10 @@ backupnvram2logs_on_reboot()
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log*
 	rm -rf $LOG_SYNC_PATH*core*
+	if [ "$BOX_TYPE" == "HUB4" ]; then
+		rm -rf $LOG_SYNC_PATH*tar.gz*
+	fi
+
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
 	rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
 	if [ "$BOX_TYPE" = "XB6" ]; then
