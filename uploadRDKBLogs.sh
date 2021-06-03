@@ -261,7 +261,10 @@ if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" =
            EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
    fi
 else
+    EROUTER_IP=`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`
+    if [ "$EROUTER_IP" = "" ]; then
        EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+    fi
 fi
        SYSEVENT_PID=`pidof syseventd`
 	   if [ -f $WAITINGFORUPLOAD ]
@@ -905,7 +908,10 @@ if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" =
            EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
    fi
 else
+  EROUTER_IP=`ifconfig $WAN_INTERFACE | grep inet6 | grep -i 'Global'`
+  if [ "$EROUTER_IP" = "" ]; then
    EROUTER_IP=`ifconfig $WAN_INTERFACE | grep "inet addr" | cut -d":" -f2 | cut -d" " -f1`
+  fi
 fi
    SYSEVENT_PID=`pidof syseventd`
    if [ "$WAN_STATE" == "started" ] && [ "$EROUTER_IP" != "" ]
