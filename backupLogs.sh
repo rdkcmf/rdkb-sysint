@@ -285,7 +285,7 @@ then
 	if [ "$nvram2Backup" == "true" ]; then	
                 createSysDescr
                 syncLogs_nvram2	
-                backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+                backupnvram2logs "$TMP_UPLOAD"
 	else
                 syncLogs
                 backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
@@ -316,16 +316,16 @@ then
 		sysevent set wan_event_log_upload yes
 		createSysDescr
 		syncLogs_nvram2	
-		backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+		backupnvram2logs "$TMP_UPLOAD"
                 if [ "$3" = "wan-stopped" ]
                 then
                    isBackupEnabled=`syscfg get log_backup_enable`
                    if [ "$isBackupEnabled" = "true" ]
                    then
-                      fileName=`ls $LOG_SYNC_BACK_UP_PATH | grep tgz`
+                      fileName=`ls $TMP_UPLOAD | grep tgz`
                       echo_t "Back up to preserve location is enabled"
                       # Call PreserveLog which will move logs to preserve location
-                      preserveThisLog $fileName $LOG_SYNC_BACK_UP_PATH $3
+                      preserveThisLog $fileName $TMP_UPLOAD $3
                    else
                       echo_t "Back up to preserve location is disabled"
                    fi

@@ -130,7 +130,7 @@ calcRandTimeandUpload()
 
     if [ "$nvram2Backup" == "true" ]; then
        syncLogs_nvram2	
-       backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+       backupnvram2logs "$TMP_UPLOAD"
     else
        syncLogs
        backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
