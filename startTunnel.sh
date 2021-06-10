@@ -61,7 +61,7 @@ case $oper in
 		Check=$(ip_to_hex $IpCheckVal)
 		# getting the IPV6 address for CM
                 # creating a ssh tunnel directly to the LANIP:22 for IPV6 only scenario
-                if [ "x$BOX_TYPE" = "xHUB4" ]; then
+                if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ]; then
                         if [ -z "$CM_IPV4" ]; then
                                 CM_IP=`syscfg get lan_ipaddr`
                         else

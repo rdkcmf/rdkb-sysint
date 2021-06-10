@@ -46,7 +46,7 @@ Timestamp()
 # Get the MAC address of the machine
 getMacAddressOnly()
 {
-     if [ "$BOX_TYPE" = "HUB4" ]; then
+     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
          #FEATURE_RDKB_WAN_MANAGER
          wan_if=`syscfg get wan_physical_ifname`
          mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
@@ -66,7 +66,7 @@ getSHA1()
 # IP address of the machine
 getIPAddress()
 {
-    if [ "x$BOX_TYPE" = "xHUB4" ]; then
+    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ]; then
        CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
                wanIP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
@@ -86,7 +86,7 @@ getCMIPAddress()
        if [ ! "$address" ]; then
           address=`dmcli eRT getv Device.X_CISCO_COM_CableModem.IPAddress | grep string | awk '{print $5}'`
        fi
-    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ]; then
+    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
        # in PON/DSL you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "` 
     else                           
@@ -106,7 +106,7 @@ getErouterIPAddress()
         if [ ! "$address" ]; then
             address=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep string | awk '{print $5}'`
         fi
-    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ]; then
+    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
        # in PON/DSL you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
     else
@@ -134,7 +134,7 @@ getMacAddress()
         mac=`dmcli eRT getv Device.DPoE.Mac_address | grep value | awk '{print $5}'`
     elif [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ];then
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
-    elif [ "$BOX_TYPE" = "HUB4" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
         #FEATURE_RDKB_WAN_MANAGER
         wan_if=`syscfg get wan_physical_ifname`
         mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `	    
@@ -147,7 +147,7 @@ getMacAddress()
 ## Get eSTB mac address 
 getErouterMacAddress()
 {
-    if [ "$BOX_TYPE" = "HUB4" ]; then
+    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
         #FEATURE_RDKB_WAN_MANAGER
         wan_if=`syscfg get wan_physical_ifname`
         erouterMac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `

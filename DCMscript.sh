@@ -418,7 +418,7 @@ sendHttpRequestToServer()
 
     # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
     # Otherwise we will not specify the ip address family in curl options
-    if [ "x$BOX_TYPE" = "xHUB4" ]; then
+    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ]; then
         addr_type=""
     else
         addr_type=""
