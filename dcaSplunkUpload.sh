@@ -110,12 +110,11 @@ else
 fi
 TelemetryNewEndpointAvailable=0
 
-mTlsDCMUpload=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsDCMUpload.Enable | grep value | awk '{print $5}'`
-
 getTelemetryEndpoint() {
     DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
     TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
     TelemetryEndpointURL=""
+
     if [ "x$TelemetryEndpoint" = "xtrue" ]; then
         TelemetryEndpointURL=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.URL  | grep value | awk '{print $5}'`
         if [ ! -z "$TelemetryEndpointURL" ]; then
@@ -137,13 +136,8 @@ getTelemetryEndpoint() {
     if [ -z "$TelemetryEndpointURL" ]; then
         DCA_UPLOAD_URL="$DEFAULT_DCA_UPLOAD_URL"
     fi
-
-    if [ "$mTlsDCMUpload" = "true" ]; then
-       DCA_UPLOAD_URL=`echo $DCA_UPLOAD_URL | sed 's/$/\/secure/'`
-       echo "MTLS Telemetry Logupload URL:$DCA_UPLOAD_URL" >> $RTL_LOG_FILE
-    else
-       echo "DCA Log Upload Telemetry URL:$DCA_UPLOAD_URL" >> $RTL_LOG_FILE
-    fi
+    
+    echo "Telemetry Logupload URL:$DCA_UPLOAD_URL" >> $RTL_LOG_FILE
 
 }
 
@@ -210,26 +204,26 @@ get_Codebigconfig()
 useDirectRequest()
 {
     echo_t "dca$2: Using Direct commnication"
-    if [ "$mTlsDCMUpload" == "true" ]; then
-        echo "Log Upload requires Mutual Authentication" >> $RTL_LOG_FILE
-	if [ -d /etc/ssl/certs ]; then
-            if [ ! -f /usr/bin/GetConfigFile ];then
-                echo "Error: GetConfigFile Not Found"
-                exit 127
-            fi
-            ID="/tmp/geyoxnweddys"
+    echo "Log Upload requires Mutual Authentication" >> $RTL_LOG_FILE
+    if [ -d /etc/ssl/certs ]; then
+        if [ ! -f /usr/bin/GetConfigFile ];then
+            echo "Error: GetConfigFile Not Found"
+            exit 127
+        fi
+        ID="/tmp/geyoxnweddys"
+        if [ ! -f "$ID" ]; then
             GetConfigFile $ID
         fi
-        CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
-        HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
-        ret=$?
-    else
-        CURL_CMD="curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
-        HTTP_CODE=`curl -s $TLS -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
-        ret=$?
+        if [ ! -f "$ID" ]; then
+            echo_t "Getconfig file fails , exiting"
+            exit 1
+        fi
     fi
-    rm -rf $ID
+    CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+    HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+    ret=$?
     echo_t "CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE
+    
     http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
     [ "x$http_code" != "x" ] || http_code=0
 
