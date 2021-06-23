@@ -314,6 +314,7 @@ useDirectRequest()
 
         if [[ ! -e $UploadFile ]]; then
           echo_t "No file exist or already uploaded!!!"
+          http_code=-1
           break;
         fi
         echo_t "CURL_CMD: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g'`"
