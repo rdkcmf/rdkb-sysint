@@ -276,7 +276,7 @@ upload_nvram2_logs()
 		else
 			while [ "$loop" = "1" ]
 			do
-		    	     echo_t "Waiting for stack to come up completely to upload logs..."
+		    	echo_t "Waiting for stack to come up completely to upload logs..."
 			     t2CountNotify "SYS_INFO_WaitingFor_Stack_Init"
 		      	     sleep 30
 			     WEBSERVER_STARTED=`sysevent get webserver`
@@ -670,31 +670,34 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 
 	#TCCBR-4723 To handle all log upload with epoc time cases. Brought this block of code just 
 	#above to the prevoius condition for making all cases to wait for timesync before log upload.
-
-	if [ "`sysevent get wan-status`" != "started" ];then
+	
+	if [ "`sysevent get wan-status`" != "started" ] || [ "`sysevent get ntpd-status`" != "started" ];then
 		loop=1
 		retry=1
 		while [ "$loop" = "1" ]
 		do
 			echo_t "Waiting for time synchronization between processors before logbackup"
 			WAN_STATUS=`sysevent get wan-status`
-			if [ "$WAN_STATUS" == "started" ]
+			NTPD_STATUS=`sysevent get ntpd-status`
+			if [ "$WAN_STATUS" == "started" ] && [ "$NTPD_STATUS" == "started" ]
 			then
-					echo_t "Time synced. Breaking loop"
-					break
-			elif [ "$retry" = "9" ]
+				echo_t "wan status is $WAN_STATUS, and time sync status $NTPD_STATUS"
+				echo_t "Time is synced, breaking the loop"
+				break
+			elif [ "$retry" -gt "9" ]
 			then
-					echo_t "Time not synced even after 3 min retry. Breaking loop and using default time for logbackup"
+					echo_t "wan status is $WAN_STATUS, and time sync status $NTPD_STATUS"
+					echo_t "Time is not synced after 3 min retry. Breaking loop and using default time for logbackup"
 					break
 			else
-					echo_t "Time not synced yet. Sleeping.. Retry:$retry"
+					echo_t "Time is not synced. Sleeping.. Retry:$retry"
 					retry=`expr $retry + 1`
 					sleep 20
 			fi
 		done
 	fi
 
-        file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
+    file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	#TCCBR-4275 to handle factory reset case.
 	if ( [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ] ) || ( [ "$RebootReason" == "factory-reset" ] ); then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
