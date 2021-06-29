@@ -238,8 +238,8 @@ do
 
 	if [ "$UTC_ENABLE" == "true" ]
 	then
-		cur_hr=`LTime H`
-		cur_min=`LTime M`
+		cur_hr=`LTime H | tr -dc '0-9'`
+		cur_min=`LTime M | tr -dc '0-9'`
 	else
 		cur_hr=`date +"%H"`
 		cur_min=`date +"%M"`
