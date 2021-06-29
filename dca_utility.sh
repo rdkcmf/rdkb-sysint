@@ -108,7 +108,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
         if [ $triggerType -eq 1 ]; then
             echo_t "$0 : Trigger from maintenance window" >> $T2_0_LOGFILE
             echo_t "$0 : Send signal $T2_0_APP to restart for config fetch " >> $T2_0_LOGFILE
-            kill -15 $t2Pid
+            kill -12 $t2Pid
         fi
     else
             echo_t "Pid for $T2_0_APP is $t2Pid . No active $T2_0_APP instances found " >> $T2_0_LOGFILE

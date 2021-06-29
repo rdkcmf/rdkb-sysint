@@ -557,7 +557,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
          mkdir -p $TELEMETRY_PATH_TEMP
          t2Log "telemetry daemon is already running .. Trigger from maintenance window."
          t2Log "Send signal 15 $T2_0_APP to restart for config fetch "
-         kill -15 $t2Pid
+         kill -12 $t2Pid
     fi
     ## Clear any dca_utility.sh cron entries if present from T1.1 previous execution
     tempfile="/tmp/tempfile$$.txt"
