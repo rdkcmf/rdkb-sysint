@@ -328,31 +328,6 @@ syncLogs_nvram2()
     fi
 }
 
-CopyToTmp()
-{
-	if [ ! -d $TMP_UPLOAD ]; then
-	#echo "making directory"
-	mkdir -p $TMP_UPLOAD 
-    fi
-	file_list=`ls $LOG_SYNC_BACK_UP_PATH`
-
-    for file in $file_list
-    do
-	cp $LOG_SYNC_BACK_UP_PATH$file $TMP_UPLOAD # Copying all log files directly
-    done
-	rm -rf $LOG_SYNC_BACK_UP_PATH*.txt*
-	rm -rf $LOG_SYNC_BACK_UP_PATH*.log*
-	rm -rf $LOG_SYNC_BACK_UP_PATH*core*
-	if [ "$BOX_TYPE" == "HUB4" ]; then
-		rm -rf $LOG_SYNC_BACK_UP_PATH*tar.gz*
-	fi
-	rm -rf $LOG_SYNC_BACK_UP_PATH$PcdLogFile
-	if [ "$BOX_TYPE" = "XB6" ]; then
-		rm -rf $LOG_SYNC_BACK_UP_PATH$SYS_CFG_FILE  
-		rm -rf $LOG_SYNC_BACK_UP_PATH$BBHM_CFG_FILE
-		rm -rf $LOG_SYNC_BACK_UP_PATH$WIRELESS_CFG_FILE
-	fi
-}
 checkConnectivityAndReboot()
 {
 	rebootNeeded=0
@@ -426,7 +401,7 @@ preserveThisLog()
 {
 	path=$2
 	if [ "$path" = "" ] ; then
-	  path=$TMP_UPLOAD
+	  path=$LOG_SYNC_BACK_UP_PATH
 	fi
 	file=$1
 	logBackupEnable=`syscfg get log_backup_enable`
@@ -653,7 +628,6 @@ backupnvram2logs_on_reboot()
         fi
 
 	rm -rf *.tgz
-	rm -rf $LOG_SYNC_BACK_UP_PATH*.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
 	    echo "tar activation logs from backupnvram2logs_on_reboot"
