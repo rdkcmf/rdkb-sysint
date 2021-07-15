@@ -501,13 +501,13 @@ HttpLogUpload()
     # Upload logs to "LOG_BACK_UP_REBOOT" upon reboot else to the default path "LOG_BACK_UP_PATH"	
 	if [ "$UploadOnReboot" == "true" ]; then
 		if [ "$nvram2Backup" == "true" ]; then
-			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+			cd $TMP_UPLOAD
 		else
 			cd $LOG_BACK_UP_REBOOT
 		fi
 	else
 		if [ "$nvram2Backup" == "true" ]; then
-			cd $LOG_SYNC_BACK_UP_PATH
+			cd $TMP_UPLOAD
 		else
 			cd $LOG_BACK_UP_PATH
 		fi
@@ -532,7 +532,27 @@ HttpLogUpload()
        if [ "$UploadFile" != "" ]
        then
          cd $LOG_BACK_UP_REBOOT
-       fi
+        else
+            if [ -d $TMP_UPLOAD ]; then
+                UploadFile=`ls $TMP_UPLOAD | grep tgz`
+            fi
+            if [ "$UploadFile" != "" ]
+            then
+                cd $TMP_UPLOAD
+                echo_t "files to be uploaded from: $TMP_UPLOAD"
+            else
+                # To check any tar present in nvram2
+                if [ -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]; then
+                    UploadFile=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep tgz`
+                fi
+                if [ "$UploadFile" != "" ]
+                then
+                    cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+                    echo_t "files to be uploaded from: $LOG_SYNC_BACK_UP_REBOOT_PATH"
+                fi
+            fi
+        fi
+
    fi
    echo_t "files to be uploaded is : $UploadFile"
    url=`grep 'LogUploadSettings:UploadRepository:URL' /tmp/DCMresponse.txt`

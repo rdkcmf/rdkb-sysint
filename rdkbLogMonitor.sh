@@ -348,10 +348,31 @@ bootup_tarlogs()
 	   		cd $LOG_BACK_UP_REBOOT
                         filesPresent=`ls $LOG_BACK_UP_REBOOT | grep -v tgz`
 		fi
-
+		UploadFile=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep "tgz"`
+		if [ "$UploadFile" != "" ]
+		then
+			if [ "$BOX_TYPE" = "XB3" ]
+			then
+				echo_t "RDK_LOGGER: moving the tar file to tmp for xb3 "
+				if [ ! -d "$TMP_UPLOAD" ]; then
+				 mkdir -p $TMP_UPLOAD
+				fi
+				mv $LOG_SYNC_BACK_UP_REBOOT_PATH/$UploadFile  $TMP_UPLOAD
+			else
+				echo_t "RDK_LOGGER: bootup_tarlogs moving tar $UploadFile to preserve path for non xb3"
+				if [ ! -d $PRESERVE_LOG_PATH ] ; then
+					mkdir -p $PRESERVE_LOG_PATH
+				fi
+				preserveThisLog $UploadFile $LOG_SYNC_BACK_UP_REBOOT_PATH
+			fi
+		fi
             if [ "$filesPresent" != "" ]
             then
+
                
+               if [ ! -d "$TMP_UPLOAD" ]; then
+               mkdir -p $TMP_UPLOAD
+               fi
                # Print sys descriptor value if bootup is not after software upgrade.
                # During software upgrade, we print this value before reboot.
                # This is done to reduce user triggered reboot time 
@@ -360,32 +381,63 @@ bootup_tarlogs()
                    echo "Create sysdescriptor before creating tar ball after reboot.."
                    createSysDescr >> $ARM_LOGS_NVRAM2
                fi 
-		
-		rm -rf *.tgz
+
+               if [ "$BOX_TYPE" = "XB3" ]
+               then
+                    cd $TMP_UPLOAD
+                    CopyToTmp
+                    TarCreatePath=$TMP_UPLOAD
+                    echo_t "Create tar in $TarCreatePath for xb3"
+               else
+                    TarCreatePath=$LOG_SYNC_PATH
+                    echo_t "Create tar of $LOG_SYNC_PATH in $TarCreatePath  for non-xb3 "
+                    cd $TarCreatePath
+               fi
+
                echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
                if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
                 echo "tar activation logs from bootup_tarlogs"
-                copy_onboardlogs "$LOG_SYNC_PATH"
-                tar -X $PATTERN_FILE -cvzf ${MAC}_Logs_${dt}_activation_log.tgz $LOG_SYNC_PATH
+                copy_onboardlogs "$TarCreatePath"
+                tar -X $PATTERN_FILE -cvzf ${MAC}_Logs_${dt}_activation_log.tgz $TarCreatePath
                 rm -rf /tmp/backup_onboardlogs
                else
                 echo "tar logs from bootup_tarlogs"
-                tar -X $PATTERN_FILE -cvzf ${MAC}_Logs_${dt}.tgz $LOG_SYNC_PATH
+                tar -X $PATTERN_FILE -cvzf ${MAC}_Logs_${dt}.tgz $TarCreatePath
                fi
                echo "Copy logs $LOG_SYNC_PATH/$SelfHealBootUpLogFile & $LOG_SYNC_PATH$PcdLogFile to $LOG_PATH for telemetry processing"
-               cp $LOG_SYNC_PATH/$SelfHealBootUpLogFile $LOG_PATH
-               cp $LOG_SYNC_PATH$PcdLogFile $LOG_PATH
+               cp $TarCreatePath/$SelfHealBootUpLogFile $LOG_PATH
+               cp $TarCreatePath$PcdLogFile $LOG_PATH
                rm $PATTERN_FILE
-               rm -rf $LOG_SYNC_PATH*.txt*
-	       rm -rf $LOG_SYNC_PATH*.log*
-	       rm -rf $LOG_SYNC_PATH*core*
+               rm -rf $TarCreatePath*.txt*
+	       rm -rf $TarCreatePath*.log*
+	       rm -rf $TarCreatePath*core*
 	       if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ]; then
-		rm -rf $LOG_SYNC_PATH*tar.gz*
+		rm -rf $TarCreatePath*tar.gz*
 	       fi
-	       rm -rf $LOG_SYNC_PATH$PcdLogFile
-	       rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
+	       rm -rf $TarCreatePath$PcdLogFile
+	       rm -rf $TarCreatePath$RAM_OOPS_FILE
 	       echo_t "RDK_LOGGER: tar activation logs from bootup_tarlogs ${MAC}_Logs_${dt}.tgz"
+           if [ "$BOX_TYPE" = "XB3" ]
+           then
+               echo_t "RDK_LOGGER: keeping the tar file in $TarCreatePath for xb3 "
+            else
+               UploadFile=`ls $TarCreatePath | grep "tgz"`
+               if [ "$UploadFile" != "" ]
+                then
+                    logThreshold=`syscfg get log_backup_threshold`
+                    logBackupEnable=`syscfg get log_backup_enable`
+                    if [ "$logBackupEnable" = "true" ] && [ "$logThreshold" -gt "0" ]; then
+                        echo_t "RDK_LOGGER: Moving file  $TarCreatePath/$UploadFile to preserve folder for non-xb3 "
+                        if [ ! -d $PRESERVE_LOG_PATH ] ; then
+                            mkdir -p $PRESERVE_LOG_PATH
+                        fi
+                        preserveThisLog $UploadFile $TarCreatePath
+                    else
+                        echo_t "RDK_LOGGER: Keeping the tar in $TarCreatePath for non-xb3".
+                    fi
+                fi
             fi
+        fi
 	fi
 }	
 
@@ -401,6 +453,7 @@ bootup_upload()
                #Sync log files immediately after reboot
                echo_t "RDK_LOGGER: Sync logs to nvram2 after reboot"
                syncLogs_nvram2
+               cd $TMP_UPLOAD
             else
                BACKUPENABLE=`syscfg get logbackup_enable`
                if [ "$BACKUPENABLE" = "true" ]; then
@@ -460,6 +513,14 @@ bootup_upload()
                fi
 	   fi
 
+	   if [ "$fileToUpload" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	   then
+	       echo_t "Checking if any file available in $TMP_UPLOAD"
+	       if [ -d $TMP_UPLOAD ]; then
+	          fileToUpload=`ls $TMP_UPLOAD | grep tgz`
+           fi
+	   fi
+
 	   echo_t "File to be uploaded is $fileToUpload ...."
 	   #RDKB-7196: Randomize log upload within 30 minutes
 	   # We will not remove 2 minute sleep above as removing that may again result in synchronization issues with xconf
@@ -500,7 +561,7 @@ bootup_upload()
 	curDir=`pwd`
 
         if [ "$LOGBACKUP_ENABLE" == "true" ]; then
-            cd $LOG_SYNC_BACK_UP_PATH
+            cd $TMP_UPLOAD
         else
             cd $LOG_BACK_UP_PATH
         fi
@@ -513,6 +574,13 @@ bootup_upload()
                  if [ -d $TMP_LOG_UPLOAD_PATH ]; then
 		    UploadFile=`ls $TMP_LOG_UPLOAD_PATH | grep tgz`
                  fi
+	fi
+    if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	then
+	    echo_t "Checking if any file available in $LOG_SYNC_BACK_UP_REBOOT_PATH"
+        if [ -d $LOG_SYNC_BACK_UP_REBOOT_PATH ]; then
+            UploadFile=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep tgz`
+        fi
 	fi
 
 	echo_t "File to be uploaded is $UploadFile ...."
@@ -696,7 +764,11 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 			fi
 		done
 	fi
-
+    
+    echo_t "RDK_LOGGER: creating $TMP_UPLOAD"
+    if [ ! -d "$TMP_UPLOAD" ]; then
+        mkdir -p $TMP_UPLOAD
+    fi
     file_list=`ls $LOG_SYNC_PATH | grep -v tgz`
 	#TCCBR-4275 to handle factory reset case.
 	if ( [ "$file_list" != "" ] && [ ! -f "$UPLOAD_ON_REBOOT" ] ) || ( [ "$RebootReason" == "factory-reset" ] ); then
@@ -725,8 +797,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 				fi
 			done
 		fi
-
-		backupnvram2logs_on_reboot "$LOG_SYNC_BACK_UP_PATH"
+		backupnvram2logs_on_reboot
 		#upload_nvram2_logs
 
                 if [ "$LOGBACKUP_ENABLE" == "true" ]; then
@@ -810,7 +881,7 @@ do
 				rm -rf /tmp/.uploadregularlogs                                
 			fi
 			
-			cd $LOG_SYNC_BACK_UP_REBOOT_PATH
+			cd $TMP_UPLOAD
 			FILE_NAME=`ls | grep "tgz"`
 			# This event is set to "yes" whenever wan goes down. 
 			# So, we should not move tar to /tmp in that case.
@@ -831,15 +902,15 @@ do
                                 logBackupEnable=`syscfg get log_backup_enable`
                                 if [ "$logBackupEnable" = "true" ];then
                                    echo_t "Back up to preserve location is enabled"
-                                   fileName=`ls -tr $LOG_SYNC_BACK_UP_PATH | grep tgz | head -n 1`
+                                   fileName=`ls -tr $TMP_UPLOAD | grep tgz | head -n 1`
                                    if [ "$fileName" != "" ]
                                    then
                                       # Call PreserveLog which will move logs to preserve location
-                                      preserveThisLog $fileName $LOG_SYNC_BACK_UP_PATH
+                                      preserveThisLog $fileName $TMP_UPLOAD
                                    fi
                                 fi 	
 
-				backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+				backupnvram2logs "$TMP_UPLOAD"
 			else
 				syncLogs
 				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
@@ -923,7 +994,7 @@ do
 			if [ "$ATOM_SYNC" == "" ]; then
 				syncLogs
 			fi
-			backupnvram2logs "$LOG_SYNC_BACK_UP_PATH"
+			backupnvram2logs "$TMP_UPLOAD"
 
 		        if [ "$UPLOAD_LOGS" = "true" ]
 			then			

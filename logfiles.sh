@@ -328,6 +328,31 @@ syncLogs_nvram2()
     fi
 }
 
+CopyToTmp()
+{
+	if [ ! -d $TMP_UPLOAD ]; then
+	#echo "making directory"
+	mkdir -p $TMP_UPLOAD 
+    fi
+	file_list=`ls $LOG_SYNC_BACK_UP_PATH`
+
+    for file in $file_list
+    do
+	cp $LOG_SYNC_BACK_UP_PATH$file $TMP_UPLOAD # Copying all log files directly
+    done
+	rm -rf $LOG_SYNC_BACK_UP_PATH*.txt*
+	rm -rf $LOG_SYNC_BACK_UP_PATH*.log*
+	rm -rf $LOG_SYNC_BACK_UP_PATH*core*
+	if [ "$BOX_TYPE" == "HUB4" ]; then
+		rm -rf $LOG_SYNC_BACK_UP_PATH*tar.gz*
+	fi
+	rm -rf $LOG_SYNC_BACK_UP_PATH$PcdLogFile
+	if [ "$BOX_TYPE" = "XB6" ]; then
+		rm -rf $LOG_SYNC_BACK_UP_PATH$SYS_CFG_FILE  
+		rm -rf $LOG_SYNC_BACK_UP_PATH$BBHM_CFG_FILE
+		rm -rf $LOG_SYNC_BACK_UP_PATH$WIRELESS_CFG_FILE
+	fi
+}
 checkConnectivityAndReboot()
 {
 	rebootNeeded=0
@@ -401,7 +426,7 @@ preserveThisLog()
 {
 	path=$2
 	if [ "$path" = "" ] ; then
-	  path=$LOG_SYNC_BACK_UP_PATH
+	  path=$TMP_UPLOAD
 	fi
 	file=$1
 	logBackupEnable=`syscfg get log_backup_enable`
@@ -413,7 +438,7 @@ preserveThisLog()
 			
 			if [ ! -f /tmp/backupCount ]; then
 				if [ -d $PRESERVE_LOG_PATH ] ; then
-					backupCount=`ls $PRESERVE_LOG_PATH | wc -l`
+					backupCount=`ls $PRESERVE_LOG_PATH | grep ".tgz" | wc -l`
 					echo $backupCount > /tmp/backupCount
 				else
 					echo 0 > /tmp/backupCount
@@ -425,7 +450,7 @@ preserveThisLog()
 			if [ "$backupCount" -lt "$logThreshold" ]; then
 				if [ -f "$path/$file" ] ; then
 					if [ ! -f "$PRESERVE_LOG_PATH/$file" ]; then #Avoid duplicate copy
-						echo_t  "$path/$file log upload failed..preserve this log for further analysis"
+						echo_t  "$path/$file log upload..preserve this log for further analysis"
 						cp $path/$file $PRESERVE_LOG_PATH
 						echo "Deleting the tar file after copying to $PRESERVE_LOG_PATH"
 						rm -rf $path/$file
@@ -443,7 +468,7 @@ preserveThisLog()
 			fi #end of if [ $backupCount -lt ..
 			#ARRISXB6-8631, mitigation to reboot when we dont have connectivity for long time
 			if [ "$model" = "TG3482G" ]; then
-                                if [ $3 != "wan-stopped" ]; then
+                                if [ "$3" != "wan-stopped" ]; then
 				        if [ $backupCount -ge 2 ]; then
 					        checkConnectivityAndReboot
 				        fi #if [ $backupCount -eq ..; 
@@ -462,7 +487,7 @@ adjustPreserveCount()
 {
     if [ ! -f /tmp/backupCount ]; then
         if [ -d $PRESERVE_LOG_PATH ] ; then
-        	backupCount=`ls $PRESERVE_LOG_PATH | wc -l`
+        	backupCount=`ls $PRESERVE_LOG_PATH | grep ".tgz" | wc -l`
                 echo $backupCount > /tmp/backupCount
         else
                 echo 0 > /tmp/backupCount
@@ -596,12 +621,44 @@ backupnvram2logs()
 
 backupnvram2logs_on_reboot()
 {
-	destn=$1
+	UploadFile=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep "tgz"`
+	if [ "$BOX_TYPE" = "XB3" ]
+	then
+		if [ ! -d "$TMP_UPLOAD" ]; then
+			mkdir -p $TMP_UPLOAD
+		fi
+		if [ "$UploadFile" != "" ]
+		then
+			echo_t "RDK_LOGGER: backupnvram2logs_on_reboot moving the tar file to tmp for xb3 "
+			mv $LOG_SYNC_BACK_UP_REBOOT_PATH/$UploadFile  $TMP_UPLOAD
+		fi
+		TarCreatePath=$TMP_UPLOAD
+
+	else
+		if [ ! -d $PRESERVE_LOG_PATH ] ; then
+			mkdir -p $PRESERVE_LOG_PATH
+		fi
+		if [ "$UploadFile" != "" ]
+		then
+			echo_t "RDK_LOGGER: backupnvram2logs_on_reboot moving tar $UploadFile to preserve path for non xb3"
+			preserveThisLog $UploadFile $LOG_SYNC_BACK_UP_REBOOT_PATH
+		fi
+		TarCreatePath=$LOG_SYNC_BACK_UP_PATH
+		TarFolder=$LOG_SYNC_PATH
+	fi
+
+	destn=$TarCreatePath
 	MAC=`getMacAddressOnly`
 	dt=`date "+%m-%d-%y-%I-%M%p"`
 	workDir=`pwd`
 
 	createSysDescr >> $ARM_LOGS_NVRAM2
+	if [ "$BOX_TYPE" = "XB3" ]
+	then
+		cd $TMP_UPLOAD
+		CopyToTmp
+		TarFolder=$TMP_UPLOAD
+	fi
 
 #	if [ ! -d "$destn" ]; then
 #	   mkdir -p $destn
@@ -615,46 +672,65 @@ backupnvram2logs_on_reboot()
 	cd $destn
         if [ -f "/version.txt" ]
         then
-	    cp /version.txt $LOG_SYNC_PATH
+	    cp /version.txt $TarFolder
         else
-	   cp /fss/gw/version.txt $LOG_SYNC_PATH
+	   cp /fss/gw/version.txt $TarFolder
         fi
 
          if [ "$BOX_TYPE" = "XB6" ]; then
-        	cp $SYS_DB_FILE $LOG_SYNC_PATH$SYS_CFG_FILE
-        	cp /nvram/$BBHM_CFG_FILE $LOG_SYNC_PATH$BBHM_CFG_FILE
-        	cp /nvram/config/$WIRELESS_CFG_FILE $LOG_SYNC_PATH$WIRELESS_CFG_FILE
-       		sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+        	cp $SYS_DB_FILE $TarFolder$SYS_CFG_FILE
+        	cp /nvram/$BBHM_CFG_FILE $TarFolder$BBHM_CFG_FILE
+        	cp /nvram/config/$WIRELESS_CFG_FILE $TarFolder$WIRELESS_CFG_FILE
+       		sed -i "s/.*passphrase.*/\toption passphrase \'\'/g" $TarFolder$WIRELESS_CFG_FILE
         fi
 
-	rm -rf *.tgz
 	echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	if [ -f /tmp/backup_onboardlogs ] && [ -f /nvram/.device_onboarded ]; then
 	    echo "tar activation logs from backupnvram2logs_on_reboot"
-	    copy_onboardlogs "$LOG_SYNC_PATH"
-	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_activation_log.tgz" $LOG_SYNC_PATH
+	    copy_onboardlogs "$TarFolder"
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_"$dt"_activation_log.tgz" $TarFolder
 	    rm -rf /tmp/backup_onboardlogs
     else
         echo "tar logs from backupnvram2logs_on_reboot"
-	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
+	    tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $TarFolder
     fi
 	rm $PATTERN_FILE
 	
-	rm -rf $LOG_SYNC_PATH*.txt*
-	rm -rf $LOG_SYNC_PATH*.log*
-	rm -rf $LOG_SYNC_PATH*core*
+	rm -rf $TarFolder*.txt*
+	rm -rf $TarFolder*.log*
+	rm -rf $TarFolder*core*
 	if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ]; then
-		rm -rf $LOG_SYNC_PATH*tar.gz*
+		rm -rf $TarFolder*tar.gz*
 	fi
 
-	rm -rf $LOG_SYNC_PATH$PcdLogFile
-	rm -rf $LOG_SYNC_PATH$RAM_OOPS_FILE
+	rm -rf $TarFolder$PcdLogFile
+	rm -rf $TarFolder$RAM_OOPS_FILE
 	if [ "$BOX_TYPE" = "XB6" ]; then
-		rm -rf $LOG_SYNC_PATH$SYS_CFG_FILE
-		rm -rf $LOG_SYNC_PATH$BBHM_CFG_FILE
-		rm -rf $LOG_SYNC_PATH$WIRELESS_CFG_FILE
+		rm -rf $TarFolder$SYS_CFG_FILE
+		rm -rf $TarFolder$BBHM_CFG_FILE
+		rm -rf $TarFolder$WIRELESS_CFG_FILE
 	fi
 
+	if [ "$BOX_TYPE" = "XB3" ]
+	then
+		echo_t "RDK_LOGGER: keeping the tar file in tmp for xb3. "
+	else
+		UploadFile=`ls $TarCreatePath | grep "tgz"`
+		if [ "$UploadFile" != "" ]
+		then
+			logThreshold=`syscfg get log_backup_threshold`
+			logBackupEnable=`syscfg get log_backup_enable`
+			if [ "$logBackupEnable" = "true" ] && [ "$logThreshold" -gt "0" ]; then
+				echo_t "RDK_LOGGER: Moving file  $TarCreatePath/$UploadFile to preserve folder for non-xb3. "
+				if [ ! -d $PRESERVE_LOG_PATH ] ; then
+					mkdir -p $PRESERVE_LOG_PATH
+				fi
+				preserveThisLog $UploadFile $TarCreatePath
+			else
+				echo_t "RDK_LOGGER: Keeping the tar in $TarCreatePath for non-xb3"
+			fi
+		fi
+	fi
 	cd $workDir
 }
 
