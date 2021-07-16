@@ -468,7 +468,7 @@ bootup_upload()
 	   then
 	   	
             random_sleep
-	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $TMP_LOG_UPLOAD_PATH
+	      $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $TMP_LOG_UPLOAD_PATH "true"
 	   else 
 	      echo_t "No log file found in logbackupreboot folder"
 	   fi
@@ -483,7 +483,7 @@ bootup_upload()
             then
               sleep 60
               echo_t "Uploading backup logs found in $PRESERVE_LOG_PATH"
-              $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH
+              $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH "true"
             else 
              echo_t "No backup logs found in $PRESERVE_LOG_PATH"
             fi
@@ -523,7 +523,7 @@ bootup_upload()
 		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 		then
 			random_sleep		
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH "true"
 		else
 			while [ "$loop" = "1" ]
 			do
@@ -545,7 +545,7 @@ bootup_upload()
 			done
 			sleep 120
 			random_sleep
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH
+			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH "true"
 			UPLOADED_AFTER_REBOOT="true"
 		fi
 	fi

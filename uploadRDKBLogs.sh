@@ -30,6 +30,22 @@ NVRAM2_SUPPORTED="no"
 . /lib/rdk/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
 
+if [ $# -lt 4 ]; then 
+     echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
+     #echo "USAGE: $0 $1 $2 $3 $4"
+fi
+echo_t "The parameters are - arg1:$1 arg2:$2 arg3:$3 arg4:$4 arg5:$5 arg6:$6 arg7:$7"
+
+
+# assign the input arguments
+
+UploadProtocol=$2
+UploadHttpLink=$3
+UploadOnReboot=$4
+UploadLogsonReboot=$7
+
+
+unscheduledDisable=`syscfg get UploadLogsOnUnscheduledRebootDisable`
 UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
 
 if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
@@ -40,9 +56,52 @@ fi
 
 echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
 
+isMaintenanceWindow()
+{
+	FW_START=`cat /nvram/.FirmwareUpgradeStartTime`
+	FW_END=`cat /nvram/.FirmwareUpgradeEndTime`
+	
+	# Get current time
+	if [ "$UTC_ENABLE" == "true" ]
+	then
+		cur_hr=`LTime H | sed 's/^0*//'`
+        	cur_min=`LTime M | sed 's/^0*//'`
+        	cur_sec=`date +"%S" | sed 's/^0*//'`
+    	else
+        	cur_hr=`date +"%H" | sed 's/^0*//'`
+        	cur_min=`date +"%M" | sed 's/^0*//'`
+        	cur_sec=`date +"%S" | sed 's/^0*//'`
+	fi
+
+	curr_hr_in_sec=$((cur_hr*60*60))
+	curr_min_in_sec=$((cur_min*60))
+	curr_time_in_sec=$((curr_hr_in_sec+curr_min_in_sec+cur_sec))
+
+	echo_t "curr_time_in_sec:$curr_time_in_sec"
+	echo_t "FW_START:$FW_START"
+	echo_t "FW_END:$FW_END"
+	
+	if [ "$curr_time_in_sec" -ge "$FW_START" ] && [ "$curr_time_in_sec" -le "$FW_END" ]
+	then
+		echo_t "Inside Maintenance Window"
+		mw=1
+	else
+		echo_t "Outside Maintenance Window"
+		mw=0
+	fi
+}
+
+if [ "$UPLOAD_LOGS" != "true" ] && [ "$UPLOAD_LOGS" != "" ]
+then
+	isMaintenanceWindow
+fi
+
 if [ "$UPLOAD_LOGS" = "true" ] || [ "$UPLOAD_LOGS" = "" ]
 then
    echo_t "Log upload is enabled"
+elif [ "$UploadLogsonReboot" = "true" ] && [ "$unscheduledDisable" = "false" ] && [ "x$mw" = "x0" ]
+	then
+		echo_t "Log upload is enabled for unscheduledreboot"
 else
    echo_t "Log upload is disabled"
    exit 1
@@ -97,24 +156,12 @@ checkStaticXpkiMtlsBasedLogUpload()
     fi
 }
 
-if [ $# -lt 4 ]; then 
-     echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
-     #echo "USAGE: $0 $1 $2 $3 $4"
-fi
-echo_t "The parameters are - arg1:$1 arg2:$2 arg3:$3 arg4:$4 arg5:$5 arg6:$6"
-
 if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
    export PATH=$PATH:/fss/gw/
    CURL_BIN="curl"
 else
    CURL_BIN=/fss/gw/curl
 fi
-
-# assign the input arguments
-
-UploadProtocol=$2
-UploadHttpLink=$3
-UploadOnReboot=$4
 
 if [ "$5" != "" ]; then
 	nvram2Backup=$5
