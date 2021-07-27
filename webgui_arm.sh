@@ -36,6 +36,19 @@
 
 source /lib/rdk/t2Shared_api.sh
 
+if [ -z $1 ] && [ ! -f /tmp/webuifwbundle ]; then
+    fwbundlename=$(basename `find /etc/ -name "webui-cert-bundle*.tar"`)
+    if [ ! -f /nvram/certs/myrouter.io.cert.pem ] || [ -f /etc/$fwbundlename ]; then
+        if [ -f /lib/rdk/check-webui-update.sh ]; then
+            sh /lib/rdk/check-webui-update.sh
+        else
+            echo "check-webui-update.sh not available means webuiupdate support is disabled"
+        fi
+    else
+        echo "certificate /nvram/certs/myrouter.io.cert.pem or webui bundle not available"
+    fi
+fi
+
 #WEBGUI_SRC=/fss/gw/usr/www/html.tar.bz2
 #WEBGUI_DEST=/var/www
 
