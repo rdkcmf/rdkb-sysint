@@ -764,6 +764,7 @@ do
 
 	    if [ "$DeviceUP" = "0" ]; then
 	        #for rdkb-4260
+		t2CountNotify "SYS_INFO_bootup"
 	        if [ -f "$SW_UPGRADE_REBOOT" ]; then
 	           echo_t "RDKB_REBOOT: Device is up after reboot due to software upgrade"
 		   t2CountNotify "SYS_INFO_SW_upgrade_reboot"
@@ -773,7 +774,6 @@ do
 	           DeviceUP=1
 	        else
 	           echo_t "RDKB_REBOOT: Device is up after reboot"
-		   t2CountNotify "SYS_INFO_bootup"
 	           DeviceUP=1
 	        fi
 	    fi
