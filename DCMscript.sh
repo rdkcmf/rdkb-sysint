@@ -71,6 +71,7 @@ DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 T2_RESPONSE="$T2_XCONF_PERSISTENT_PATH/DCMresponse.txt"
 TELEMETRY_TEMP_RESEND_FILE="$PERSISTENT_PATH/.temp_resend.txt"
 FWDL_FLAG="/tmp/.fwdl_flag"
+useStaticXpkiMtlsLogupload="false"
 
 FORMATTED_TMP_DCM_RESPONSE='/tmp/DCMSettings.conf'
 
@@ -166,6 +167,34 @@ if [ -f $DCMRESPONSE ]; then
         fi
     fi
 fi
+
+
+checkXpkiMtlsBasedLogUpload()
+{
+    if [ -f /usr/bin/rdkssacli ] && [ -f /nvram/certs/devicecert_1.pk12 ]; then
+        useXpkiMtlsLogupload="true"
+    else
+        useXpkiMtlsLogupload="false"
+    fi
+}
+
+checkStaticXpkiMtlsBasedLogUpload()
+{
+    if [ -f /etc/ssl/certs/staticXpkiCrt.pk12 ] && [ -x /usr/bin/GetConfigFile ]; then
+        ID="/tmp/.cfgStaticxpki"
+        if [ ! -f "$ID" ]; then
+            GetConfigFile $ID
+	    if [ ! -f "$ID" ]; then
+                echo_t "Getconfig file fails , use standard TLS"
+                useStaticXpkiMtlsLogupload="false"
+	    else
+		useStaticXpkiMtlsLogupload="true"
+            fi
+        else
+            useStaticXpkiMtlsLogupload="true"
+        fi
+    fi
+}   
 
 # File to save curl response 
 #FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
@@ -264,14 +293,26 @@ get_Codebigconfig()
 # Direct connection Download function
 useDirectRequest()
 {
+   checkXpkiMtlsBasedLogUpload
+   checkStaticXpkiMtlsBasedLogUpload
    tmpHttpResponse="/tmp/dcmResponse$$.txt"
    count=0
    while [ "$count" -lt "$DIRECT_MAX_ATTEMPTS" ] ; do    
        echo_t " DCM connection type DIRECT"
-      CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
-       echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
+       if [ $useXpkiMtlsLogupload == "true" ]; then
+          echo_t "XpkiMtlsBasedLogUpload true for dcm" >> $DCM_LOG_FILE
+          CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2  --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
+       elif [ "$useStaticXpkiMtlsLogupload" == "true" ]; then
+          echo_t "StaticXpkiMtlsBasedLogUpload true for dcm" >> $DCM_LOG_FILE
+          CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
+       else
+          echo_t "no xpki used for dcm" >> $DCM_LOG_FILE
+	  CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
+       fi
        HTTP_CODE=`result= eval $CURL_CMD`
        ret=$?
+       CURL_CMD=`echo "$CURL_CMD" | sed 's/devicecert_1.* /devicecert_1.pk12<hidden key>/' | sed 's/staticXpkiCr.* /staticXpkiCrt.pk12<hidden key>/'`
+       echo_t "CURL_CMD: $CURL_CMD" >> $DCM_LOG_FILE
 
        sleep 2
        http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
