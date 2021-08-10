@@ -86,7 +86,14 @@ getCMIPAddress()
        if [ ! "$address" ]; then
           address=`dmcli eRT getv Device.X_CISCO_COM_CableModem.IPAddress | grep string | awk '{print $5}'`
        fi
-    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
+       CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+       if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+          address=`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | cut -d '/' -f1 | head -n1`
+       else
+          address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+       fi
+    elif [ $BOX_TYPE = "XF3" ]; then
        # in PON/DSL you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "` 
     else                           
@@ -106,7 +113,14 @@ getErouterIPAddress()
         if [ ! "$address" ]; then
             address=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep string | awk '{print $5}'`
         fi
-    elif [ $BOX_TYPE = "XF3" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ]; then
+        CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
+        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
+            address=`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | cut -d '/' -f1 | head -n1`
+        else
+            address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
+        fi
+    elif [ $BOX_TYPE = "XF3" ]; then
        # in PON/DSL you cant get the CM IP address, so use eRouter IP address
        address=`ifconfig $WANINTERFACE | grep "inet addr" | grep -v inet6 | cut -f2 -d: | cut -f1 -d" "`
     else
