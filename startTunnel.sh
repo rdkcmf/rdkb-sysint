@@ -101,6 +101,10 @@ case $oper in
 			CM_IP=`ifconfig $CMINTERFACE| grep inet6 | tr -s " " | grep -v Link | cut -d " " -f4 | cut -d "/" -f1 | head -n1`
 			if [ ! "$CM_IP" ]; then
 				echo "Error: There is no valid CM interface configured and error getting IPv6 address for the device"
+                                echo "As there is no valid IPV6 configured, assigning a valid IPv4 for the device"
+				if [ ! -z "$CM_IPV4" ]; then
+					CM_IP=$CM_IPV4
+				fi
 			fi
 			if [ -z "$CM_IP" -a -z "$CM_IPV4" ]; then
 				echo "Error: There is no valid CM interface configured and error while starting ssh process."
