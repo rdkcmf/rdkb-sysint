@@ -229,7 +229,7 @@ useDirectRequest()
 
         echo_t "Trial $retries for DIRECT ..."
         #Sensitive info like Authorization signature should not print
-        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g'`"
+        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g' | sed -e 's#staticXpkiCrt.*-w#staticXpkiCrt.pk12<hidden key> -w#g'`"
         HTTP_CODE=`ret= eval $CURL_CMD`
 
         if [ "x$HTTP_CODE" != "x" ];
