@@ -72,7 +72,11 @@ IDLE_TIMEOUT=30
 MAX_SSH_RETRY=3
 
 ## For simple T2.0 migration consider only below steps for T2 Enable mode
-T2_ENABLE=`syscfg get T2Enable`
+if [ "$BOX_TYPE" = "XB3" ] && [ "$CORE_TYPE" = "atom" ]; then
+    T2_ENABLE="`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.Enable | grep value | awk '{print $5}'`"
+else
+    T2_ENABLE="`syscfg get T2Enable`"
+fi
 echo_t "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ." >> $RTL_LOG_FILE
 echo_t "RFC value for Telemetry 2.0 Enable is $T2_ENABLE ." >> $T2_0_LOGFILE
 
