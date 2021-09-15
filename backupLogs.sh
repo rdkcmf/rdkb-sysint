@@ -368,7 +368,7 @@ backup_log_pidCleanup
 if [ "$needReboot" = "true" ]
 then
 	# RebootPendingNotifications are applicable only for residential devices and not applicable for business gateways.
-	if [ "$IS_BCI" != "yes" ]; then
+	if [ "$IS_BCI" != "yes" ] || [ "$MODEL_NUM" = "CGA4332COM" ]; then
 		echo_t "Trigger RebootPendingNotification in background"
 		Trigger_RebootPendingNotify &
 		echo_t "sleep for 1 sec to send reboot pending notification"
