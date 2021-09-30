@@ -19,13 +19,8 @@
 ##################################################################################
 #update dmesg log into rdklogs/logs/messages.txt
 
-
-if [ -f /etc/device.properties ]
-then
-    source /etc/device.properties
-fi
-
-source /etc/utopia/service.d/log_env_var.sh
+. /etc/device.properties
+. /etc/utopia/service.d/log_env_var.sh
 
 current_time=0
 lastync_time=0
@@ -58,6 +53,7 @@ do
    else
      dmesgsyncinterval=`syscfg get dmesglogsync_interval`
    fi
-     sleep $dmesgsyncinterval 
+
+   sleep $dmesgsyncinterval 
  
-done;
+done

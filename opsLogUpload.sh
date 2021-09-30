@@ -47,13 +47,7 @@ CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_opslu"
 DIRECT_MAX_ATTEMPTS=3
 CODEBIG_MAX_ATTEMPTS=3
 
-# This check is put to determine whether the image is Yocto or not
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-   export PATH=$PATH:/fss/gw/
-   CURL_BIN="curl"
-else
-   CURL_BIN="/fss/gw/curl"
-fi
+CURL_BIN="curl"
 
 UseCodeBig=0
 conn_str="Direct"
@@ -399,13 +393,8 @@ fi
         echo_t "Generated KeyIs : "
         echo $RemSignature
 	
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-           CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-           CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-        fi
+        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
+        CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
 	echo_t "Curl Command built: $CURL_CMD_FOR_ECHO"
 
         retries=0
@@ -444,11 +433,7 @@ fi
     elif [ "$http_code" = "302" ];then
 		echo_t "Inside 302"
         NewUrl=`grep -oP "(?<=HREF=\")[^\"]+(?=\")" $OutputFile`
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-           CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $CERT_STATUS --connect-timeout 30 -m 30"
-        else
-           CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $CERT_STATUS --connect-timeout 30 -m 30"
-        fi
+        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" -o \"$OutputFile\" \"$NewUrl\" --interface $WAN_INTERFACE $CERT_STATUS --connect-timeout 30 -m 30"
         echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g'`"
 
         retries=0

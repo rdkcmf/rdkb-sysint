@@ -19,14 +19,9 @@
 # limitations under the License.
 ##################################################################################
 
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-	LOG_FOLDER="/rdklogs"
-else
-	LOG_FOLDER="/var/tmp"
-fi
+LOG_FOLDER="/rdklogs"
 
-source /lib/rdk/t2Shared_api.sh
-
+. /lib/rdk/t2Shared_api.sh
 . /etc/device.properties
 
 CONSOLEFILE="$LOG_FOLDER/logs/Consolelog.txt.0"
@@ -39,39 +34,33 @@ echo_time()
 # Function to get partner_id
 getPartnerId()
 {
-#Get PartnerID set in the system via syscfg get command
-partner_id=`syscfg get PartnerID`
-syscfg_err=`echo $partner_id | grep -i error`
+	# Get PartnerID set in the system via syscfg get command
+	partner_id=`syscfg get PartnerID`
 
-#Try "dmcli" to retrieve partner_id if "sysconf" returned null. It's a fallback check.
-if [ "$partner_id" == "" ] || [ "$syscfg_err" != "" ];then
-	partner_id=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.PartnerId | grep string | awk '{print $5}'`
+	# Try "dmcli" to retrieve partner_id if "sysconf" returned null. It's a fallback check.
+	if [ -z "$partner_id" ] || [ -n "$(echo $partner_id | grep -i error)" ]; then
+		partner_id=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.PartnerId | grep string | awk '{print $5}'`
 
-	#Check for PartnerID in device.properties if its not set already.
-	if [ "$partner_id" == "" ];then
-		if [ -f "/etc/device.properties" ];then
-# PARTNER_ID is read from etc/device.properties file
+		# Check for PartnerID in device.properties if its not set already.
+		if [ -z "$partner_id" ]; then
+			# PARTNER_ID is set from sourcing /etc/device.properties
 			partner_id=`echo $PARTNER_ID`
-				if [ "$partner_id" == "" ];then
-					echo_time "partner_id is not available from syscfg.db or tr181 param or device.properties, defaulting to comcast..">>$CONSOLEFILE
-					t2CountNotify "SYS_ERROR_PartnerId_missing_sycfg"
-					echo "comcast"
-				else
-					echo_time "partner_id is not available from syscfg.db or tr181 param, value retrieved from device.properties : $partner_id">>$CONSOLEFILE
-					echo "$partner_id"
-				fi
+			if [ -z "$partner_id" ]; then
+				echo_time "partner_id is not available from syscfg.db or tr181 param or device.properties, defaulting to comcast..">>$CONSOLEFILE
+				t2CountNotify "SYS_ERROR_PartnerId_missing_sycfg"
+				echo "comcast"
+			else
+				echo_time "partner_id is not available from syscfg.db or tr181 param, value retrieved from device.properties : $partner_id">>$CONSOLEFILE
+				echo "$partner_id"
+			fi
 		else
-			echo_time "partner_id is not available, defaulting to comcast.">>$CONSOLEFILE
-			echo "comcast"
+			echo_time "partner_id is not available from syscfg.db, value retrieved from tr181 param : $partner_id">>$CONSOLEFILE
+			echo "$partner_id"
 		fi
 	else
-		echo_time "partner_id is not available from syscfg.db, value retrieved from tr181 param : $partner_id">>$CONSOLEFILE
+		echo_time "partner_id retrieved from syscfg.db : $partner_id">>$CONSOLEFILE
 		echo "$partner_id"
 	fi
-else
-	echo_time "partner_id retrieved from syscfg.db : $partner_id">>$CONSOLEFILE
-	echo "$partner_id"
-fi
 }
 
 getExperience()

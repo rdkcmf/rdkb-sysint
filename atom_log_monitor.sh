@@ -21,8 +21,16 @@
 source /etc/device.properties
 source /etc/logFiles.properties
 source /etc/log_timestamp.sh
-loop=1
-LOG_PATH=/rdklogs/logs/
+
+LOG_PATH=/rdklogs/logs
+
+# Devices that have more nvram size can override default upload threshold (1.5MB) through device.properties
+if [ -n "$LOG_UPLOAD_THRESHOLD" ]
+then
+	MAXSIZE=$LOG_UPLOAD_THRESHOLD
+else
+	MAXSIZE=1536
+fi
 
 #wait for components to create log
 sleep 10
@@ -30,45 +38,19 @@ sleep 10
 TMP_FILE_LIST=$(echo $ATOM_FILE_LIST | tr "," " " | tr "{" " " | tr "}" " " | tr "*" "0")
 TMP_FILE_LIST=${TMP_FILE_LIST/"txt0"/"txt"}
 for file in $TMP_FILE_LIST; do
-  if [ ! -f $LOG_PATH$file ]; then
-   touch $LOG_PATH$file
+  if [ ! -f $LOG_PATH/$file ]; then
+   touch $LOG_PATH/$file
   fi
 done
 
-while [ "$loop" -eq 1 ]
+while :
 do
-
 	sleep 60
-	if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-	      MAXSIZE=1536
-	      #Devices that have more nvram size can override default upload threshold (1.5MB) through device.properties
-	      if [ "$LOG_UPLOAD_THRESHOLD" != "" ]
- 	      then
- 		MAXSIZE=$LOG_UPLOAD_THRESHOLD
- 	      fi
-	else
-	      MAXSIZE=524288
-	fi
 
-	currdir=`pwd`
-	cd $LOG_PATH
-	totalSize=0
-        if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-		totalSize=`du -c | tail -1 | awk '{print $1}'`
-        else
-
-		for f in $TMP_FILE_LIST
-		do
-			tempSize=`wc -c $f | cut -f1 -d" "`
-			totalSize=`expr $totalSize + $tempSize`
-		done
-	fi
+	totalSize=$(du -c $LOG_PATH | tail -n1 | awk '{print $1}')
 
 	if [ $totalSize -ge $MAXSIZE ]; then
 		echo_t "MAXSIZE reached , upload the logs"
 		dmcli eRT setv Device.LogBackup.X_RDKCENTRAL-COM_SyncandUploadLogs bool true
 	fi
-
-	cd $currdir
-
 done

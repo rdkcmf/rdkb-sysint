@@ -8,10 +8,8 @@ CRONFILE_BK="/tmp/cron_tab$$.txt"
 LOG_FILE="/rdklogs/logs/dcmrfc.log"
 RFC_REBOOT_SCHEDULED="/tmp/.RfcwaitingReboot"
 DCM_CONF="/tmp/DCMSettings.conf"
-if [ -f /etc/device.properties ]
-then
-    source /etc/device.properties
-fi
+
+. /etc/device.properties
 
 calcRebootExecTime()
 {

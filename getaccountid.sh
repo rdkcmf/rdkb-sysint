@@ -19,11 +19,7 @@
 # limitations under the License.
 ##################################################################################
 
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-        LOG_FOLDER="/rdklogs"
-else
-        LOG_FOLDER="/var/tmp"
-fi
+LOG_FOLDER="/rdklogs"
 
 KEY_LEN="32"
 CONSOLEFILE="$LOG_FOLDER/logs/Consolelog.txt.0"

@@ -156,12 +156,7 @@ checkStaticXpkiMtlsBasedLogUpload()
     fi
 }
 
-if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-   export PATH=$PATH:/fss/gw/
-   CURL_BIN="curl"
-else
-   CURL_BIN=/fss/gw/curl
-fi
+CURL_BIN="curl"
 
 if [ "$5" != "" ]; then
 	nvram2Backup=$5
@@ -630,15 +625,9 @@ HttpLogUpload()
             echo_t "Generated KeyIs : "
             echo $RemSignature
 
-            if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-		#Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-            else
-                CURL_CMD="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-		#Sensitive info like Authorization signature should not print
-                CURL_CMD_FOR_ECHO="nice -n 20 /fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-            fi
+            CURL_CMD="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
+            # Sensitive info like Authorization signature should not print
+            CURL_CMD_FOR_ECHO="nice -n 20 curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
 
             retries=0
             while [ "$retries" -lt "3" ]
@@ -647,15 +636,9 @@ HttpLogUpload()
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
-                    if [ -f /etc/os-release ] || [ -f /etc/device.properties ]; then
-                        CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-			#Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-                    else
-                        CURL_CMD="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
-			#Sensitive info like Authorization signature should not print
-                        CURL_CMD_FOR_ECHO="/fss/gw/curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
-                    fi
+                    CURL_CMD="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE $Key $CERT_STATUS --connect-timeout 30 -m 30"
+                    # Sensitive info like Authorization signature should not print
+                    CURL_CMD_FOR_ECHO="curl --tlsv1.2 -w '%{http_code}\n' -T $UploadFile -o \"$OutputFile\" --interface $WAN_INTERFACE \"$RemSignature\" $CERT_STATUS --connect-timeout 30 -m 30"
                 fi
 	            if [[ ! -e $UploadFile ]]; then
                    echo_t "No file exist or already uploaded!!!"

@@ -15,9 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-if [ -f /etc/device.properties ];then
-    . /etc/device.properties
-fi
+
+. /etc/device.properties
 
 if [ -f /etc/include.properties ];then
     . /etc/include.properties
