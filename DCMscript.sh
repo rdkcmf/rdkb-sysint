@@ -658,9 +658,13 @@ fi
     sleep 5
 
     if [ $ret -ne 0 ]; then
-        echo_t "Processing response failed." >> $DCM_LOG_FILE
+        echo_t "Config fetch failed." >> $DCM_LOG_FILE
         echo_t "count = $count. Sleeping $RETRY_DELAY seconds ..." >> $DCM_LOG_FILE
-        exit 1
+        if [ ! -f "$DCMRESPONSE" ]; then 
+            echo "Unable to locate previous downloaded settings $DCMRESPONSE ... Exiting !!! " >> $DCM_LOG_FILE
+            echo_t "Processing response failed." >> $DCM_LOG_FILE
+            exit 1
+        fi
     fi
     
 	# RFC and Firmware download scheduler depends on parsed DCM response file
