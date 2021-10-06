@@ -597,7 +597,7 @@ backupnvram2logs()
 	rm -rf $LOG_SYNC_PATH*.txt*
 	rm -rf $LOG_SYNC_PATH*.log*
 	rm -rf $LOG_SYNC_PATH*core*
-	if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ]; then
+	if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "$BOX_TYPE" == "SE501" ]; then
 		rm -rf $LOG_SYNC_PATH*tar.gz*
 	fi
 	rm -rf $LOG_SYNC_PATH$PcdLogFile
@@ -693,7 +693,7 @@ backupnvram2logs_on_reboot()
 	rm -rf $TarFolder*.txt*
 	rm -rf $TarFolder*.log*
 	rm -rf $TarFolder*core*
-	if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ]; then
+	if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "$BOX_TYPE" == "SE501" ]; then
 		rm -rf $TarFolder*tar.gz*
 	fi
 
