@@ -23,6 +23,10 @@ if [ -f /etc/utopia/service.d/log_env_var.sh ];then
 	source /etc/utopia/service.d/log_env_var.sh
 fi
 
+if [ -f /etc/utopia/service.d/log_capture_path.sh ];then
+    source /etc/utopia/service.d/log_capture_path.sh
+fi
+
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
 
@@ -174,6 +178,30 @@ getErouterMacAddress()
 rebootFunc()
 {
     #sync
+    #Before reboot send signal to PSM process to sync db to flash and stop execution , In XB6 systemd sends Terminate signal
+    if [ "$BOX_TYPE" = "XB3" ]; then
+
+        MAX_WAIT_ITER=6
+        psm_exit_wait_iter=1
+        PSM_SHUTDOWN="/tmp/.forcefull_psm_shutdown"
+        echo_t "Gracefully shutting down PSM process by sending SIGTERM" >> /nvram2/logs/ArmConsolelog.txt.0
+        touch $PSM_SHUTDOWN
+        kill -15 `pidof PsmSsp`
+
+        while [  $psm_exit_wait_iter -le $MAX_WAIT_ITER ] ; do
+            if [ "x`pidof PsmSsp`" != "x" ];then
+                echo "PSM still running, iter $psm_exit_wait_iter" >> /nvram2/logs/ArmConsolelog.txt.0
+            else
+                echo "PSM exited after iter $psm_exit_wait_iter. Going ahead and rebooting" >> /nvram2/logs/ArmConsolelog.txt.0
+                break;
+            fi
+            sleep 2
+
+            psm_exit_wait_iter=$(($psm_exit_wait_iter + 1))
+        done
+
+        sync
+    fi
     reboot
 }
 
