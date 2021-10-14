@@ -101,8 +101,8 @@ Trigger_RebootPendingNotify()
 
 getBuildType()
 {
+   IMAGENAME=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt)
 
-   IMAGENAME=`sed -n 's/imagename[:|=]//p' /fss/gw/version.txt`
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then
@@ -179,7 +179,7 @@ backupLogsonReboot()
 
 	#fi
 	cd $LOG_BACK_UP_REBOOT
-	cp /fss/gw/version.txt $LOG_BACK_UP_REBOOT$dt
+	cp /version.txt $LOG_BACK_UP_REBOOT$dt
 
 	if [ "$ATOM_SYNC" = "yes" ]
 	then
@@ -263,12 +263,8 @@ backupLogsonReboot_nvram2()
 	done
 
 	cd $LOG_SYNC_BACK_UP_REBOOT_PATH
-        if [ -f "/version.txt" ]
-        then
-           cp /version.txt $LOG_SYNC_PATH
-        else
-	   cp /fss/gw/version.txt $LOG_SYNC_PATH
-        fi
+        cp /version.txt $LOG_SYNC_PATH
+
 	#echo "*.tgz" > $PATTERN_FILE # .tgz should be excluded while tar
 	#tar -X $PATTERN_FILE -cvzf $MAC"_Logs_$dt.tgz" $LOG_SYNC_PATH
 	#rm $PATTERN_FILE

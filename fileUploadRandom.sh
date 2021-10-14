@@ -190,8 +190,8 @@ calcRandTimeandUpload()
 ## Identifies whether it is a VBN or PROD build
 getBuildType()
 {
+   IMAGENAME=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt)
 
-   IMAGENAME=`sed -n 's/imagename[:|=]//p' /fss/gw/version.txt`
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then

@@ -188,15 +188,12 @@ SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | 
 
 getFWVersion()
 {
-    verStr=`grep ^imagename: /version.txt | cut -d ":" -f 2`
-	echo $verStr
+    sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt
 }
 
 getBuildType()
 {
-        # Currenlty this function not used. If used please ensure, calling get_Codebigconfig before this call
-        # get_Codebigconfig currenlty called in HttpLogUpload 
-        IMAGENAME=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
+   IMAGENAME=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt)
 
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
@@ -238,7 +235,7 @@ CM_INTERFACE="wan0"
 WAN_INTERFACE="erouter0"
 CURLPATH="/fss/gw"
 
-VERSION="/fss/gw/version.txt"
+VERSION="/version.txt"
 
 http_code=0
 OutputFile='/tmp/httpresult.txt'

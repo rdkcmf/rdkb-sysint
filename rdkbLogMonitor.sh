@@ -80,19 +80,17 @@ DeviceUP=0
 # Function declarations
 #---------------------------------
 
-
-
 ## FW version from version.txt 
 getFWVersion()
 {
-    verStr=`grep ^imagename: /fss/gw/version.txt | cut -d ":" -f 2`
-    echo $verStr
+    sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt
 }
 
 ## Identifies whether it is a VBN or PROD build
 getBuildType()
 {
-   IMAGENAME=`sed -n 's/imagename[:|=]//p' /fss/gw/version.txt`
+   IMAGENAME=$(sed -n 's/^imagename[:=]"\?\([^"]*\)"\?/\1/p' /version.txt)
+
    TEMPDEV=`echo $IMAGENAME | grep DEV`
    if [ "$TEMPDEV" != "" ]
    then
