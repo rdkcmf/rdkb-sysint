@@ -378,6 +378,17 @@ then
 		echo_t "Properly shutdown parodus by sending SIGTERM kill signal"
 		killall -s SIGTERM parodus
 	fi
+    #stop IGD process before reboot
+    sysevent set igd-stop
+
+    #check if IGD has stopped or not
+    igd_running=`ps | grep -c IGD`
+    if [ $igd_running -gt 1 ];
+    then
+        echo_t "IGD is not stopped, So shutting it down."
+        killall -s SIGTERM IGD
+    fi
+
 	sleep 1
 	rebootFunc
 fi
