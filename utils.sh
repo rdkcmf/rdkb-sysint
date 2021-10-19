@@ -29,6 +29,8 @@ fi
 
 CMINTERFACE="wan0"
 WANINTERFACE="erouter0"
+CRONTAB_DIR="/var/spool/cron/crontabs/"
+CRONFILE_BK="/tmp/cron_tab$$$$.txt"
 
 #checkProcess()
 #{
@@ -252,4 +254,24 @@ getBuildType()
     fi
 }
 
+removeCron()
+{
+    # Remove the cron job
+    crontab -l -c $CRONTAB_DIR > $CRONFILE_BK
+    grep -q "$1" $CRONFILE_BK
+    ret=$?
+    if [ $ret -eq 0 ]; then
+         sed -i "/`echo $1 | sed 's/.*\///'`/d" $CRONFILE_BK
+         crontab $CRONFILE_BK -c $CRONTAB_DIR
+    fi
+    rm -rf $CRONFILE_BK
+}
 
+addCron()
+{
+    # Dump existing cron jobs to a file & add new job
+    crontab -l -c $CRONTAB_DIR > $CRONFILE_BK
+    echo -e "$*" >> $CRONFILE_BK
+    crontab $CRONFILE_BK -c $CRONTAB_DIR
+    rm -rf $CRONFILE_BK
+}
