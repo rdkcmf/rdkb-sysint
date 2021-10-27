@@ -320,7 +320,10 @@ syncLogs_nvram2()
                 #change for ARRISXB6-11061 ends here
 		offset=`wc -l $LOG_SYNC_PATH$file | cut -d " " -f1`
 		#echo "new offset = $offset for file $LOG_PATH$file"
-		sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
+        #ARRISXB6-12575 commented sed to avoid creation of temp files
+        #sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
+        # insert the offset at the first line of the file without using temp files
+        echo -e "$offset\n`cat $LOG_SYNC_PATH$file | tail -n +2`" > $LOG_SYNC_PATH$file
 	done
 	
     if [ -f /tmp/backup_onboardlogs ]; then
