@@ -231,7 +231,7 @@ then
     echo_t "Telemetry Folder does not exist . Creating now" >> $RTL_LOG_FILE
     mkdir -p "$TELEMETRY_PATH_TEMP"
 else
-    cp $TELEMETRY_PATH/rtl_* $TELEMETRY_PATH_TEMP/
+    cp $TELEMETRY_PATH/rtl_* $TELEMETRY_PATH_TEMP/ 2>/dev/null
 fi
 
 mkdir -p $TELEMETRY_PATH
