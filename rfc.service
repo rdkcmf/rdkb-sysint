@@ -22,15 +22,23 @@
 . /etc/include.properties
 . /etc/device.properties
 
+if [ -z "$LOG_PATH" ]; then
+    if [ "$DEVICE_TYPE" = "broadband" ]; then
+        LOG_PATH="/rdklogs/logs"
+    else
+	    LOG_PATH="/opt/logs"
+    fi
+fi
 #Adding support for override for dcm.properties file in non-prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/rfc.properties ]; then
       . $PERSISTENT_PATH/rfc.properties
 else
       . /etc/rfc.properties
 fi
+RFC_LOG_FILE="$LOG_PATH/rfcscript.log"
 
 if [ -f $RFC_SERVICE_LOCK ]; then
-    echo_t "RFC: Service in progress. New instance not allowed. Lock file $RFC_SERVICE_LOCK is locked!"  >> $RFC_LOG_FILE
+    echo "RFC: Service in progress. New instance not allowed. Lock file $RFC_SERVICE_LOCK is locked!"  >> $RFC_LOG_FILE
 else
 #TCCBR is yet to migrate to complete systemd. because of this script is getting
 #triggered early from cosa_start_rem.sh,can result in some parameters not updated
