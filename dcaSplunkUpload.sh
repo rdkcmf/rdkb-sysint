@@ -110,6 +110,33 @@ else
 fi
 TelemetryNewEndpointAvailable=0
 
+dynamicXpkicert()
+{
+    if [ -f /usr/bin/rdkssacli ] && [ -f /nvram/certs/devicecert_1.pk12 ]; then
+        usedynamicXpkicert="true"
+    else
+        usedynamicXpkicert="false"
+    fi
+}
+
+staticXpkicert()
+{
+    if [ -f /etc/ssl/certs/staticXpkiCrt.pk12 ] && [ -x /usr/bin/GetConfigFile ]; then
+        STATICXPKID="/tmp/.cfgStaticxpki"
+        if [ ! -f "$STATICXPKID" ]; then
+            GetConfigFile $STATICXPKID
+            if [ ! -f "$STATICXPKID" ]; then
+                echo_t "Getconfig file fails , use standard TLS"
+                usestaticXpkicert="false"
+            else
+                usestaticXpkicert="true"
+            fi
+        else
+            usestaticXpkicert="true"
+        fi
+    fi
+}
+
 getTelemetryEndpoint() {
     DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
     TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
@@ -204,24 +231,40 @@ get_Codebigconfig()
 useDirectRequest()
 {
     echo_t "dca$2: Using Direct commnication"
-    echo "Log Upload requires Mutual Authentication" >> $RTL_LOG_FILE
-    if [ -d /etc/ssl/certs ]; then
-        if [ ! -f /usr/bin/GetConfigFile ];then
-            echo "Error: GetConfigFile Not Found"
-            exit 127
+    echo "Log Upload requires xpki based Mutual Authentication" >> $RTL_LOG_FILE
+    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+        dynamicXpkicert
+        staticXpkicert
+
+        if [ "$usedynamicXpkicert" = "true" ]; then
+            echo "Using dynamic xpki cert based logupload" >> $RTL_LOG_FILE
+            CERTOPTION="--cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}")"
+        elif [ "$usestaticXpkicert" = "true" ]; then
+            echo "Using static xpki cert based logupload" >> $RTL_LOG_FILE
+            CERTOPTION="--cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $STATICXPKID)"
         fi
-        ID="/tmp/geyoxnweddys"
-        if [ ! -f "$ID" ]; then
-            GetConfigFile $ID
-        fi
-        if [ ! -f "$ID" ]; then
-            echo_t "Getconfig file fails , exiting"
-            exit 1
+    else
+        if [ -d /etc/ssl/certs ]; then
+            if [ ! -f /usr/bin/GetConfigFile ];then
+                echo "Error: GetConfigFile Not Found"
+                exit 127
+            fi
+            ID="/tmp/geyoxnweddys"
+            if [ ! -f "$ID" ]; then
+                GetConfigFile $ID
+            fi
+            if [ ! -f "$ID" ]; then
+                echo_t "Getconfig file fails , exiting"
+                exit 1
+            fi
+            echo "Using rdk ca cert based logupload" >> $RTL_LOG_FILE
+            CERTOPTION="--key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem"
         fi
     fi
-    CURL_CMD="curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
-    HTTP_CODE=`curl -s $TLS --key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
+    CURL_CMD="curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
+    HTTP_CODE=`curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
     ret=$?
+    CURL_CMD=`echo "$CURL_CMD" | sed 's/devicecert_1.*-w/devicecert_1.pk12<hidden key>/' | sed 's/staticXpkiCr.*-w/staticXpkiCrt.pk12<hidden key>/'`
     echo_t "CURL_CMD: $CURL_CMD" >> $RTL_LOG_FILE
     
     http_code=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
