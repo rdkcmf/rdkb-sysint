@@ -68,6 +68,8 @@ source /fss/gw/etc/utopia/service.d/log_env_var.sh
 # setup non-root related file-permission for lighttpd
 touch /rdklogs/logs/lighttpderror.log
 chown non-root:non-root /rdklogs/logs/lighttpderror.log
+touch /rdklogs/logs/webui.log
+chown non-root:non-root /rdklogs/logs/webui.log
 REVERT_FLAG="/nvram/reverted"
 LIGHTTPD_CONF="/var/lighttpd.conf"
 LIGHTTPD_DEF_CONF="/etc/lighttpd.conf"
