@@ -580,11 +580,24 @@ bootup_upload()
             UploadFile=`ls $LOG_SYNC_BACK_UP_REBOOT_PATH | grep tgz`
         fi
 	fi
+	
+        files_exist_in_preserve="false"
+	if [ "$UploadFile" = "" ] && [ "$LOGBACKUP_ENABLE" = "true" ]
+	then
+		echo_t "Checking if any file available in $PRESERVE_LOG_PATH"
+        	if [ -d $PRESERVE_LOG_PATH ]; then
+			UploadFile=`ls $PRESERVE_LOG_PATH | grep tgz`
+                        if [ "$UploadFile" != "" ]
+            		then
+            			files_exist_in_preserve="true"
+                        fi
+        	fi
+	fi
 
 	echo_t "File to be uploaded is $UploadFile ...."
 
 	if [ "$UploadFile" != "" ]
-	then
+	then	
 	        echo_t "File to be uploaded from logbackup/ is $UploadFile "
 		if [ "$UPLOADED_AFTER_REBOOT" == "true" ]
 		then
@@ -610,9 +623,17 @@ bootup_upload()
                              fi
 			done
 			sleep 120
-			random_sleep
-			$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH "true"
-			UPLOADED_AFTER_REBOOT="true"
+
+			if [ "$files_exist_in_preserve" == "true" ]
+			then
+				random_sleep
+				echo_t "Uploading backup logs found in $PRESERVE_LOG_PATH"
+				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH "true"
+			else
+				random_sleep
+				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false" "" $TMP_LOG_UPLOAD_PATH "true"
+                        fi
+                        UPLOADED_AFTER_REBOOT="true"
 		fi
 	fi
 
@@ -833,7 +854,6 @@ bootup_upload &
 UPLOAD_LOGS=`processDCMResponse`
 while [ "$loop" = "1" ]
 do
-
 	    if [ "$DeviceUP" = "0" ]; then
 	        #for rdkb-4260
 		t2CountNotify "SYS_INFO_bootup"
@@ -851,7 +871,6 @@ do
 	    fi
 
 	    sleep 60
-	    
 	    if [ ! -e $REGULAR_UPLOAD ]
 	    then
 		getLogfileSize "$LOG_PATH"
@@ -922,12 +941,11 @@ do
 			fi
 	    	fi
 	    fi
-	    
+            
 	    # We do not want to upload anything if log upload is disabled in DCM
             # If log upload is enabled, then try uploading logs from preserved location if file exists.
 		if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] && [ ! -e $WAITINGFORUPLOAD ]
 	    then
-         
 	       logBackupEnable=`syscfg get log_backup_enable`
                if [ "$logBackupEnable" = "true" ];then
                   if [ -d $PRESERVE_LOG_PATH ] ; then
