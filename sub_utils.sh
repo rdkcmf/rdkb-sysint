@@ -41,7 +41,12 @@ getMacAddressWithoutColon()
 
      sync
      temp=`echo $mac | sed 's/://g' | awk '{print tolower($0)}'`
-     /bin/systemctl set-environment MAC_ADDR="$temp"
+
+     if [ $BOX_TYPE != "XB3" ]; then
+
+         /bin/systemctl set-environment MAC_ADDR="$temp"
+
+     fi
 
      echo $temp
 }
