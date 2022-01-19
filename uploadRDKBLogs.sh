@@ -253,7 +253,7 @@ retryUpload()
 	   sleep 10
        WAN_INTERFACE=$(getWanInterfaceName)
 	   WAN_STATE=`sysevent get wan_service-status`
-if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
+if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xWNXL11BWL" ]; then
    CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
    if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
            EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
@@ -496,7 +496,7 @@ HttpLogUpload()
     # If interface doesnt have ipv6 address then we will force the curl to go with ipv4.
     # Otherwise we will not specify the ip address family in curl options
     addr_type=""
-    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
+    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xWNXL11BWL" ]; then
     CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
           [ "x`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`" != "x" ] || addr_type="-4"
@@ -900,7 +900,7 @@ touch $REGULAR_UPLOAD
 if [ "$UploadProtocol" = "HTTP" ]
 then
    WAN_STATE=`sysevent get wan_service-status`
-if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
+if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xWNXL11BWL" ]; then
    CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
    if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
            EROUTER_IP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`

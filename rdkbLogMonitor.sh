@@ -312,7 +312,7 @@ bootup_remove_old_backupfiles()
 				rm -rf $LOG_BACK_UP_REBOOT*.txt*
 				rm -rf $LOG_BACK_UP_REBOOT*core*
 
-				if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "SR213" ]; then
+				if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "x$BOX_TYPE" == "xSR213" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "WNXL11BWL" ]; then
 					rm -rf $LOG_BACK_UP_REBOOT*tar.gz*
 				fi
 			fi 
@@ -409,7 +409,7 @@ bootup_tarlogs()
                rm -rf $TarCreatePath*.txt*
 	       rm -rf $TarCreatePath*.log*
 	       rm -rf $TarCreatePath*core*
-	       if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "SR213" ]; then
+	       if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "x$BOX_TYPE" == "xSR213" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "WNXL11BWL" ]; then
 		rm -rf $TarCreatePath*tar.gz*
 	       fi
 	       rm -rf $TarCreatePath$PcdLogFile
@@ -794,7 +794,7 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	 	echo_t "RDK_LOGGER: creating tar from nvram2 on reboot"
 
 		#HUB4 uses NTP for syncing time. It doesnt have DOCSIS time sync, Hence waiting for NTP time sync.
-		if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "SR213" ]; then
+		if [ "$BOX_TYPE" == "HUB4" ] || [ "$BOX_TYPE" == "SR300" ] || [ "x$BOX_TYPE" == "xSR213" ] || [ "$BOX_TYPE" == "SE501" ] || [ "$BOX_TYPE" == "WNXL11BWL" ]; then
 			loop=1
 			retry=1
 			while [ "$loop" = "1" ]
