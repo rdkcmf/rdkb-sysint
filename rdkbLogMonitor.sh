@@ -758,15 +758,15 @@ if [ "$LOGBACKUP_ENABLE" == "true" ]; then
 	#TCCBR-4723 To handle all log upload with epoc time cases. Brought this block of code just 
 	#above to the prevoius condition for making all cases to wait for timesync before log upload.
 	
-	if [ "`sysevent get wan-status`" != "started" ] || [ "`sysevent get ntpd-status`" != "started" ];then
+	if [ "`sysevent get wan-status`" != "started" ] || [ "x`sysevent get ntp_time_sync`" != "x1" ];then
 		loop=1
 		retry=1
 		while [ "$loop" = "1" ]
 		do
 			echo_t "Waiting for time synchronization between processors before logbackup"
 			WAN_STATUS=`sysevent get wan-status`
-			NTPD_STATUS=`sysevent get ntpd-status`
-			if [ "$WAN_STATUS" == "started" ] && [ "$NTPD_STATUS" == "started" ]
+			NTPD_STATUS=`sysevent get ntp_time_sync`
+			if [ "$WAN_STATUS" == "started" ] && [ "x$NTPD_STATUS" == "x1" ]
 			then
 				echo_t "wan status is $WAN_STATUS, and time sync status $NTPD_STATUS"
 				echo_t "Time is synced, breaking the loop"
