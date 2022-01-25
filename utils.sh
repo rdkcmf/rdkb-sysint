@@ -54,8 +54,10 @@ getMacAddressOnly()
 {
      if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
          #FEATURE_RDKB_WAN_MANAGER
-         wan_if=`syscfg get wan_physical_ifname`
-         mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
+         mac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
+         if [ -z "$mac" ]; then
+            mac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
+         fi
      else	
          mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
      fi
@@ -156,8 +158,10 @@ getMacAddress()
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
     elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
         #FEATURE_RDKB_WAN_MANAGER
-        wan_if=`syscfg get wan_physical_ifname`
-        mac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `	    
+        mac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
+        if [ -z "$mac" ]; then
+            mac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
+        fi
     else                                                           
         mac=`ifconfig $CMINTERFACE | grep HWaddr | cut -d " " -f11`
     fi
@@ -169,8 +173,10 @@ getErouterMacAddress()
 {
     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
         #FEATURE_RDKB_WAN_MANAGER
-        wan_if=`syscfg get wan_physical_ifname`
-        erouterMac=`cat /sys/class/net/$wan_if/address | tr '[a-f]' '[A-F]' `
+        erouterMac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
+        if [ -z "$erouterMac" ]; then
+            erouterMac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
+        fi
     else	
         erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
     fi
