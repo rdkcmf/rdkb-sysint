@@ -33,6 +33,7 @@ if [ -f /etc/ONBOARD_LOGGING_ENABLE ]; then
 fi
 
 source /lib/rdk/t2Shared_api.sh
+source /etc/waninfo.sh
 
 ARGS=$1
 UploadFile=$2
@@ -54,7 +55,7 @@ URLENCODE_STRING=""
 
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_olu"
-WAN_INTERFACE="erouter0"
+WAN_INTERFACE=$(getWanInterfaceName)
 UploadHttpLink=$3
 
 DIRECT_MAX_ATTEMPTS=3
@@ -119,6 +120,7 @@ useDirectRequest()
     retries=0
     while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
+        WAN_INTERFACE=$(getWanInterfaceName)
         echo_t "Trying Direct Communication"
         CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type $CERT_STATUS --connect-timeout 30 -m 30"
 

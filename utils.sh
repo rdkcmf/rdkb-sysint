@@ -27,8 +27,15 @@ if [ -f /etc/utopia/service.d/log_capture_path.sh ];then
     source /etc/utopia/service.d/log_capture_path.sh
 fi
 
+source /etc/waninfo.sh
+
+if [ "$BOX_TYPE" = "XF3" ]; then
+CMINTERFACE="erouter0"
+else
 CMINTERFACE="wan0"
-WANINTERFACE="erouter0"
+fi
+
+WANINTERFACE=$(getWanInterfaceName)
 CRONTAB_DIR="/var/spool/cron/crontabs/"
 CRONFILE_BK="/tmp/cron_tab$$$$.txt"
 

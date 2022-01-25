@@ -96,7 +96,7 @@ timeRequested=`date "+%m-%d-%y-%I-%M%p"`
 timeToUpload=`date`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
 PATTERN_FILE="/tmp/pattern_file"
-WAN_INTERFACE="erouter0"
+WAN_INTERFACE=$(getWanInterfaceName)
 SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
 UPLOAD_LOG_STATUS="/tmp/upload_log_status"
 if [ "$BOX_TYPE" = "XB3" ]; then
@@ -205,6 +205,7 @@ useDirectRequest()
     while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
       echo_t "Trying Direct Communication"
+      WAN_INTERFACE=$(getWanInterfaceName)
 
       if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
           msg_tls_source="mTLS certificate from xPKI"
@@ -278,6 +279,7 @@ useCodebigRequest()
     while [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]
     do
         echo_t "Trying Codebig Communication"
+        WAN_INTERFACE=$(getWanInterfaceName)
         SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
         eval $SIGN_CMD > $SIGN_FILE
         if [ -s $SIGN_FILE ]

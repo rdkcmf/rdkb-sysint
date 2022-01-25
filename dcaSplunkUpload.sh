@@ -30,6 +30,12 @@
 if [ -f /lib/rdk/utils.sh  ]; then
    . /lib/rdk/utils.sh
 fi
+
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    EROUTER_INTERFACE=$(getWanInterfaceName)
+fi
+
 source /etc/log_timestamp.sh
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcas"
@@ -317,6 +323,9 @@ useCodebigRequest()
     retries=0
     while [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]
     do
+        if [ -f /etc/waninfo.sh ]; then
+            EROUTER_INTERFACE=$(getWanInterfaceName)
+        fi
         if [ "$TelemetryNewEndpointAvailable" -eq "1" ]; then
             SIGN_CMD="GetServiceUrl 10 "
         else

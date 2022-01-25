@@ -25,6 +25,11 @@ if [ -f /etc/telemetry2_0.properties ]; then
     . /etc/telemetry2_0.properties
 fi
 
+if [ -f /etc/waninfo.sh ]; then
+    . /etc/waninfo.sh
+    EROUTER_INTERFACE=$(getWanInterfaceName)
+fi
+
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
 source /lib/rdk/getaccountid.sh
@@ -364,7 +369,11 @@ useCodebigRequest()
    fi
    count=0
    retries=0
-   while [ "$count" -lt "$CODEBIG_MAX_ATTEMPTS" ] ; do    
+   while [ "$count" -lt "$CODEBIG_MAX_ATTEMPTS" ] ; do  
+        
+      if [ -f /etc/waninfo.sh ]; then
+        EROUTER_INTERFACE=$(getWanInterfaceName)
+      fi
       SIGN_CMD="GetServiceUrl 3 \"$JSONSTR\""
       eval $SIGN_CMD > $SIGN_FILE
       CB_SIGNED_REQUEST=`cat $SIGN_FILE`

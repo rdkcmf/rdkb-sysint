@@ -22,6 +22,9 @@
 . /etc/include.properties
 . /etc/device.properties
 
+source /etc/waninfo.sh
+
+WAN_INTERFACE=$(getWanInterfaceName)
 usage()
 {
   echo "USAGE:   startTunnel.sh {start|stop} {args}"
@@ -46,7 +49,7 @@ shift
 
 # XB6 Arris Class devices need to utilize erouter0.
 if [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]; then
-    CMINTERFACE="erouter0"
+    CMINTERFACE=$(getWanInterfaceName)
 fi
 case $oper in 
            h)
@@ -56,7 +59,7 @@ case $oper in
            start)
 
 	     if [ -f "/nvram/ETHWAN_ENABLE" ];then
-		CM_IPV4=`ifconfig erouter0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
+		CM_IPV4=`ifconfig $WAN_INTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 		IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
 		Check=$(ip_to_hex $IpCheckVal)
 		# getting the IPV6 address for CM
@@ -68,7 +71,7 @@ case $oper in
                                 CM_IP=$CM_IPV4
                         fi
                 else
-                         CM_IP=`ifconfig erouter0 | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+                         CM_IP=`ifconfig $WAN_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
                          if [ -z "$CM_IP" ]; then
                             CM_IP=$CM_IPV4
                          fi

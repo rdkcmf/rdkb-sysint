@@ -231,8 +231,13 @@ MAC=`getMacAddressOnly`
 HOST_IP=`getIPAddress`
 dt=`date "+%m-%d-%y-%I-%M%p"`
 LOG_FILE=$MAC"_Logs_$dt.tgz"
+if [ "$BOX_TYPE" = "XF3" ]; then
+CM_INTERFACE="erouter0"
+else
 CM_INTERFACE="wan0"
-WAN_INTERFACE="erouter0"
+fi
+
+WAN_INTERFACE=$(getWanInterfaceName)
 CURLPATH="/fss/gw"
 
 VERSION="/version.txt"
@@ -246,6 +251,7 @@ retryUpload()
 {
 	while : ; do
 	   sleep 10
+       WAN_INTERFACE=$(getWanInterfaceName)
 	   WAN_STATE=`sysevent get wan_service-status`
 if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ]; then
    CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
@@ -341,6 +347,7 @@ useDirectRequest()
 
     while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
+        WAN_INTERFACE=$(getWanInterfaceName)
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
         if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
@@ -410,6 +417,7 @@ useCodebigRequest()
     retries=0
     while [ "$retries" -lt "$CODEBIG_MAX_ATTEMPTS" ]
     do
+        WAN_INTERFACE=$(getWanInterfaceName)
         SIGN_CMD="GetServiceUrl 1 \"/cgi-bin/rdkb.cgi?filename=$UploadFile$uploadfile_md5\""
         eval $SIGN_CMD > $SIGN_FILE
         if [ -s $SIGN_FILE ]
@@ -637,6 +645,7 @@ HttpLogUpload()
             retries=0
             while [ "$retries" -lt "3" ]
             do
+                WAN_INTERFACE=$(getWanInterfaceName)
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
@@ -725,6 +734,7 @@ HttpLogUpload()
             retries=0
             while [ "$retries" -lt "3" ]
             do
+                WAN_INTERFACE=$(getWanInterfaceName)
                 echo_t "Trial $retries..."
                 # nice value can be normal as the first trial failed
                 if [ $retries -ne 0 ]; then
@@ -781,6 +791,7 @@ HttpLogUpload()
                 retries=0
                 while [ "$retries" -lt "3" ]
                 do
+                    WAN_INTERFACE=$(getWanInterfaceName)
                     echo_t "Trial $retries..."
                     # nice value can be normal as the first trial failed
                     if [ $retries -ne 0 ]; then

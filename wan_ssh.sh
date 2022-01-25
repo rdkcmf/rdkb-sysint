@@ -17,7 +17,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##################################################################################
-WAN_IF=erouter0
+source /etc/waninfo.sh
+
+WAN_IF=$(getWanInterfaceName)
 PORT=49971
 loop=1
 WAN_IP4=""
@@ -32,6 +34,7 @@ get_wan_ips()
 {
 	while [ $loop -eq 1 ]
 	do
+		WAN_IF=$(getWanInterfaceName)
 		#echo "In while loop ==== get_wan_ips()"
 		WAN_PARAMS=""
 		#Get IPv4 address of erouter0
@@ -105,6 +108,7 @@ start_wan_ssh_service()
 {
 	while [ $loop -eq 1 ]
 	do
+		WAN_IF=$(getWanInterfaceName)
 		#echo "In while loop ==== start_wan_ssh_service()"
 		check_WAN_IP4=`ip -4 addr show dev $WAN_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
 		check_WAN_IP6=`ip -6 addr show dev $WAN_IF scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
