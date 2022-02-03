@@ -412,7 +412,7 @@ if [ ! -f $SLEEP_TIME_FILE ]; then
         sleep_time=`echo "$cron" | awk -F '/' '{print $2}' | cut -d ' ' -f1`
     fi 
 
-    if [ -n "$sleep_time" ];then
+    if [ -n "$sleep_time" ] && [ "$sleep_time" -ge "2" ];then
         sleep_time=`expr $sleep_time - 1` #Subtract 1 miute from it
         sleep_time=`expr $sleep_time \* 60` #Make it to seconds
         # Adding generic RANDOM number implementation as sh in RDK_B doesn't support RANDOM
