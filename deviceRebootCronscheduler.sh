@@ -1,18 +1,37 @@
 #! /bin/sh
 
 source /etc/log_timestamp.sh
+source /usr/ccsp/tad/corrective_action.sh
 
 CRONTAB_DIR="/var/spool/cron/crontabs/"
 CRONTAB_FILE=$CRONTAB_DIR"root"
 CRONFILE_BK="/tmp/cron_tab$$.txt"
-LOG_FILE="/rdklogs/logs/dcmrfc.log"
+LOG_FILE="$1"
+REBOOT_SCRIPT="$2"
 FW_START="/nvram/.FirmwareUpgradeStartTime"
 FW_END="/nvram/.FirmwareUpgradeEndTime"
+
+#Pending reboot flags
+XPKI_CERT_UPDATE_REBOOT_SCHEDULED="/tmp/.XpkiCrtUpdtdWaitingReboot"
 RFC_REBOOT_SCHEDULED="/tmp/.RfcwaitingReboot"
+DOWNLOAD_INPROGRESS="/tmp/.downloadingfw"
+REBOOT_WAIT="/tmp/.waitingreboot"
 
 if [ -f /etc/device.properties ]
 then
     source /etc/device.properties
+fi
+
+if [ -z $LOG_FILE ]
+then
+    echo_t "Error!!! log file not passed to deviceRebootCronscheduler.sh"
+    exit 1
+fi
+
+if [ -z $REBOOT_SCRIPT ] || [ ! -f $REBOOT_SCRIPT ]
+then
+    echo_t "[deviceRebootCronscheduler.sh] Error!!! Reboot Script not set" >> $LOG_FILE
+    exit 1
 fi
 
 calcRebootExecTime()
@@ -28,10 +47,10 @@ calcRebootExecTime()
            end_time=14400
         fi
 
-        #if start_time and end_time are set it to default
+        #if start_time and end_time are equal, set them to default
         if [ "$start_time" = "$end_time" ]
         then
-                echo_t "[RfcRebootCronschedule.sh] start_time and end_time are equal.so,setting them to default" >> $LOG_FILE
+                echo_t "[deviceRebootCronscheduler.sh] start_time and end_time are equal.so,setting them to default" >> $LOG_FILE
                 start_time=3600
                 end_time=14400
         fi
@@ -51,7 +70,7 @@ calcRebootExecTime()
         if [ $rand_time_in_sec -ge 86400 ]
         then
                 rand_time_in_sec=$((rand_time_in_sec-86400))
-                echo_t "[RfcRebootCronschedule.sh] Random time in sec exceed 24 hr limit.setting it correct limit" >> $LOG_FILE
+                echo_t "[deviceRebootCronscheduler.sh] Random time in sec exceed 24 hr limit.setting it correct limit" >> $LOG_FILE
 
         fi
 
@@ -68,10 +87,10 @@ calcRebootExecTime()
                 rand_time=$((rand_time/60))
                 rand_hr=$((rand_time%60))
 
-        echo_t "[RfcRebootCronschedule.sh]start_time: $start_time, end_time: $end_time" >> $LOG_FILE
-        echo_t "[RfcRebootCronschedule.sh]time_offset: $time_offset" >> $LOG_FILE
-        echo_t "[RfcRebootCronschedule.sh]main_start_time: $main_start_time , main_end_time= $main_end_time" >> $LOG_FILE
-        echo_t "[RfcRebootCronschedule.sh]rand_time_in_sec: $rand_time_in_sec ,rand_hr: $rand_hr ,rand_min: $rand_min ,rand_sec: $rand_sec" >> $LOG_FILE
+        echo_t "[deviceRebootCronscheduler.sh] start_time: $start_time, end_time: $end_time" >> $LOG_FILE
+        echo_t "[deviceRebootCronscheduler.sh] time_offset: $time_offset" >> $LOG_FILE
+        echo_t "[deviceRebootCronscheduler.sh] main_start_time: $main_start_time , main_end_time= $main_end_time" >> $LOG_FILE
+        echo_t "[deviceRebootCronscheduler.sh] rand_time_in_sec: $rand_time_in_sec ,rand_hr: $rand_hr ,rand_min: $rand_min ,rand_sec: $rand_sec" >> $LOG_FILE
 
 }
 
@@ -79,19 +98,22 @@ ScheduleCron()
 {
         # Dump existing cron jobs to a file & add new job
         crontab -l -c $CRONTAB_DIR > $CRONFILE_BK
-        echo "$rand_min $rand_hr * * * /etc/RFC_Reboot.sh" >> $CRONFILE_BK
+        echo "$rand_min $rand_hr * * * $REBOOT_SCRIPT" >> $CRONFILE_BK
         crontab $CRONFILE_BK -c $CRONTAB_DIR
         rm -rf $CRONFILE_BK
-        touch $RFC_REBOOT_SCHEDULED
-
-
+        touch $XPKI_CERT_UPDATE_REBOOT_SCHEDULED
 }
 
-#calculate ane schedule cron job
-
-calcRebootExecTime
-if [ -f $CRONTAB_FILE ]
+if [ -f $XPKI_CERT_UPDATE_REBOOT_SCHEDULED ] || [ -f $RFC_REBOOT_SCHEDULED ] || [ -f $DOWNLOAD_INPROGRESS ] || [ -f $REBOOT_WAIT ]
 then
-	 ScheduleCron
-	 echo_t "[RfcRebootCronschedule.sh] RFC Reboot cron job scheduled" >> $LOG_FILE
+        echo_t "[deviceRebootCronscheduler.sh] Abort!!!, reboot schedule in progress" >> $LOG_FILE
+else
+        #calculate and schedule cron job
+        calcRebootExecTime
+        if [ -f $CRONTAB_FILE ]
+        then
+                ScheduleCron
+                echo_t "[deviceRebootCronscheduler.sh] Reboot cron job scheduled with $REBOOT_SCRIPT" >> $LOG_FILE 
+        fi
 fi
+
