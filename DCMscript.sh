@@ -79,6 +79,7 @@ FWDL_FLAG="/tmp/.fwdl_flag"
 useStaticXpkiMtlsLogupload="false"
 
 FORMATTED_TMP_DCM_RESPONSE='/tmp/DCMSettings.conf'
+DEFAULT_REPORT_FILE="/etc/Default_T2_ReportProfile.json"
 
 #to support ocsp
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
@@ -604,6 +605,26 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
         mkdir -p $T2_XCONF_PERSISTENT_PATH
         t2Log "Starting $T2_0_BIN daemon."
         ${T2_0_BIN}
+        MAX_RETRY_T2_REPORT=10
+        count=0
+        if [ -f $DEFAULT_REPORT_FILE ]; then
+            while [ ! -f /tmp/.t2ReadyToReceiveEvents ]
+            do
+                echo_t "Wait for T2 to Receive Events"
+                sleep 10
+                let count++
+                if [ $count -eq $MAX_RETRY_T2_REPORT ]; then
+                    break
+                fi
+            done
+            ReportProfiles=`dmcli eRT getv Device.X_RDKCENTRAL-COM_T2.ReportProfiles | grep string | cut -d":" -f3- | cut -d" " -f2- | xargs`
+            MsgPackProfiles=`dmcli eRT getv Device.X_RDKCENTRAL-COM_T2.ReportProfilesMsgPack | grep string | cut -d":" -f3- | cut -d" " -f2- | xargs`
+            if [ -z "$ReportProfiles" ] && [ -z "$MsgPackProfiles" ]; then
+                ReportProfiles=`cat /etc/Default_T2_ReportProfile.json`
+                echo_t "Default Report Profile Applied to T2" >> $DCM_LOG_FILE
+                dmcli eRT setv Device.X_RDKCENTRAL-COM_T2.ReportProfiles string "$ReportProfiles"
+            fi
+        fi
     else
          mkdir -p $TELEMETRY_PATH_TEMP
          t2Log "telemetry daemon is already running .. Trigger from maintenance window."
