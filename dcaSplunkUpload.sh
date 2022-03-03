@@ -37,6 +37,7 @@ if [ -f /etc/waninfo.sh ]; then
 fi
 
 source /etc/log_timestamp.sh
+source /lib/rdk/t2Shared_api.sh
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcas"
 FORCE_DIRECT_ONCE="/tmp/.forcedirectonce_dcas"
@@ -282,7 +283,8 @@ useDirectRequest()
     # log security failure
     case $ret in
       35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-         echo_t "dca$2: Direct Connection Failure - ret:$ret http_code:$http_code" >> $RTL_LOG_FILE
+         echo_t "dca$2: HTTPS --tlsv1.2 failed to connect to telemetry service with curl error code:$ret" >> $RTL_LOG_FILE
+         t2ValNotify "DCACurlFail_split" "$ret"
          ;;
     esac
     if [ $http_code -eq 200 ]; then
@@ -347,7 +349,8 @@ useCodebigRequest()
         echo_t "dca $2 : Codebig Connection HTTP RESPONSE CODE : $http_code" >> $RTL_LOG_FILE
         case $curlret in
             35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-               echo_t "dca$2: Codebig Connection Failure - ret:$curlret http_code:$http_code" >> $RTL_LOG_FILE
+               echo_t "dca$2: HTTPS --tlsv1.2 failed to connect to Codebig telemetry service with curl error code:$curlret" >> $RTL_LOG_FILE
+               t2ValNotify "DCACBCurlFail_split" "$curlret"
                ;;
         esac
         if [ "$http_code" -eq 200 ]; then

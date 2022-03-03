@@ -33,6 +33,8 @@ fi
 source /etc/log_timestamp.sh
 source /lib/rdk/getpartnerid.sh
 source /lib/rdk/getaccountid.sh
+source /lib/rdk/t2Shared_api.sh
+
 # Enable override only for non prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
       . $PERSISTENT_PATH/dcm.properties
@@ -342,7 +344,8 @@ useDirectRequest()
        # log security failure
        case $ret in
          35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-            echo_t "DCM Direct Connection Failure Attempt:$count - ret:$ret http_code:$http_code" >> $DCM_LOG_FILE
+            echo_t "DCM: HTTPS for --tlsv1.2 failed to connect to DCM XCONF server with curl error code:$ret" >> $DCM_LOG_FILE
+            t2ValNotify "DCMXCONFCurlFail_split" "$ret"
             ;;
        esac
        if [ $http_code -eq 200 ]; then
@@ -405,7 +408,8 @@ useCodebigRequest()
       # log security failure
       case $curlret in
           35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
-             echo_t "DCM Codebig Connection Failure Attempt: $count - ret:$curlret http_code:$http_code" >> $DCM_LOG_FILE
+             echo_t "DCM: HTTPS --tlsv1.2 failed to connect to DCM Codebig server with curl error code:$curlret" >> $DCM_LOG_FILE
+             t2ValNotify "DCMCBCurlFail_split" "$curlret"
              ;;
         esac
        if [ "$http_code" -eq 200 ]; then
