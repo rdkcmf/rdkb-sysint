@@ -59,7 +59,7 @@ Timestamp()
 # Get the MAC address of the machine
 getMacAddressOnly()
 {
-     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
          #FEATURE_RDKB_WAN_MANAGER
          mac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
          if [ -z "$mac" ]; then
@@ -81,7 +81,7 @@ getSHA1()
 # IP address of the machine
 getIPAddress()
 {
-    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ]; then
+    if [ "x$BOX_TYPE" = "xHUB4" ] || [ "x$BOX_TYPE" = "xSR300" ] || [ "x$BOX_TYPE" = "xSE501" ] || [ "x$BOX_TYPE" = "xSR213" ]; then
        CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
                wanIP=`ifconfig $HUB4_IPV6_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
@@ -101,7 +101,7 @@ getCMIPAddress()
        if [ ! "$address" ]; then
           address=`dmcli eRT getv Device.X_CISCO_COM_CableModem.IPAddress | grep string | awk '{print $5}'`
        fi
-    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
        CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
           address=`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | cut -d '/' -f1 | head -n1`
@@ -128,7 +128,7 @@ getErouterIPAddress()
         if [ ! "$address" ]; then
             address=`dmcli eRT getv Device.DeviceInfo.X_COMCAST-COM_WAN_IP | grep string | awk '{print $5}'`
         fi
-    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] ||  [ "$BOX_TYPE" = "SR213" ]; then
         CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
         if [ "xup" = "x$CURRENT_WAN_IPV6_STATUS" ] ; then
             address=`ifconfig $HUB4_IPV6_INTERFACE | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | cut -d '/' -f1 | head -n1`
@@ -163,7 +163,7 @@ getMacAddress()
         mac=`dmcli eRT getv Device.DPoE.Mac_address | grep value | awk '{print $5}'`
     elif [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ];then
         mac=`dmcli eRT getv Device.X_CISCO_COM_CableModem.MACAddress | grep value | awk '{print $5}'`
-    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+    elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ]; then
         #FEATURE_RDKB_WAN_MANAGER
         mac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
         if [ -z "$mac" ]; then
@@ -178,7 +178,7 @@ getMacAddress()
 ## Get eSTB mac address 
 getErouterMacAddress()
 {
-    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ]; then
+    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] ||  [ "$BOX_TYPE" = "SR213" ]; then
         #FEATURE_RDKB_WAN_MANAGER
         erouterMac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
         if [ -z "$erouterMac" ]; then
