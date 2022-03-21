@@ -103,6 +103,20 @@ HTTP_HEADERS='Content-Type: application/json'
 RETRY_DELAY=60
 MAX_SSH_RETRY=3
 
+if [ "x$BOX_TYPE" = "xSR300" ] ;then
+    while :
+    do
+        WAN_STATUS=$(sysevent get wan-status)
+        NTP_STATUS=$(timedatectl | grep "NTP service" | awk -F": " '{print $2}')
+        if [ "$WAN_STATUS" = "started" ] && [ "$NTP_STATUS" = "active" ]; then
+            echo_t "wan is up and ntp has been started" >> "$DCM_LOG_FILE"
+            break
+        fi
+        echo_t "Waiting for wan to be up and ntp sync..." >> "$DCM_LOG_FILE"
+        sleep 3
+    done
+fi
+
 echo_t "Starting execution of DCMscript.sh" >> $DCM_LOG_FILE
 
 if [ $# -ne 5 ]; then
