@@ -197,11 +197,6 @@ useDirectRequest()
     checkXpkiMtlsBasedLogUpload
     checkStaticXpkiMtlsBasedLogUpload
 
-    if [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ] || [ "x$useXpkiMtlsLogupload" = "xtrue" ]; then
-        S3_SECURE_URL=`echo $S3_URL | sed "s|/cgi-bin|/secure&|g"`
-        echo_t "Log Upload: requires Mutual Authentication. S3 Secure Url is :$S3_SECURE_URL"
-    fi
-
     while [ "$retries" -lt "$DIRECT_MAX_ATTEMPTS" ]
     do
       echo_t "Trying Direct Communication"
@@ -210,11 +205,11 @@ useDirectRequest()
       if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
           msg_tls_source="mTLS certificate from xPKI"
           echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
       elif [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ]; then
           msg_tls_source="mTLS using static xPKI certificate"
           echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_SECURE_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
       else
           msg_tls_source="TLS"
           CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type $CERT_STATUS --connect-timeout 30 -m 30"
