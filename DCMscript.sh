@@ -35,6 +35,13 @@ source /lib/rdk/getpartnerid.sh
 source /lib/rdk/getaccountid.sh
 source /lib/rdk/t2Shared_api.sh
 
+CERT=""
+if [ -f $RDK_PATH/mtlsUtils.sh ]; then
+     . $RDK_PATH/mtlsUtils.sh
+     echo_t "DCMscript.sh calling getMtlsCreds"
+     CERT="`getMtlsCreds DCMscript.sh`"
+fi
+
 # Enable override only for non prod builds
 if [ "$BUILD_TYPE" != "prod" ] && [ -f $PERSISTENT_PATH/dcm.properties ]; then
       . $PERSISTENT_PATH/dcm.properties
@@ -55,6 +62,7 @@ CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcm"
 FORCE_DIRECT_ONCE="/tmp/.forcedirectonce_dcm"
 export PATH=$PATH:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/local/lighttpd/sbin:/usr/local/sbin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/lib
+partnerId=$(getPartnerId)
 
 DIRECT_MAX_ATTEMPTS=3
 CODEBIG_MAX_ATTEMPTS=3
@@ -146,6 +154,21 @@ conn_str="Direct"
 CodebigAvailable=0
 UseCodeBig=0
 
+#Partner sky-uk should impose MTLS only connection
+if [ "$DEVICE_TYPE" = "broadband" ] && [ "$partnerId" = "sky-uk" ]
+then
+   echo_t "Check MTLS only for partner sky-uk"
+   if [ "$CERT" = "" ]
+   then
+       echo_t "DCMscript getMtlsCreds failed for sky-uk. Exiting"
+       exit
+    else
+       echo_t "DCMscript getMtlsCreds returned $CERT"
+    fi
+else
+   echo_t "DCMscript getMtlsCreds returned $CERT"
+fi
+
 sshCmdOnAtom() {
 
     command=$1
@@ -189,34 +212,6 @@ if [ -f $DCMRESPONSE ]; then
         fi
     fi
 fi
-
-
-checkXpkiMtlsBasedLogUpload()
-{
-    if [ -f /usr/bin/rdkssacli ] && [ -f /nvram/certs/devicecert_1.pk12 ]; then
-        useXpkiMtlsLogupload="true"
-    else
-        useXpkiMtlsLogupload="false"
-    fi
-}
-
-checkStaticXpkiMtlsBasedLogUpload()
-{
-    if [ -f /etc/ssl/certs/staticXpkiCrt.pk12 ] && [ -x /usr/bin/GetConfigFile ]; then
-        ID="/tmp/.cfgStaticxpki"
-        if [ ! -f "$ID" ]; then
-            GetConfigFile $ID
-	    if [ ! -f "$ID" ]; then
-                echo_t "Getconfig file fails , use standard TLS"
-                useStaticXpkiMtlsLogupload="false"
-	    else
-		useStaticXpkiMtlsLogupload="true"
-            fi
-        else
-            useStaticXpkiMtlsLogupload="true"
-        fi
-    fi
-}   
 
 # File to save curl response 
 #FILENAME="$PERSISTENT_PATH/DCMresponse.txt"
@@ -315,22 +310,11 @@ get_Codebigconfig()
 # Direct connection Download function
 useDirectRequest()
 {
-   checkXpkiMtlsBasedLogUpload
-   checkStaticXpkiMtlsBasedLogUpload
    tmpHttpResponse="/tmp/dcmResponse$$.txt"
    count=0
    while [ "$count" -lt "$DIRECT_MAX_ATTEMPTS" ] ; do    
        echo_t " DCM connection type DIRECT"
-       if [ $useXpkiMtlsLogupload == "true" ]; then
-          echo_t "XpkiMtlsBasedLogUpload true for dcm" >> $DCM_LOG_FILE
-          CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2  --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
-       elif [ "$useStaticXpkiMtlsLogupload" == "true" ]; then
-          echo_t "StaticXpkiMtlsBasedLogUpload true for dcm" >> $DCM_LOG_FILE
-          CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
-       else
-          echo_t "no xpki used for dcm" >> $DCM_LOG_FILE
-	  CURL_CMD="curl -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
-       fi
+       CURL_CMD="curl $CERT -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
        HTTP_CODE=`result= eval $CURL_CMD`
        ret=$?
        CURL_CMD=`echo "$CURL_CMD" | sed 's/devicecert_1.* /devicecert_1.pk12<hidden key>/' | sed 's/staticXpkiCr.* /staticXpkiCrt.pk12<hidden key>/'`

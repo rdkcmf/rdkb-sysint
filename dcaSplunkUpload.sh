@@ -38,6 +38,7 @@ fi
 
 source /etc/log_timestamp.sh
 source /lib/rdk/t2Shared_api.sh
+source /lib/rdk/getpartnerid.sh
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_dcas"
 FORCE_DIRECT_ONCE="/tmp/.forcedirectonce_dcas"
@@ -57,6 +58,15 @@ PEER_COMM_ID="/tmp/elxrretyt-dcas.swr"
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
     exit 127
+fi
+
+partnerId="$(getPartnerId)"
+CERTOPTION=""
+
+if [ -f $RDK_PATH/mtlsUtils.sh ]; then
+     . $RDK_PATH/mtlsUtils.sh
+     echo_t "dcaSplunkUpload.sh: calling getMtlsCreds" >> $RTL_LOG_FILE
+     CERTOPTION="`getMtlsCreds dcaSplunkUpload.sh /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem /tmp/geyoxnweddys`"
 fi
 
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
@@ -117,35 +127,18 @@ else
 fi
 TelemetryNewEndpointAvailable=0
 
-dynamicXpkicert()
-{
-    if [ -f /usr/bin/rdkssacli ] && [ -f /nvram/certs/devicecert_1.pk12 ]; then
-        usedynamicXpkicert="true"
-    else
-        usedynamicXpkicert="false"
-    fi
-}
-
-staticXpkicert()
-{
-    if [ -f /etc/ssl/certs/staticXpkiCrt.pk12 ] && [ -x /usr/bin/GetConfigFile ]; then
-        STATICXPKID="/tmp/.cfgStaticxpki"
-        if [ ! -f "$STATICXPKID" ]; then
-            GetConfigFile $STATICXPKID
-            if [ ! -f "$STATICXPKID" ]; then
-                echo_t "Getconfig file fails , use standard TLS"
-                usestaticXpkicert="false"
-            else
-                usestaticXpkicert="true"
-            fi
-        else
-            usestaticXpkicert="true"
-        fi
-    fi
-}
-
 getTelemetryEndpoint() {
-    DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
+    dml_url="$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.Telemetry | grep string | cut -d":" -f3- | cut -d" " -f2- | tr -d ' ')"
+    if [ "$dml_url" != "" ]
+    then
+       DEFAULT_DCA_UPLOAD_URL="$dml_url"
+    else
+       if [ "$partnerId" = "sky-uk" ]
+       then
+           DCA_UPLOAD_URL="$DCA_UPLOAD_URL_EU"
+       fi
+       DEFAULT_DCA_UPLOAD_URL="$DCA_UPLOAD_URL"
+    fi
     TelemetryEndpoint=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.TelemetryEndpoint.Enable  | grep value | awk '{print $5}'`
     TelemetryEndpointURL=""
 
@@ -238,35 +231,21 @@ get_Codebigconfig()
 useDirectRequest()
 {
     echo_t "dca$2: Using Direct commnication"
-    echo "Log Upload requires xpki based Mutual Authentication" >> $RTL_LOG_FILE
-    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
-        dynamicXpkicert
-        staticXpkicert
-
-        if [ "$usedynamicXpkicert" = "true" ]; then
-            echo "Using dynamic xpki cert based logupload" >> $RTL_LOG_FILE
-            CERTOPTION="--cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}")"
-        elif [ "$usestaticXpkicert" = "true" ]; then
-            echo "Using static xpki cert based logupload" >> $RTL_LOG_FILE
-            CERTOPTION="--cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $STATICXPKID)"
+    echo_t "dca: Log Upload requires MTLS Authentication" >> $RTL_LOG_FILE
+       
+    #Partner sky-uk should impose MTLS only connection
+    if [ "$DEVICE_TYPE" = "broadband" ] && [ "$partnerId" = "sky-uk" ]
+    then
+        echo_t "dca: Check MTLS only for partner sky-uk" >>  $RTL_LOG_FILE
+        if [ "$CERTOPTION" = "" ]
+        then
+           echo_t "dca: getMtlsCreds failed for sky-uk. Exiting" >> $RTL_LOG_FILE
+           exit
+        else
+           echo_t "dca : getMtlsCreds returned $CERTOPTION" >> $RTL_LOG_FILE
         fi
     else
-        if [ -d /etc/ssl/certs ]; then
-            if [ ! -f /usr/bin/GetConfigFile ];then
-                echo "Error: GetConfigFile Not Found"
-                exit 127
-            fi
-            ID="/tmp/geyoxnweddys"
-            if [ ! -f "$ID" ]; then
-                GetConfigFile $ID
-            fi
-            if [ ! -f "$ID" ]; then
-                echo_t "Getconfig file fails , exiting"
-                exit 1
-            fi
-            echo "Using rdk ca cert based logupload" >> $RTL_LOG_FILE
-            CERTOPTION="--key $ID --cert /etc/ssl/certs/dcm-cpe-clnt.xcal.tv.cert.pem"
-        fi
+       echo_t "dca : getMtlsCreds returned $CERTOPTION" >> $RTL_LOG_FILE
     fi
     CURL_CMD="curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
     HTTP_CODE=`curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`

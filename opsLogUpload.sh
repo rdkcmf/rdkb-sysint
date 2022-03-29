@@ -36,13 +36,23 @@ source $RDK_LOGGER_PATH/logfiles.sh
 source /lib/rdk/utils.sh
 source /lib/rdk/t2Shared_api.sh
 source /etc/device.properties
+source /lib/rdk/getpartnerid.sh
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
+fi
+
+CERT=""
+if [ -f /lib/rdk/mtlsUtils.sh ]
+then
+   source /lib/rdk/mtlsUtils.sh
+   echo_t "opslogupload.sh: calling getMtlsCreds"
+   CERT=`getMtlsCreds opsLogUpload.sh`
 fi
 
 SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_opslu"
+partnerId="$(getPartnerId)"
 
 DIRECT_MAX_ATTEMPTS=3
 CODEBIG_MAX_ATTEMPTS=3
@@ -54,7 +64,22 @@ conn_str="Direct"
 CodebigAvailable=0
 XPKI_MTLS_MAX_TRIES=0
 xpkiMtlsRFC=`syscfg get UseXPKI_Enable`
-mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
+
+if [ "$partnerId" = "sky-uk" ]
+then
+   mTlsLogUpload=true
+   if [ "$CERT" = "" ]
+   then
+      echo_t "opslogupload: getMtlsCreds failed for sky-uk. Exiting"
+      exit
+   else
+      echo_t "opslogupload: getMtlsCreds returned $CERT"
+   fi
+else
+   echo_t "opslogupload: getMtlsCreds returned $CERT"
+   mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
+fi
+
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
@@ -196,49 +221,38 @@ useDirectRequest()
       echo_t "Trying Direct Communication"
       WAN_INTERFACE=$(getWanInterfaceName)
 
-      if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
-          msg_tls_source="mTLS certificate from xPKI"
-          echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-      elif [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ]; then
-          msg_tls_source="mTLS using static xPKI certificate"
-          echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+        CURL_CMD="$CURL_BIN $CERT --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type $CERT_STATUS --connect-timeout 30 -m 30"
+
+      echo_t "File to be uploaded: $UploadFile"
+      UPTIME=`uptime`
+      echo_t "System Uptime is $UPTIME"
+      echo_t "S3 URL is : $S3_URL"
+
+      echo_t "Trial $retries for DIRECT ..."
+      #Sensitive info like Authorization signature should not print
+      echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g' | sed -e 's#staticXpkiCrt.*-w#staticXpkiCrt.pk12<hidden key> -w#g'`"
+      HTTP_CODE=`ret= eval $CURL_CMD`
+
+      if [ "x$HTTP_CODE" != "x" ];
+      then
+          http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+          echo_t "Log Upload: $msg_tls_source Direct communication HttpCode received is : $http_code"
+
+          if [ "$http_code" != "" ];then
+               echo_t "Log Upload: $msg_tls_source Direct Communication - ret:$ret, http_code:$http_code"
+               if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
+                      echo_t $http_code > $UPLOADRESULT
+                      rm -f "$ID"
+                      return 0
+               fi
+               echo "failed" > $UPLOADRESULT
+          fi
       else
-          msg_tls_source="TLS"
-          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" \"$S3_URL\" --interface $WAN_INTERFACE $addr_type $CERT_STATUS --connect-timeout 30 -m 30"
+          http_code=0
+          echo_t "Log Upload: $msg_tls_source Direct Communication Failure Attempt:$retries  - ret:$ret, http_code:$http_code"
       fi
-
-        echo_t "File to be uploaded: $UploadFile"
-        UPTIME=`uptime`
-        echo_t "System Uptime is $UPTIME"
-        echo_t "S3 URL is : $S3_URL"
-
-        echo_t "Trial $retries for DIRECT ..."
-        #Sensitive info like Authorization signature should not print
-        echo_t "Curl Command built: `echo "$CURL_CMD" | sed -e 's#devicecert_1.*-w#devicecert_1.pk12<hidden key> -w#g' -e 's#AWSAccessKeyId=.*Signature=.*&#<hidden key>#g' | sed -e 's#staticXpkiCrt.*-w#staticXpkiCrt.pk12<hidden key> -w#g'`"
-        HTTP_CODE=`ret= eval $CURL_CMD`
-
-        if [ "x$HTTP_CODE" != "x" ];
-        then
-            http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
-            echo_t "Log Upload: $msg_tls_source Direct communication HttpCode received is : $http_code"
-
-            if [ "$http_code" != "" ];then
-                 echo_t "Log Upload: $msg_tls_source Direct Communication - ret:$ret, http_code:$http_code"
-                 if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
-                        echo_t $http_code > $UPLOADRESULT
-                        rm -f "$ID"
-                        return 0
-                 fi
-                 echo "failed" > $UPLOADRESULT
-            fi
-        else
-            http_code=0
-            echo_t "Log Upload: $msg_tls_source Direct Communication Failure Attempt:$retries  - ret:$ret, http_code:$http_code"
-        fi
-        retries=`expr $retries + 1`
-        sleep 30
+      retries=`expr $retries + 1`
+      sleep 30
     done
 
     rm -f "$ID"

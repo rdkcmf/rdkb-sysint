@@ -23,12 +23,21 @@
 #source /etc/utopia/service.d/log_capture_path.sh
 
 source /lib/rdk/t2Shared_api.sh
+source /lib/rdk/getpartnerid.sh
 
 RDK_LOGGER_PATH="/rdklogger"
 
 NVRAM2_SUPPORTED="no"
 . /lib/rdk/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
+
+CERT=""
+if [ -f /lib/rdk/mtlsUtils.sh ]
+then
+   source /lib/rdk/mtlsUtils.sh
+   echo_t "uploadRDKBLogs.sh: calling getMtlsCreds"
+   CERT="`getMtlsCreds uploadRDKBLogs.sh`"
+fi
 
 if [ $# -lt 4 ]; then 
      echo "USAGE: $0 <TFTP Server IP> <UploadProtocol> <UploadHttpLink> <uploadOnReboot>"
@@ -43,7 +52,7 @@ UploadProtocol=$2
 UploadHttpLink=$3
 UploadOnReboot=$4
 UploadLogsonReboot=$7
-
+partnerId="$(getPartnerId)"
 
 unscheduledDisable=`syscfg get UploadLogsOnUnscheduledRebootDisable`
 UPLOAD_LOGS=`sysevent get UPLOAD_LOGS_VAL_DCM`
@@ -122,12 +131,28 @@ if [ -f $EnableOCSPStapling ] || [ -f $EnableOCSP ]; then
     CERT_STATUS="--cert-status"
 fi
 
+#Partner sky-uk should impose MTLS only connection
+if [ "$partnerId" = "sky-uk" ]
+then
+   mTlsLogUpload=true
+   echo_t "logupload: Check MTLS only for partner sky-uk"
+   if [ "$CERT" = "" ]
+   then
+      echo_t "logupload: getMtlsCreds failed for sky-uk. Exiting"
+      exit
+   else
+      echo_t "logupload: getMtlsCreds returned $CERT"
+   fi
+else
+   echo_t "logupload: getMtlsCreds returned $CERT"
+   mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
+fi
+
 UseCodeBig=0
 conn_str="Direct"
 CodebigAvailable=0
 XPKI_MTLS_MAX_TRIES=0
 xpkiMtlsRFC=`syscfg get UseXPKI_Enable`
-mTlsLogUpload=`syscfg get mTlsLogUpload_Enable`
 encryptionEnable=`dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable | grep value | cut -d ":" -f 3 | tr -d ' '`
 URLENCODE_STRING=""
 
@@ -343,18 +368,8 @@ useDirectRequest()
         WAN_INTERFACE=$(getWanInterfaceName)
         echo_t "Trial $retries for DIRECT ..."
         # nice value can be normal as the first trial failed
-        if [ "x$useXpkiMtlsLogupload" = "xtrue" ] && [ "$retries" -lt "$XPKI_MTLS_MAX_TRIES" ]; then
-          msg_tls_source="mTLS certificate from xPKI"
-          echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /nvram/certs/devicecert_1.pk12:$(/usr/bin/rdkssacli "{STOR=GET,SRC=kquhqtoczcbx,DST=/dev/stdout}") -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        elif [ "x$useStaticXpkiMtlsLogupload" = "xtrue" ]; then
-          msg_tls_source="mTLS using static xpki certificate"
-          echo_t "Log Upload: $msg_tls_source"
-          CURL_CMD="$CURL_BIN --tlsv1.2 --cert-type P12 --cert /etc/ssl/certs/staticXpkiCrt.pk12:$(cat $ID) -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\"  --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        else
-          msg_tls_source="TLS"
-          CURL_CMD="$CURL_BIN --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
-        fi
+        msg_tls_source="TLS"
+        CURL_CMD="$CURL_BIN $CERT --tlsv1.2 -w '%{http_code}\n' -d \"filename=$UploadFile\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
 
         if [[ ! -e $UploadFile ]]; then
           echo_t "No file exist or already uploaded!!!"

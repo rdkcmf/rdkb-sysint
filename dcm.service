@@ -21,6 +21,10 @@
 
 . /etc/include.properties
 . /etc/device.properties
+source /lib/rdk/getpartnerid.sh
+
+partnerId="$(getPartnerId)"
+
 if [ -f /etc/telemetry2_0.properties ]; then
     . /etc/telemetry2_0.properties
 fi
@@ -36,6 +40,17 @@ t2Log() {
     timestamp=`date +%Y-%b-%d_%H-%M-%S`
     echo "$timestamp $*" >> $T2_0_LOGFILE
 }
+
+url_get="$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.XconfURL | grep string | cut -d":" -f3- | cut -d" " -f2- | tr -d ' ')"
+if [ "$url_get" != "" ]
+then
+   DCM_LOG_SERVER_URL="${url_get}/loguploader/getSettings"
+else
+   if [ "$partnerId" = "sky-uk" ]
+   then
+       DCM_LOG_SERVER_URL="$DCM_LOG_SERVER_URL_EU"
+   fi
+fi
 
 t2Log "Starting /lib/rdk/DCMscript.sh."
 echo "Starting /lib/rdk/DCMscript.sh." >> $DCM_LOG_FILE
