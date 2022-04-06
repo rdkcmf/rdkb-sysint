@@ -57,7 +57,8 @@ case $oper in
              exit 1
              ;;
            start)
-
+         WAN_INTERFACE=$(getWanInterfaceName)
+         DEF_WAN_INTERFACE=$(getWanMacInterfaceName)
 	     if [ -f "/nvram/ETHWAN_ENABLE" ];then
 		CM_IPV4=`ifconfig $WAN_INTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 		IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
@@ -78,6 +79,7 @@ case $oper in
                 fi
 	     else
 		if [ "$MANUFACTURE" = "Technicolor" -a "$BOX_TYPE" != "XB3" ]; then
+			if [ "$WAN_INTERFACE" = "$DEF_WAN_INTERFACE" ]; then
 			CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
 			IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
 			Check=$(ip_to_hex $IpCheckVal)
@@ -91,6 +93,15 @@ case $oper in
 				if [ ! -z "$CM_IP" ]; then
 					CM_IP="$CM_IP%privbr"
 				else
+					CM_IP=$CM_IPV4
+				fi
+			fi
+			else
+			CM_IPV4=`ifconfig $WAN_INTERFACE | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d: | head -n1`
+			IpCheckVal=$(echo ${CM_IPV4} | tr "." " " | awk '{ print $3"."$4 }')
+			Check=$(ip_to_hex $IpCheckVal)
+			CM_IP=`ifconfig $WAN_INTERFACE | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1`
+				if [ -z "$CM_IP" ]; then
 					CM_IP=$CM_IPV4
 				fi
 			fi

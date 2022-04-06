@@ -38,6 +38,7 @@ source /lib/rdk/getaccountid.sh
 source /etc/waninfo.sh
 
 EROUTER_IF=$(getWanInterfaceName)
+wan_interface=$(getWanMacInterfaceName)
 DCMRESPONSE="$PERSISTENT_PATH/DCMresponse.txt"
 DCM_SETTINGS_CONF="/tmp/DcaSettings.conf"
 
@@ -284,10 +285,10 @@ getEstbMac()
        echo "$estbMac"
     else
        if [ "$BOX_TYPE" == "XB3" ]; then
-          estbMac=`/usr/bin/rpcclient $ARM_ARPING_IP "ifconfig $EROUTER_IF" | grep 'Link encap:' | cut -d ' ' -f7`
+          estbMac=`/usr/bin/rpcclient $ARM_ARPING_IP "ifconfig $wan_interface" | grep 'Link encap:' | cut -d ' ' -f7`
           echo "$estbMac"
        else
-          estbMac=`ifconfig $EROUTER_IF | grep 'Link encap:' | cut -d ' ' -f7`
+          estbMac=`ifconfig $wan_interface | grep 'Link encap:' | cut -d ' ' -f7`
           echo "$estbMac"
        fi
     fi

@@ -38,6 +38,7 @@ fi
 WANINTERFACE=$(getWanInterfaceName)
 CRONTAB_DIR="/var/spool/cron/crontabs/"
 CRONFILE_BK="/tmp/cron_tab$$$$.txt"
+wan_interface=$(getWanMacInterfaceName)
 
 #checkProcess()
 #{
@@ -66,7 +67,7 @@ getMacAddressOnly()
             mac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
          fi
      else	
-         mac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+         mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
      fi
      echo $mac
 }
@@ -185,7 +186,7 @@ getErouterMacAddress()
             erouterMac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
         fi
     else	
-        erouterMac=`ifconfig $WANINTERFACE | grep HWaddr | cut -d " " -f7`
+        erouterMac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7`
     fi
     echo $erouterMac
 }
