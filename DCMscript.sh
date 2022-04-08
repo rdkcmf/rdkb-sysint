@@ -664,7 +664,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
             echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
 	else
             echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
-            sh /etc/firmwareSched.sh &
+            sh /etc/firmwareSched.sh DCM_Trigger &
 	fi
     exit 0
 fi
@@ -720,7 +720,7 @@ fi
                     echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
 		else
 		    echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
-                    sh /etc/firmwareSched.sh &
+                    sh /etc/firmwareSched.sh DCM_Trigger &
 		fi
             if [ ! -f $PEER_COMM_ID ]; then
                 GetConfigFile $PEER_COMM_ID
@@ -740,7 +740,7 @@ fi
                            echo_t "XCONF SCRIPT : Ignoring running firmwareSched.sh on bootup from dcm script" >> $DCM_LOG_FILE
 			else
 			   echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
-			   sh /etc/firmwareSched.sh
+			   sh /etc/firmwareSched.sh DCM_Trigger
 			fi
              
             sh /lib/rdk/dca_utility.sh 1 &
