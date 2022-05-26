@@ -60,8 +60,14 @@ calcRebootExecTime()
 
 
         #Maintence start and end time in local
-        main_start_time=$((start_time-time_offset))
-        main_end_time=$((end_time-time_offset))
+        if [ "x$BOX_TYPE" = "xHUB4" ]
+        then
+		main_start_time=$start_time
+		main_end_time=$end_time
+        else
+		main_start_time=$((start_time-time_offset))
+		main_end_time=$((end_time-time_offset))
+        fi
 
         #calculate random time in sec
         rand_time_in_sec=`awk -v min=$main_start_time -v max=$main_end_time -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
