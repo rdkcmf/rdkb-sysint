@@ -137,11 +137,15 @@ flush_atom_logs()
     	echo_t  "Unable to find $T2_0_BIN ... Switching T2 Enable to false !!!"
     	T2_ENABLE="false"                                                                       
     fi
+    echo_t "[DEBUG] ++IN Function flush_atom_logs" >> /rdklogs/logs/telemetry2_0.txt.0
+    echo_t "[DEBUG] ++IN Function flush_atom_logs"
     
     cp $LOG_SYNC_PATH/$SelfHealBootUpLogFile $LOG_PATH
     cp $LOG_SYNC_PATH$PcdLogFile $LOG_PATH
     
     if [ "x$T2_ENABLE" == "xtrue" ]; then  
+    	echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!" >> /rdklogs/logs/telemetry2_0.txt.0
+    	echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!"
         sh /lib/rdk/dca_utility.sh 2 &
     else
         ssh -I $IDLE_TIMEOUT -i $PEER_COMM_ID root@$ATOM_INTERFACE_IP "/bin/echo 'execTelemetry' > $TELEMETRY_INOTIFY_EVENT" > /dev/null 2>&1
@@ -154,6 +158,8 @@ flush_atom_logs()
 		if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge "6" ]
 		then
 			# Remove the contents of ATOM side log files.
+		     echo_t "[DEBUG] telemetry operation completed loop count = $loop" >> /rdklogs/logs/telemetry2_0.txt.0
+		     echo_t "[DEBUG] telemetry operation completed loop count = $loop"
                      echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
                         atom_log_flush=`rpcclient  $ATOM_ARPING_IP "$FLUSH_LOG_PATH"`
 			atom_log_flush_output=`echo "$atom_log_flush" | grep "RPC CONNECTED"`
@@ -166,6 +172,8 @@ flush_atom_logs()
 		fi
 
 	done
+    echo_t "[DEBUG] --OUT Function flush_atom_logs" >> /rdklogs/logs/telemetry2_0.txt.0
+    echo_t "[DEBUG] --OUT Function flush_atom_logs"
 }
 
 #To sync logs from atom side :
@@ -512,7 +520,8 @@ backupnvram2logs()
 	workDir=`pwd`
 
 	#createSysDescr
-	
+        echo_t "[DEBUG] ++IN function backupnvram2logs"	 >> /rdklogs/logs/telemetry2_0.txt.0
+        echo_t "[DEBUG] ++IN function backupnvram2logs"
 	if [ ! -d "$destn" ]; then
 	   mkdir -p $destn
 	else
@@ -548,6 +557,8 @@ backupnvram2logs()
 			sleep 10
 		 done
         else
+		        echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!" >> /rdklogs/logs/telemetry2_0.txt.0
+		        echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!"
 			sh /lib/rdk/dca_utility.sh 2 &
 			local loop=0
 			while :
@@ -559,6 +570,8 @@ backupnvram2logs()
 					# Remove the contents of ATOM side log files.
 					#echo_t "DCA completed or wait for 60 sec is over, flushing ATOM logs"
 					#dmcli eRT setv Device.Logging.FlushAllLogs bool true
+					echo_t "[DEBUG] telemetry operation completed loop count = $loop" >> /rdklogs/logs/telemetry2_0.txt.0
+					echo_t "[DEBUG] telemetry operation completed loop count = $loop"
 					rm -rf $DCA_COMPLETED
 					break
 				fi
@@ -615,6 +628,8 @@ backupnvram2logs()
 		>$fname;
 	done
 
+        echo_t "[DEBUG] --OUT function backupnvram2logs" >> /rdklogs/logs/telemetry2_0.txt.0
+        echo_t "[DEBUG] --OUT function backupnvram2logs"
 	cd $workDir
 }
 

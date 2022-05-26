@@ -442,6 +442,8 @@ fi
 	     echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	     t2CountNotify "SYS_INFO_LOGS_UPLOADED"
 	    #Remove all log directories
+             echo_t "[DEBUG] Removing log directory $blog_dir" >>  /rdklogs/logs/telemetry2_0.txt.0
+             echo_t "[DEBUG] Removing log directory $blog_dir"
 	     rm -rf $blog_dir
         fi
 
@@ -514,6 +516,8 @@ fi
                 echo_t "LOGS UPLOADED SUCCESSFULLY, RETURN CODE: $http_code"
 	        t2CountNotify "SYS_INFO_LOGS_UPLOADED"
 	        #Remove all log directories
+                echo_t "[DEBUG] Removing log directory $blog_dir" >>  /rdklogs/logs/telemetry2_0.txt.0
+                echo_t "[DEBUG] Removing log directory $blog_dir"
 	        rm -rf $blog_dir
                 result=0
             fi
@@ -525,7 +529,7 @@ fi
 	#Keep tar ball and remove only the log folder
 	rm -rf $blog_dir$timeRequested
 		
-    fi    
+    fi
     echo_t $result
 }
 
@@ -541,6 +545,8 @@ uploadOnRequest()
 	echo "Triggered `date`" > $UPLOAD_LOG_STATUS
 	curDir=`pwd`
         if [  -d $blog_dir ] ; then
+            echo_t "[DEBUG] Removing log directory $blog_dir" >>  /rdklogs/logs/telemetry2_0.txt.0
+            echo_t "[DEBUG] Removing log directory $blog_dir"
             rm -rf $blog_dir/*
         fi
         mkdir -p $blog_dir$timeRequested
@@ -660,6 +666,10 @@ uploadOnRequest()
 get_Codebigconfig
 blog_dir="/tmp/loguploadonrequest/"
 
+
+echo_t "[DEBUG] Starting $0 with ARGS $ARGS" >> /rdklogs/logs/telemetry2_0.txt.0
+echo_t "[DEBUG] Starting $0 with ARGS $ARGS"
+
 if [ "$ARGS" = "upload" ]
 then
 	# Call function to upload log files on reboot
@@ -679,6 +689,8 @@ then
 	
 	if [ -d $blog_dir ]
 	then
+                echo_t "[DEBUG] Removing log directory $blog_dir" >>  /rdklogs/logs/telemetry2_0.txt.0
+                echo_t "[DEBUG] Removing log directory $blog_dir"
 		rm -rf $blog_dir
 	fi
 	rm $UPLOAD_LOG_STATUS

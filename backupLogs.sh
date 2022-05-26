@@ -228,10 +228,13 @@ backupLogsonReboot()
 
 backupLogsonReboot_nvram2()
 {
+        echo_t "[DEBUG] ++IN Function backupLogsonReboot_nvram2" >> /rdklogs/logs/telemetry2_0.txt.0
 	curDir=`pwd`
 	if [ ! -d "$LOG_SYNC_BACK_UP_REBOOT_PATH" ]; then
 	    mkdir $LOG_SYNC_BACK_UP_REBOOT_PATH
 	fi
+
+        DCA_COMPLETED="/tmp/.dca_done"
 
 	#rm -rf $LOG_SYNC_BACK_UP_REBOOT_PATH*
 
@@ -241,6 +244,21 @@ backupLogsonReboot_nvram2()
         then
              createSysDescr
         fi 
+
+        echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!" >> /rdklogs/logs/telemetry2_0.txt.0
+        sh /lib/rdk/dca_utility.sh 2 &
+        local loop=0
+        while :
+        do
+            sleep 10
+            loop=$((loop+1))
+            if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
+            then
+                echo_t "[DEBUG] $0 telemetry operation completed loop count = $loop" >> /rdklogs/logs/telemetry2_0.txt.0
+                rm -rf $DCA_COMPLETED
+                break
+            fi
+        done
 
 	syncLogs_nvram2
 
@@ -258,6 +276,7 @@ backupLogsonReboot_nvram2()
 	cd $LOG_PATH
 	FILES=`ls`
 
+        echo_t "[DEBUG] backupLogsonReboot_nvram2: flushing logs" >> /rdklogs/logs/telemetry2_0.txt.0
 	for fname in $FILES
 	do
 		>$fname;
@@ -275,6 +294,8 @@ backupLogsonReboot_nvram2()
 	#rm -rf $LOG_SYNC_PATH*.log
 	touch $UPLOAD_ON_REBOOT
 	cd $curDir
+
+        echo_t "[DEBUG] --OUT Function backupLogsonReboot_nvram2" >> /rdklogs/logs/telemetry2_0.txt.0
 }
 
 if [ "$2" = "l2sd0" ]
