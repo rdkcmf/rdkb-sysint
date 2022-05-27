@@ -27,6 +27,8 @@ source /lib/rdk/getpartnerid.sh
 
 RDK_LOGGER_PATH="/rdklogger"
 
+source $RDK_LOGGER_PATH/logUpload_default_params.sh
+
 NVRAM2_SUPPORTED="no"
 . /lib/rdk/utils.sh 
 . $RDK_LOGGER_PATH/logfiles.sh
@@ -243,7 +245,7 @@ getBuildType()
 
 if [ "$UploadHttpLink" == "" ]
 then
-	UploadHttpLink=$URL
+    UploadHttpLink="$URL"
 fi
 
 # initialize the variables

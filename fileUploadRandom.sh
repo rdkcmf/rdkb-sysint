@@ -22,6 +22,7 @@ NVRAM2_SUPPORTED="no"
 RDK_LOGGER_PATH="/rdklogger"
 
 source $RDK_LOGGER_PATH/logfiles.sh
+source $RDK_LOGGER_PATH/logUpload_default_params.sh
 
 MAINTENANCEWINDOW="/tmp/maint_upload"
 

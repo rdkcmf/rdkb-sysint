@@ -37,6 +37,8 @@ source /lib/rdk/utils.sh
 source /lib/rdk/t2Shared_api.sh
 source /etc/device.properties
 source /lib/rdk/getpartnerid.sh
+source $RDK_LOGGER_PATH/logUpload_default_params.sh
+
 if [ -f /nvram/logupload.properties -a $BUILD_TYPE != "prod" ];then
     . /nvram/logupload.properties
 fi
@@ -127,7 +129,7 @@ fi
 
 if [ "$UploadHttpLink" == "" ]
 then
-	UploadHttpLink=$URL
+    UploadHttpLink="$URL"
 fi
 #to support ocsp
 EnableOCSPStapling="/tmp/.EnableOCSPStapling"
