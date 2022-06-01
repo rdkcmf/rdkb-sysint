@@ -74,6 +74,11 @@ else
 fi
 }
 
+getExperience()
+{
+    echo ""
+}
+
 case=$1
 if [ "$case" = "GetPartnerID" ]; then
     getPartnerId
