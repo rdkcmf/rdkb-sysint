@@ -331,7 +331,12 @@ syncLogs_nvram2()
         #ARRISXB6-12575 commented sed to avoid creation of temp files
         #sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
         # insert the offset at the first line of the file without using temp files
-        echo -e "$offset\n`cat $LOG_SYNC_PATH$file | tail -n +2`" > $LOG_SYNC_PATH$file
+        model=`cat /etc/device.properties | grep MODEL_NUM  | cut -f2 -d=`
+	if [ "$model" = "CGA4332COM" ]; then
+              sed -i -e "1s/.*/$offset/" $LOG_SYNC_PATH$file # setting new offset
+        else
+              echo -e "$offset\n`cat $LOG_SYNC_PATH$file | tail -n +2`" > $LOG_SYNC_PATH$file
+        fi
 	done
 	
     if [ -f /tmp/backup_onboardlogs ]; then
