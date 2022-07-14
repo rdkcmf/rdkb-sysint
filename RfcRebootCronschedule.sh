@@ -6,50 +6,80 @@ CRONTAB_DIR="/var/spool/cron/crontabs/"
 CRONTAB_FILE=$CRONTAB_DIR"root"
 CRONFILE_BK="/tmp/cron_tab$$.txt"
 LOG_FILE="/rdklogs/logs/dcmrfc.log"
+FW_START="/nvram/.FirmwareUpgradeStartTime"
+FW_END="/nvram/.FirmwareUpgradeEndTime"
 RFC_REBOOT_SCHEDULED="/tmp/.RfcwaitingReboot"
-DCM_CONF="/tmp/DCMSettings.conf"
 
-. /etc/device.properties
+if [ -f /etc/device.properties ]
+then
+    source /etc/device.properties
+fi
 
 calcRebootExecTime()
 {
 
-    cron=''
-    if [ -f $DCM_CONF ]; then
-        cron=`cat $DCM_CONF | grep 'urn:settings:CheckSchedule:cron' | cut -d '=' -f2`
-    else
-        if [ -f $PERSISTENT_PATH/tmpDCMSettings.conf ]; then
-            cron=`grep 'urn:settings:CheckSchedule:cron' $PERSISTENT_PATH/tmpDCMSettings.conf | cut -d '=' -f2`
-        fi
-    fi
-
-    # Scheduling the job 15 mins ahead of scheduling FWDnld
-    if [ -n "$cron" ]; then
-        vc1=`echo "$cron" | awk '{print $1}'`
-        vc2=`echo "$cron" | awk '{print $2}'`
-        vc3=`echo "$cron" | awk '{print $3}'`
-        vc4=`echo "$cron" | awk '{print $4}'`
-        vc5=`echo "$cron" | awk '{print $5}'`
-        if [ $vc1 -gt 44 ]; then
-            # vc1 = vc1 + 15 - 60
-            vc1=`expr $vc1 - 45`
-            vc2=`expr $vc2 + 1`
-            if  [ $vc2 -eq 24 ]; then
-                vc2=0
-            fi
+        # Extract maintenance window start and end time
+        if [ -f "$FW_START" ] && [ -f "$FW_END" ]
+        then
+           start_time=`cat $FW_START`
+           end_time=`cat $FW_END`
         else
-            vc1=`expr $vc1 + 15`
+           start_time=3600
+           end_time=14400
         fi
-        cron=''
-        cron=`echo "$vc1 $vc2 $vc3 $vc4 $vc5"`
-    fi
+
+        #if start_time and end_time are set it to default
+        if [ "$start_time" = "$end_time" ]
+        then
+                echo_t "[RfcRebootCronschedule.sh] start_time and end_time are equal.so,setting them to default" >> $LOG_FILE
+                start_time=3600
+                end_time=14400
+        fi
+
+        #Get local time off set
+        time_offset=`dmcli eRT getv Device.Time.TimeOffset | grep "value:" | cut -d ":" -f 3 | tr -d ' '`
+
+
+        #Maintence start and end time in local
+        main_start_time=$((start_time-time_offset))
+        main_end_time=$((end_time-time_offset))
+
+        #calculate random time in sec
+        rand_time_in_sec=`awk -v min=$main_start_time -v max=$main_end_time -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+
+        # To avoid cron to be set beyond 24 hr clock limit
+        if [ $rand_time_in_sec -ge 86400 ]
+        then
+                rand_time_in_sec=$((rand_time_in_sec-86400))
+                echo_t "[RfcRebootCronschedule.sh] Random time in sec exceed 24 hr limit.setting it correct limit" >> $LOG_FILE
+
+        fi
+
+        #conversion of random generated time to HH:MM:SS format
+                #calculate random second
+                rand_time=$rand_time_in_sec
+                rand_sec=$((rand_time%60))
+
+                #calculate random minute
+                rand_time=$((rand_time/60))
+                rand_min=$((rand_time%60))
+
+                #calculate random hour
+                rand_time=$((rand_time/60))
+                rand_hr=$((rand_time%60))
+
+        echo_t "[RfcRebootCronschedule.sh]start_time: $start_time, end_time: $end_time" >> $LOG_FILE
+        echo_t "[RfcRebootCronschedule.sh]time_offset: $time_offset" >> $LOG_FILE
+        echo_t "[RfcRebootCronschedule.sh]main_start_time: $main_start_time , main_end_time= $main_end_time" >> $LOG_FILE
+        echo_t "[RfcRebootCronschedule.sh]rand_time_in_sec: $rand_time_in_sec ,rand_hr: $rand_hr ,rand_min: $rand_min ,rand_sec: $rand_sec" >> $LOG_FILE
+
 }
 
 ScheduleCron()
 {
         # Dump existing cron jobs to a file & add new job
         crontab -l -c $CRONTAB_DIR > $CRONFILE_BK
-        echo "$cron /etc/RFC_Reboot.sh" >> $CRONFILE_BK
+        echo "$rand_min $rand_hr * * * /etc/RFC_Reboot.sh" >> $CRONFILE_BK
         crontab $CRONFILE_BK -c $CRONTAB_DIR
         rm -rf $CRONFILE_BK
         touch $RFC_REBOOT_SCHEDULED

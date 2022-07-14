@@ -646,6 +646,8 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
 	# Dependent modules should still get the parsed /tmp/DCMSettings.conf file
 	processJsonResponse
 	
+    isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+    if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
 	# bypassing firmwareSched.sh once on boot up because it is called from xconf
 	if [ ! -f $FWDL_FLAG ]; then
 	    touch $FWDL_FLAG
@@ -654,6 +656,7 @@ if [ "x$T2_ENABLE" == "xtrue" ]; then
             echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
             sh /etc/firmwareSched.sh DCM_Trigger &
 	fi
+    fi
     exit 0
 fi
 
@@ -702,6 +705,8 @@ fi
     if [ "x$DCA_MULTI_CORE_SUPPORTED" == "xyes" ]; then
             dropbearRecovery
 
+            isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+            if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
 		# bypassing firmwareSched.sh once on boot up because it is called from xconf
 		if [ ! -f $FWDL_FLAG ]; then
 		    touch $FWDL_FLAG
@@ -710,6 +715,7 @@ fi
 		    echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
                     sh /etc/firmwareSched.sh DCM_Trigger &
 		fi
+            fi
             if [ ! -f $PEER_COMM_ID ]; then
                 GetConfigFile $PEER_COMM_ID
             fi
@@ -722,6 +728,8 @@ fi
             sshCmdOnAtom 'xconf_update'
         else
             
+		    isPeriodicFWCheckEnabled=`syscfg get PeriodicFWCheck_Enable`
+		    if [ "$isPeriodicFWCheckEnabled" == "true" ]; then
 			# bypassing firmwareSched.sh once on boot up because it is called from xconf
 			if [ ! -f $FWDL_FLAG ]; then
 			   touch $FWDL_FLAG
@@ -730,6 +738,7 @@ fi
 			   echo_t "XCONF SCRIPT : Calling XCONF Client firmwareSched for the updated time" >> $DCM_LOG_FILE
 			   sh /etc/firmwareSched.sh DCM_Trigger
 			fi
+		    fi
              
             sh /lib/rdk/dca_utility.sh 1 &
         fi
