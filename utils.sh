@@ -60,14 +60,14 @@ Timestamp()
 # Get the MAC address of the machine
 getMacAddressOnly()
 {
-     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]; then
+     if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "x$BOX_TYPE" = "xSR213" ] || [ "$BOX_TYPE" = "SE501" ] ; then
          #FEATURE_RDKB_WAN_MANAGER
          mac=`cat /sys/class/net/$WANINTERFACE/address | tr '[a-f]' '[A-F]' `
          if [ -z "$mac" ]; then
             mac=$(sysevent get eth_wan_mac | tr '[a-f]' '[A-F]')
          fi
      else	
-         mac=`ifconfig $wan_interface | grep HWaddr | cut -d " " -f7 | sed 's/://g'`
+        mac=`cat /sys/class/net/$wan_interface/address | sed 's/://g' | tr '[a-f]' '[A-F]'`
      fi
      echo $mac
 }
