@@ -944,21 +944,21 @@ do
             
 	    # We do not want to upload anything if log upload is disabled in DCM
             # If log upload is enabled, then try uploading logs from preserved location if file exists.
-		if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] && [ ! -e $WAITINGFORUPLOAD ]
-	    then
-	       logBackupEnable=`syscfg get log_backup_enable`
-               if [ "$logBackupEnable" = "true" ];then
-                  if [ -d $PRESERVE_LOG_PATH ] ; then
-                     cd $PRESERVE_LOG_PATH
-                     fileToUpload=`ls | grep tgz`
-                     if [ "$fileToUpload" != "" ]
-                     then
-                        echo_t "Uploading backup logs found in $PRESERVE_LOG_PATH"
-                        $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH
-                     fi
-                  fi #end if [ -d $PRESERVE_LOG_PATH 
-               fi #end if [ "$logBackupEnable" = "true" ]
-	    fi #if [ ! -e $REGULAR_UPLOAD ]
+	#	if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] && [ ! -e $WAITINGFORUPLOAD ]
+	#    then
+	#       logBackupEnable=`syscfg get log_backup_enable`
+        #       if [ "$logBackupEnable" = "true" ];then
+        #          if [ -d $PRESERVE_LOG_PATH ] ; then
+        #             cd $PRESERVE_LOG_PATH
+        #             fileToUpload=`ls | grep tgz`
+        #             if [ "$fileToUpload" != "" ]
+        #             then
+        #                echo_t "Uploading backup logs found in $PRESERVE_LOG_PATH"
+        #               $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH
+        #            fi
+        #          fi #end if [ -d $PRESERVE_LOG_PATH 
+        #       fi #end if [ "$logBackupEnable" = "true" ]
+	#    fi #if [ ! -e $REGULAR_UPLOAD ]
 	    
 	# Syncing logs after particular interval
 	get_logbackup_cfg

@@ -67,6 +67,18 @@ fi
 
 echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
 
+random_sleep()
+{
+    #echo "Retry $1 random sleep"
+    t_min=20
+    t_max=30
+    t_min=$(( t_min * $1 ))
+    t_max=$(( t_max * $1 ))
+
+    randomizedNumber=`awk -v min=$t_min -v max=$t_max -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+    echo_t "Direct comm. Random sleep for $randomizedNumber"
+    sleep $randomizedNumber
+}
 isMaintenanceWindow()
 {
 	FW_START=`cat /nvram/.FirmwareUpgradeStartTime`
@@ -385,6 +397,37 @@ useDirectRequest()
             echo_t "Log Upload: $msg_tls_source Direct Communication - ret:$ret, http_code:$http_code"
             if [ "$http_code" != "" ];then
                 echo_t "Log Upload: $msg_tls_source Direct connection HttpCode received is : $http_code"
+                if [ "$http_code" = "200" ] ;then
+#success case
+                    logBackupEnable=`syscfg get log_backup_enable`
+
+                    if [ "$logBackupEnable" = "true" ] ; then
+                         if [ -d $PRESERVE_LOG_PATH ] ; then
+                               cd $PRESERVE_LOG_PATH
+                               fileToUpload=`ls | grep tgz`
+                               if [ "$fileToUpload" != "" ] ;then
+                                    file_list=$fileToUpload
+                                    echo_t "Direct comm. available preserve logs = $fileToUpload"
+                                    for fileToUpload in $file_list
+                                    do
+                                       echo_t "Direct comm. uploading preserve logs found in $PRESERVE_LOG_PATH"
+                                       CURL_CMD="$CURL_BIN $CERT --tlsv1.2 -w '%{http_code}\n' -d \"filename=$fileToUpload\" $URLENCODE_STRING -o \"$OutputFile\" --interface $WAN_INTERFACE $addr_type \"$S3_URL\" $CERT_STATUS --connect-timeout 30 -m 30"
+                                       HTTP_CODE=`ret= eval $CURL_CMD`
+                                       http_code=$(echo "$HTTP_CODE" | awk '{print $0}' )
+                                       echo_t "Direct comm. Preserve log http code =$http_code"
+                                       if [ "$http_code" != "200" ] ; then
+                                           break
+                                       fi
+                                    done
+                               else
+                                    echo_t "Direct comm. No preserve logs found in $PRESERVE_LOG_PATH"
+                               fi
+                         fi
+
+                    fi
+
+                fi
+
                 if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] ;then
                     rm -f "$ID"
                     return 0
@@ -394,10 +437,10 @@ useDirectRequest()
             http_code=0
             echo_t "Log Upload: $msg_tls_source Direct Communication Failure Attempt:$retries - ret:$ret, http_code:$http_code"
         fi
-               
         retries=`expr $retries + 1`
-        sleep 30
+        random_sleep $retries
     done
+
     rm -f "$ID"
     echo_t "Retries for Direct connection exceeded " 
     return 1
