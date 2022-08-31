@@ -4,6 +4,10 @@
 . /usr/bin/stunnelCertUtil.sh
 source /etc/log_timestamp.sh
 
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+        source /lib/rdk/t2Shared_api.sh
+fi
+
 export TERM=xterm
 export HOME=/home/root
 LOG_FILE="$LOG_PATH/stunnel.log"
@@ -70,6 +74,7 @@ extract_stunnel_client_cert
 
 if [ ! -f $CERT_FILE -o ! -f $CA_FILE ]; then
     echo_t "STUNNEL: Required cert/CA file not found. Exiting..." >> $LOG_FILE
+    t2CountNotify "SHORTS_STUNNEL_CERT_FAILURE"
     exit 1
 fi
 
@@ -109,6 +114,7 @@ STUNNELPID=`cat $STUNNEL_PID_FILE`
 if [ -z "$STUNNELPID" ]; then
     rm -f $STUNNEL_PID_FILE
     echo_t "STUNNEL: stunnel-client failed to establish. Exiting..." >> $LOG_FILE
+    t2CountNotify "SHORTS_STUNNEL_CLIENT_FAILURE"
     exit
 fi
 
@@ -122,11 +128,12 @@ if [ -z "$REVSSHPID2" ] || [ "$REVSSHPID1" == "$REVSSHPID2" ]; then
     kill -9 $STUNNELPID
     rm -f $STUNNEL_PID_FILE
     echo_t "STUNNEL: Reverse SSH failed to connect. Exiting..." >> $LOG_FILE
+    t2CountNotify "SHORTS_SSH_CLIENT_FAILURE"
     exit
 fi
 
 echo_t "STUNNEL: Reverse SSH pid = $REVSSHPID2, Stunnel pid = $STUNNELPID" >> $LOG_FILE
-
+t2CountNotify "SHORTS_CONN_SUCCESS"
 #watch for termination of ssh-client to terminate stunnel
 while test -d "/proc/$REVSSHPID2"; do
      sleep 5
