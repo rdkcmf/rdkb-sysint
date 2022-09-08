@@ -28,6 +28,14 @@ source $RDK_LOGGER_PATH/logUpload_default_params.sh
 LOG_UPLOAD_PID="/tmp/.log_upload.pid"
 REBOOT_PENDING_DELAY=2
 
+IHC_Enable="`syscfg get IHC_Mode`"
+#starting the IHC now
+if [[ "$IHC_Enable" = "Monitor" ]]
+then
+    echo_t "Starting the ImageHealthChecker from store-health mode"
+    /usr/bin/ImageHealthChecker store-health &
+fi
+
 # exit if an instance is already running
 if [ ! -f $LOG_UPLOAD_PID ];then
     # store the PID
@@ -416,7 +424,26 @@ then
         killall -s SIGTERM IGD
     fi
 
-	sleep 1
-	rebootFunc
+    sleep 1
+    
+    #wait until IHC completed
+    if [ "$IHC_Enable" = "Monitor" ]
+    then
+        iter=0
+        while [ $iter -le 8 ]
+        do
+            if [ -f /tmp/IHC_completed ]
+            then
+                echo_t "IHC execution completed ....."
+                rm -rf /tmp/IHC_completed
+                break;
+            fi
+            echo_t "waiting for IHC execution to be completed ....."
+            sleep 1
+            iter=$((iter+1))
+        done
+    fi
+
+    rebootFunc
 fi
 
