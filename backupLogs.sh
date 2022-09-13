@@ -246,19 +246,24 @@ backupLogsonReboot_nvram2()
         fi 
 
         echo_t  "[DEBUG] $0 Notify telemetry to execute now before log upload !!!" >> /rdklogs/logs/telemetry2_0.txt.0
-        sh /lib/rdk/dca_utility.sh 2 &
-        local loop=0
-        while :
-        do
-            sleep 10
-            loop=$((loop+1))
-            if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
-            then
-                echo_t "[DEBUG] $0 telemetry operation completed loop count = $loop" >> /rdklogs/logs/telemetry2_0.txt.0
-                rm -rf $DCA_COMPLETED
-                break
-            fi
-        done
+	if [ "$needReboot" = "true" ]; then
+            # Similar to RDKB-9204 - Avoid telemetry computation from GUI or SNMP initiated reboot
+            echo_t  "[DEBUG] $0 telemetry reports excluded to avoid delays in reboot from SNMP/TR181/GUI !!!" >> /rdklogs/logs/telemetry2_0.txt.0
+	else 
+            sh /lib/rdk/dca_utility.sh 2 &
+            local loop=0
+            while :
+            do
+                sleep 10
+                loop=$((loop+1))
+                if [ -f "$DCA_COMPLETED" ] || [ "$loop" -ge 6 ]
+                then
+                    echo_t "[DEBUG] $0 telemetry operation completed loop count = $loop" >> /rdklogs/logs/telemetry2_0.txt.0
+                    rm -rf $DCA_COMPLETED
+                    break
+                fi
+            done
+        fi
 
 	syncLogs_nvram2
 
