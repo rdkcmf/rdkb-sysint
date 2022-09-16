@@ -314,6 +314,9 @@ useDirectRequest()
    count=0
    while [ "$count" -lt "$DIRECT_MAX_ATTEMPTS" ] ; do    
        echo_t " DCM connection type DIRECT"
+       if [ -f /etc/waninfo.sh ]; then
+           EROUTER_INTERFACE=$(getWanInterfaceName)
+       fi
        CURL_CMD="curl $CERT -w '%{http_code}\n' --tlsv1.2 --interface $EROUTER_INTERFACE $addr_type $CERT_STATUS --connect-timeout $timeout -m $timeout -o  \"$tmpHttpResponse\" '$HTTPS_URL$JSONSTR'"
        HTTP_CODE=`result= eval $CURL_CMD`
        ret=$?

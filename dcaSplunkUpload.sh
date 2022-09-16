@@ -247,6 +247,9 @@ useDirectRequest()
     else
        echo_t "dca : getMtlsCreds returned $CERTOPTION" >> $RTL_LOG_FILE
     fi
+    if [ -f /etc/waninfo.sh ]; then
+        EROUTER_INTERFACE=$(getWanInterfaceName)
+    fi
     CURL_CMD="curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '$1' -o \"$HTTP_FILENAME\" \"$DCA_UPLOAD_URL\" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT"
     HTTP_CODE=`curl -s $TLS $CERTOPTION -w '%{http_code}\n' --interface $EROUTER_INTERFACE $addr_type -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$1" -o "$HTTP_FILENAME" "$DCA_UPLOAD_URL" $CERT_STATUS --connect-timeout $CURL_TIMEOUT -m $CURL_TIMEOUT`
     ret=$?
