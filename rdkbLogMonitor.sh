@@ -876,6 +876,7 @@ do
 		getLogfileSize "$LOG_PATH"
 
 	        if [ "$totalSize" -ge "$MAXSIZE" ]; then
+                        echo_t "Log size max reached"
 			get_logbackup_cfg
 
 			if [ "$UPLOAD_LOGS" = "" ] || [ ! -f "$DCM_SETTINGS_PARSED" ]
@@ -932,33 +933,36 @@ do
 				syncLogs
 				backupAllLogs "$LOG_PATH" "$LOG_BACK_UP_PATH" "cp"
 			fi
-	
-		        if [ "$UPLOAD_LOGS" = "true" ] 
-			then	
+		        if [ "$UPLOAD_LOGS" = "true" ]
+			then
 				$RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "false"
+                                http_ret=$?
+                                echo_t "Logupload http_ret value = $http_ret"
+                                if [ "$http_ret" = "200" ] || [ "$http_ret" = "302" ] ;then
+                                      logBackupEnable=`syscfg get log_backup_enable`
+
+                                      if [ "$logBackupEnable" = "true" ] ; then
+                                            if [ -d $PRESERVE_LOG_PATH ] ; then
+                                                 cd $PRESERVE_LOG_PATH
+                                                 fileToUpload=`ls | grep tgz`
+                                                 if [ "$fileToUpload" != "" ] ;then
+                                                     file_list=$fileToUpload
+                                                     echo_t "Direct comm. available preserve logs = $fileToUpload"
+                                                     $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH
+                                                 else
+                                                        echo_t "Direct comm. No preserve logs found in $PRESERVE_LOG_PATH"
+                                                 fi
+                                             fi
+                                       fi
+                                else
+                                      echo_t "Preserve Logupload not success because of http val $http_ret"
+                                fi
+
 			else
-				echo_t "Regular log upload is disabled"         
+				echo_t "Regular log upload is disabled"
 			fi
 	    	fi
 	    fi
-            
-	    # We do not want to upload anything if log upload is disabled in DCM
-            # If log upload is enabled, then try uploading logs from preserved location if file exists.
-		if [ ! -e $REGULAR_UPLOAD ] && [ "$UPLOAD_LOGS" = "true" ] && [ ! -e $WAITINGFORUPLOAD ]
-	    then
-	       logBackupEnable=`syscfg get log_backup_enable`
-               if [ "$logBackupEnable" = "true" ];then
-                  if [ -d $PRESERVE_LOG_PATH ] ; then
-                     cd $PRESERVE_LOG_PATH
-                     fileToUpload=`ls | grep tgz`
-                     if [ "$fileToUpload" != "" ]
-                     then
-                        echo_t "Uploading backup logs found in $PRESERVE_LOG_PATH"
-                        $RDK_LOGGER_PATH/uploadRDKBLogs.sh $SERVER "HTTP" $URL "true" "" $PRESERVE_LOG_PATH
-                     fi
-                  fi #end if [ -d $PRESERVE_LOG_PATH 
-               fi #end if [ "$logBackupEnable" = "true" ]
-	    fi #if [ ! -e $REGULAR_UPLOAD ]
 	    
 	# Syncing logs after particular interval
 	get_logbackup_cfg

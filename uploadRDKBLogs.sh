@@ -66,7 +66,18 @@ then
 fi
 
 echo_t "UPLOAD_LOGS val is $UPLOAD_LOGS"
+random_sleep()
+{
+    #echo "Retry $1 random sleep"
+    t_min=20
+    t_max=30
+    t_min=$(( t_min * $1 ))
+    t_max=$(( t_max * $1 ))
 
+    randomizedNumber=`awk -v min=$t_min -v max=$t_max -v seed="$(date +%N)" 'BEGIN{srand(seed);print int(min+rand()*(max-min+1))}'`
+    echo_t "Direct comm. Random sleep for $randomizedNumber"
+    sleep $randomizedNumber
+}
 isMaintenanceWindow()
 {
 	FW_START=`cat /nvram/.FirmwareUpgradeStartTime`
@@ -396,7 +407,7 @@ useDirectRequest()
         fi
                
         retries=`expr $retries + 1`
-        sleep 30
+        random_sleep $retries
     done
     rm -f "$ID"
     echo_t "Retries for Direct connection exceeded " 
@@ -860,7 +871,7 @@ HttpLogUpload()
         rm -rf $UploadPath
       fi
     fi
-        
+    return $http_code
 }
 
 #Function to preserve log in case of WAN down
@@ -913,6 +924,8 @@ fi
    then
 	   echo_t "Upload HTTP_LOGS"
 	   HttpLogUpload
+           http_ret=$?
+           echo_t "http_ret value after upload $http_ret"
    elif [ "$EROUTER_IP" != "" ] && [ "$SYSEVENT_PID" == "" ]
    then
 	   echo_t "syseventd is crashed, $WAN_INTERFACE has IP Uploading HTTP_LOGS"
@@ -932,3 +945,4 @@ then
 fi
 # removing event which is set in backupLogs.sh when wan goes down
 sysevent set wan_event_log_upload no
+exit $http_ret
