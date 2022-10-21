@@ -32,7 +32,7 @@ TELEMETRY_INOTIFY_EVENT="$TELEMETRY_INOTIFY_FOLDER/eventType.cmd"
 CRON_TAB="/var/spool/cron/crontabs/root"
 DCM_PATH="/lib/rdk"
 SELFHEAL_PATH="/usr/ccsp/tad"
-CERT_CHECKER_PATH="/usr/bin"
+CERT_CHECKER_PATH="/lib/rdk"
 
 calcRandTimeandUpload()
 {
