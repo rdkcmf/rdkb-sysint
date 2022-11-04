@@ -203,6 +203,10 @@ else
                fi
            done
         fi
+        Nprocess=`ps | grep dca_utility.sh |  wc -l`
+        if [ $Nprocess -gt 3 ]; then
+           ps | grep dca_utility.sh | cut -d ' ' -f1 | xargs kill -9
+        fi
     	exit 0
     else
         echo $$ > /tmp/.dca-utility.pid
